@@ -1,0 +1,155 @@
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h3 class="fw-bold text-secondary">Gestão de Tarefas</h3>
+      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+        <i class="bi bi-plus-lg me-2"></i>Nova Tarefa
+      </button>
+    </div>
+  
+    <div class="row g-4">
+        
+        <div class="col-md-4">
+            <div class="bg-light rounded p-3 h-100 border">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 border-bottom pb-2">
+                    <i class="bi bi-hourglass-split me-2"></i>Pendentes ({{pendentes.length}})
+                </h6>
+
+                <div *ngFor="let t of pendentes" class="card shadow-sm border-0 mb-3 task-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ t.cliente?.nome || 'Interno' }}</span>
+                            <small [ngClass]="getCorPrioridade(t.prioridade)">{{ t.prioridade }}</small>
+                        </div>
+                        <h6 class="card-title fw-bold mb-1">{{ t.titulo }}</h6>
+                        <p class="card-text text-muted small mb-2 text-truncate">{{ t.descricao || 'Sem descrição' }}</p>
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-3 border-top pt-2">
+                            <small class="text-danger" *ngIf="t.dataLimite"><i class="bi bi-calendar me-1"></i>{{ t.dataLimite | date:'dd/MM' }}</small>
+                            <small class="text-muted" *ngIf="!t.dataLimite">Sem prazo</small>
+                            
+                            <div>
+                                <button class="btn btn-sm btn-light text-primary me-1" (click)="editar(t)"><i class="bi bi-pencil\"></i></button>
+                                <button class="btn btn-sm btn-primary" (click)="moverEstado(t, 'EM_CURSO')" title="Iniciar">
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div *ngIf="pendentes.length === 0" class="text-center text-muted small py-4">Tudo limpo por aqui!</div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="bg-primary bg-opacity-10 rounded p-3 h-100 border border-primary border-opacity-25">
+                <h6 class="text-uppercase text-primary fw-bold mb-3 border-bottom border-primary border-opacity-25 pb-2">
+                    <i class="bi bi-gear-wide-connected me-2"></i>Em Curso ({{emCurso.length}})
+                </h6>
+
+                <div *ngFor="let t of emCurso" class="card shadow-sm border-0 mb-3 task-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="badge bg-white text-dark border">{{ t.cliente?.nome || 'Interno' }}</span>
+                            <small [ngClass]="getCorPrioridade(t.prioridade)">{{ t.prioridade }}</small>
+                        </div>
+                        <h6 class="card-title fw-bold mb-1">{{ t.titulo }}</h6>
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-3 border-top pt-2">
+                            <button class="btn btn-sm btn-light text-muted" (click)="moverEstado(t, 'PENDENTE')" title="Voltar atrás">
+                                <i class="bi bi-arrow-left"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light text-primary" (click)="editar(t)"><i class="bi bi-pencil\"></i></button>
+                            <button class="btn btn-sm btn-success" (click)="moverEstado(t, 'CONCLUIDA')" title="Concluir">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="bg-success bg-opacity-10 rounded p-3 h-100 border border-success border-opacity-25">
+                <h6 class="text-uppercase text-success fw-bold mb-3 border-bottom border-success border-opacity-25 pb-2">
+                    <i class="bi bi-check-circle me-2"></i>Concluídas ({{concluidas.length}})
+                </h6>
+
+                <div *ngFor="let t of concluidas" class="card shadow-sm border-0 mb-3 task-card opacity-75">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="badge bg-white text-dark border">{{ t.cliente?.nome || 'Interno' }}</span>
+                            <small class="text-muted"><i class="bi bi-flag-fill me-1"></i>Feito</small>
+                        </div>
+                        <h6 class="card-title fw-bold mb-1 text-decoration-line-through text-muted">{{ t.titulo }}</h6>
+                        
+                        <div class="d-flex justify-content-end align-items-center mt-3 border-top pt-2">
+                            <button class="btn btn-sm btn-outline-secondary me-2" (click)="moverEstado(t, 'EM_CURSO')" title="Reabrir">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" (click)="eliminar(t.id!)" title="Apagar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="modal fade" id="modalTarefa" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">Detalhes da Tarefa</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form [formGroup]="formTarefa">
+            
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Título <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" formControlName="titulo" placeholder="Ex: Ligar ao cliente X">
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Prioridade</label>
+                    <select class="form-select" formControlName="prioridade">
+                        <option value="BAIXA">Baixa</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="ALTA">Alta</option>
+                        <option value="URGENTE">Urgente</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Prazo (Deadline)</label>
+                    <input type="date" class="form-control" formControlName="dataLimite">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Cliente (Opcional)</label>
+                <select class="form-select" formControlName="clienteId">
+                    <option [ngValue]="null">-- Interno / Sem Cliente --</option>
+                    <option *ngFor="let c of listaClientes" [ngValue]="c.id">{{ c.nome }}</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Descrição</label>
+                <textarea class="form-control" formControlName="descricao" rows="3"></textarea>
+            </div>
+  
+          </form>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" [disabled]="formTarefa.invalid" (click)="guardar()">
+            <i class="bi bi-save me-2"></i> Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+</div>

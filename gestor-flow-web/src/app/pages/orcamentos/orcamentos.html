@@ -1,0 +1,164 @@
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h3 class="fw-bold text-secondary">Orçamentos & Simulador</h3>
+      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+        <i class="bi bi-file-earmark-plus me-2"></i>Novo Orçamento
+      </button>
+    </div>
+  
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4 py-3 border-0 text-muted small uppercase">Nº</th>
+                <th class="border-0 text-muted small uppercase">Cliente</th>
+                <th class="border-0 text-muted small uppercase">Data Validade</th>
+                <th class="border-0 text-muted small uppercase text-center">Estado</th>
+                <th class="border-0 text-muted small uppercase text-end">Total</th>
+                <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let o of listaOrcamentos">
+                <td class="ps-4 fw-bold text-primary">#{{ o.id }}</td>
+                <td class="fw-bold">{{ o.cliente?.nome }}</td>
+                <td class="text-muted">{{ o.dataValidade | date:'dd/MM/yyyy' }}</td>
+                <td class="text-center">
+                    <span class="badge" 
+                        [ngClass]="{
+                            'bg-warning text-dark': o.estado === 'RASCUNHO',
+                            'bg-info text-dark': o.estado === 'ENVIADO',
+                            'bg-success': o.estado === 'APROVADO' || o.estado === 'CONVERTIDO_VENDA',
+                            'bg-danger': o.estado === 'REJEITADO'
+                        }">
+                        {{ o.estado?.replace('_', ' ') }}
+                    </span>
+                </td>
+                <td class="text-end fw-bold">{{ o.totalComIva | currency:'EUR' }}</td>
+                <td class="text-end pe-4">
+                    <button *ngIf="o.estado !== 'CONVERTIDO_VENDA'" 
+                            class="btn btn-sm btn-success me-2" 
+                            title="Converter em Venda e Abater Stock"
+                            (click)="converterEmVenda(o.id!)">
+                        <i class="bi bi-check2-circle"></i>
+                    </button>
+
+                    <button class="btn btn-sm btn-light text-primary" (click)="editar(o)">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalOrcamento" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"> <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">Editor de Orçamento</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body bg-light">
+          <form [formGroup]="formOrcamento">
+            
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">Cliente</label>
+                            <select class="form-select" formControlName="clienteId">
+                                <option [ngValue]="null">Selecione...</option>
+                                <option *ngFor="let c of listaClientes" [ngValue]="c.id">{{ c.nome }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label small fw-bold">Válido Até</label>
+                            <input type="date" class="form-control" formControlName="dataValidade">
+                        </div>
+                        <div class="col-md-3 mb-3 d-flex align-items-end justify-content-end">
+                            <div class="text-end">
+                                <small class="text-muted text-uppercase fw-bold">Total Previsto</small>
+                                <h3 class="mb-0 text-primary fw-bold">{{ totalGeralPrevisto | currency:'EUR' }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="fw-bold ms-1 mb-2 text-secondary">Artigos & Serviços</h6>
+            
+            <div formArrayName="linhas">
+                <div *ngFor="let linha of linhasForm.controls; let i = index" [formGroupName]="i" class="card border-0 shadow-sm mb-2">
+                    <div class="card-body py-2">
+                        <div class="row align-items-center">
+                            
+                            <div class="col-md-4">
+                                <label *ngIf="i===0" class="small text-muted mb-1">Artigo</label>
+                                <select class="form-select form-select-sm" formControlName="artigoId" (change)="calcularTotais()">
+                                    <option [ngValue]="null">Escolha...</option>
+                                    <option *ngFor="let a of listaArtigos" [ngValue]="a.id">
+                                        {{ a.nome }} (Custo: {{ a.ultimoPrecoCusto | currency:'EUR' }})
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-1">
+                                <label *ngIf="i===0" class="small text-muted mb-1">Qtd</label>
+                                <input type="number" class="form-control form-select-sm" formControlName="quantidade" (change)="calcularTotais()" min="1">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label *ngIf="i===0" class="small text-muted mb-1">Margem %</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" class="form-control" formControlName="margemLucroPercentual" (change)="calcularTotais()">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label *ngIf="i===0" class="small text-muted mb-1">IVA</label>
+                                <select class="form-select form-select-sm" formControlName="taxaIvaId" (change)="calcularTotais()">
+                                    <option *ngFor="let t of listaTaxasIva" [ngValue]="t.id">{{ t.valor }}%</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label *ngIf="i===0" class="small text-muted mb-1">Manual € (Opcional)</label>
+                                <input type="number" class="form-control form-select-sm" formControlName="precoVendaUnitarioOverride" placeholder="Auto" (change)="calcularTotais()">
+                            </div>
+
+                            <div class="col-md-1 text-end">
+                                <label *ngIf="i===0" class="d-block mb-1">&nbsp;</label>
+                                <button class="btn btn-sm btn-outline-danger border-0" (click)="removerLinha(i)" title="Remover linha">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-light border w-100 mt-2 text-primary fw-bold" (click)="adicionarLinha()">
+                <i class="bi bi-plus-circle me-2"></i> Adicionar Outro Artigo
+            </button>
+
+            <div class="mt-3">
+                <label class="form-label small fw-bold">Notas / Observações</label>
+                <textarea class="form-control" formControlName="notas" rows="2" placeholder="Ex: Entrega prevista para dia 10..."></textarea>
+            </div>
+  
+          </form>
+        </div>
+        <div class="modal-footer bg-light">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" [disabled]="formOrcamento.invalid" (click)="guardar()">
+              <i class="bi bi-save me-2"></i> Guardar
+            </button>
+          </div>
+      </div>
+    </div>
+</div>

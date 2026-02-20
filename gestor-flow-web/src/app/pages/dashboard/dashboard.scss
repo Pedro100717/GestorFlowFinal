@@ -1,0 +1,21 @@
+/* Efeito Hover nos Cartões de KPI */
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 12px; /* Cantos mais redondos */
+}
+
+.card:hover {
+    transform: translateY(-5px); /* Sobe um bocadinho */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; /* Sombra mais forte */
+}
+
+/* Ajuste da Tabela */
+.table thead th {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+.icon-box {
+    transition: all 0.3s;
+}

@@ -1,0 +1,176 @@
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h3 class="fw-bold text-secondary">Registo de Compras</h3>
+      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+        <i class="bi bi-cart-plus me-2"></i>Registar Compra
+      </button>
+    </div>
+  
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4 py-3 border-0 text-muted small uppercase">Data</th>
+                <th class="border-0 text-muted small uppercase">Fornecedor</th>
+                <th class="border-0 text-muted small uppercase">Artigo</th>
+                
+                <th class="border-0 text-muted small uppercase">C. Custo</th>
+                <th class="border-0 text-muted small uppercase">Secção</th>
+                
+                <th class="border-0 text-muted small uppercase text-end">Qtd</th>
+                <th class="border-0 text-muted small uppercase text-end">Preço Base</th>
+                <th class="border-0 text-muted small uppercase text-end">IVA</th> <th class="border-0 text-muted small uppercase text-end pe-4">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of listaCompras">
+                <td class="ps-4 text-muted small">{{ c.dataCompra | date:'dd/MM/yyyy' }}</td>
+                
+                <td class="fw-bold text-dark">{{ c.fornecedor?.nome }}</td>
+                
+                <td>
+                    <div class="fw-bold">{{ c.artigo?.nome }}</div>
+                    <div class="small text-muted" *ngIf="c.designacao !== c.artigo?.nome">
+                        {{ c.designacao }}
+                    </div>
+                </td>
+
+                <td>
+                    <span *ngIf="c.centroCusto" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
+                        {{ c.centroCusto.codigo }}
+                    </span>
+                    <span *ngIf="!c.centroCusto" class="text-muted small">-</span>
+                </td>
+                <td>
+                    <span *ngIf="c.seccaoHomo" class="text-secondary small fw-bold">
+                        {{ c.seccaoHomo.codigo }}
+                    </span>
+                    <span *ngIf="!c.seccaoHomo" class="text-muted small">-</span>
+                </td>
+
+                <td class="text-end font-monospace">{{ c.quantidade }}</td>
+                <td class="text-end font-monospace">{{ c.precoUnitario | currency:'EUR' }}</td>
+                
+                <td class="text-end text-muted small">
+                    <span *ngIf="c.taxaIva">{{ c.taxaIva.valor }}%</span>
+                    <span *ngIf="!c.taxaIva">-</span>
+                </td>
+
+                <td class="text-end fw-bold text-primary pe-4">{{ c.total | currency:'EUR' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal fade" id="modalCompra" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">Nova Compra</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form [formGroup]="formCompra">
+            
+            <div class="mb-3 bg-light p-3 rounded border">
+                <label class="form-label small fw-bold text-primary">
+                    <i class="bi bi-calendar-check me-2"></i>Data da Compra
+                </label>
+                <input type="date" class="form-control border-primary" formControlName="dataCompra">
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Fornecedor <span class="text-danger">*</span></label>
+                    <select class="form-select" formControlName="fornecedorId"
+                            [ngClass]="{ 'is-invalid': f['fornecedorId'].touched && f['fornecedorId'].invalid }">
+                        <option [ngValue]="null">Selecione...</option>
+                        <option *ngFor="let f of listaFornecedores" [ngValue]="f.id">{{ f.nome }}</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Artigo <span class="text-danger">*</span></label>
+                    <select class="form-select" formControlName="artigoId" (change)="aoSelecionarArtigo()"
+                            [ngClass]="{ 'is-invalid': f['artigoId'].touched && f['artigoId'].invalid }">
+                        <option [ngValue]="null">Selecione...</option>
+                        <option *ngFor="let a of listaArtigos" [ngValue]="a.id">{{ a.nome }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr class="my-2 opacity-10">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Centro de Custo <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" formControlName="centroCustoId"
+                            [ngClass]="{ 'is-invalid': f['centroCustoId'].touched && f['centroCustoId'].invalid }">
+                        <option [ngValue]="null">- Selecione -</option>
+                        <option *ngFor="let cc of listaCentros" [ngValue]="cc.id">{{ cc.codigo }} - {{ cc.nome }}</option>
+                    </select>
+                    <div class="invalid-feedback">Obrigatório.</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Secção Homogénea <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" formControlName="seccaoHomoId"
+                            [ngClass]="{ 'is-invalid': f['seccaoHomoId'].touched && f['seccaoHomoId'].invalid }">
+                        <option [ngValue]="null">- Selecione -</option>
+                        <option *ngFor="let sh of listaSeccoes" [ngValue]="sh.id">{{ sh.codigo }} - {{ sh.nome }}</option>
+                    </select>
+                    <div class="invalid-feedback">Obrigatório.</div>
+                </div>
+            </div>
+
+            <div class="bg-light p-3 rounded mb-3 border">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label small fw-bold">Quantidade <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" formControlName="quantidade">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label small fw-bold">Preço Unit. (Base) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" formControlName="precoUnitario">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label small fw-bold">Taxa IVA <span class="text-danger">*</span></label>
+                        <select class="form-select" formControlName="taxaIvaId"
+                                [ngClass]="{ 'is-invalid': f['taxaIvaId'].touched && f['taxaIvaId'].invalid }">
+                            <option *ngFor="let t of listaTaxasIva" [ngValue]="t.id">{{ t.descricao }} ({{ t.valor }}%)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3 mb-2 d-flex flex-column justify-content-end align-items-end">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Total a Pagar</small>
+                        <h4 class="mb-0 text-primary fw-bold">
+                            {{ totalCalculado | currency:'EUR' }}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Nº Fatura</label>
+                    <input type="text" class="form-control" formControlName="numeroFaturaFornecedor">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small fw-bold">Descrição (Opcional)</label>
+                    <input type="text" class="form-control" formControlName="designacaoPersonalizada" placeholder="Se diferente do artigo">
+                </div>
+            </div>
+  
+          </form>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" [disabled]="formCompra.invalid" (click)="registarCompra()">
+            <i class="bi bi-check-lg me-2"></i>Registar
+          </button>
+        </div>
+      </div>
+    </div>
+</div>

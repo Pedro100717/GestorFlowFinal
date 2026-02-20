@@ -1,0 +1,183 @@
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-secondary">Património</h3>
+        <button class="btn btn-primary" (click)="abrirModalNovo()">
+            <i class="bi bi-plus-lg me-2"></i>Novo Ativo
+        </button>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3 border-0 text-muted small uppercase">Ativo</th>
+                            <th class="border-0 text-muted small uppercase">Detalhes Chave</th>
+                            <th class="border-0 text-muted small uppercase">Data Aquisição</th>
+                            <th class="border-0 text-muted small uppercase">Valor</th>
+                            <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let p of listaPatrimonio">
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="icon-box bg-light text-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                         style="width: 40px; height: 40px;">
+                                        <i class="bi" [ngClass]="getIcone(p)"></i>
+                                    </div>
+                                    <span class="fw-bold">{{ p.nome }}</span>
+                                </div>
+                            </td>
+                            
+                            <td class="text-muted small">
+                                <span *ngIf="p.matricula"><i class="bi bi-card-text me-1"></i> {{ p.matricula }}</span>
+                                <span *ngIf="p.morada"><i class="bi bi-geo-alt me-1"></i> {{ p.morada }}</span>
+                                <span *ngIf="p.numeroSerie"><i class="bi bi-barcode me-1"></i> {{ p.numeroSerie }}</span>
+                            </td>
+
+                            <td class="text-muted">{{ p.dataAquisicao | date:'dd/MM/yyyy' }}</td>
+                            <td class="fw-bold text-dark">{{ p.valorAquisicao | currency:'EUR' }}</td>
+                            
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-light text-danger" (click)="eliminar(p.id!)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr *ngIf="listaPatrimonio.length === 0">
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-box-seam fs-1 d-block mb-2 opacity-50"></i>
+                                Ainda não tem património registado.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalPatrimonio" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">Novo Ativo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <div class="modal-body p-4">
+                
+                <ul class="nav nav-pills nav-fill mb-4 bg-light p-1 rounded">
+                    <li class="nav-item">
+                        <button class="nav-link" [class.active]="tipoSelecionado === 'VIATURA'" 
+                                (click)="mudarTipo('VIATURA')">🚗 Viatura</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" [class.active]="tipoSelecionado === 'IMOVEL'" 
+                                (click)="mudarTipo('IMOVEL')">🏠 Imóvel</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" [class.active]="tipoSelecionado === 'FERRAMENTA'" 
+                                (click)="mudarTipo('FERRAMENTA')">🔨 Ferramenta</button>
+                    </li>
+                </ul>
+
+                <form [formGroup]="formPatrimonio">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nome do Ativo <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" formControlName="nome" placeholder="Ex: Carrinha Ford / Armazém A">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">Data Aquisição</label>
+                            <input type="date" class="form-control" formControlName="dataAquisicao">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">Valor (€)</label>
+                            <input type="number" class="form-control" formControlName="valorAquisicao">
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div *ngIf="tipoSelecionado === 'VIATURA'">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Matrícula <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control bg-warning bg-opacity-10" formControlName="matricula" placeholder="XX-XX-XX">
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label small fw-bold">Marca</label>
+                                <input type="text" class="form-control" formControlName="marca">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label small fw-bold">Modelo</label>
+                                <input type="text" class="form-control" formControlName="modelo">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Validade Seguro</label>
+                                <input type="date" class="form-control" formControlName="validadeSeguro">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Próx. Inspeção</label>
+                                <input type="date" class="form-control" formControlName="proximaInspecao">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div *ngIf="tipoSelecionado === 'IMOVEL'">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Morada Completa <span class="text-danger">*</span></label>
+                            <textarea class="form-control" formControlName="morada" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Artigo Matricial</label>
+                                <input type="text" class="form-control" formControlName="artigoMatricial">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Tipo</label>
+                                <select class="form-select" formControlName="tipo">
+                                    <option value="Urbano">Urbano</option>
+                                    <option value="Rústico">Rústico</option>
+                                    <option value="Misto">Misto</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div *ngIf="tipoSelecionado === 'FERRAMENTA'">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Número de Série</label>
+                            <input type="text" class="form-control" formControlName="numeroSerie">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Estado de Conservação</label>
+                            <select class="form-select" formControlName="estadoConservacao">
+                                <option value="Novo">Novo</option>
+                                <option value="Bom">Bom</option>
+                                <option value="Razoável">Razoável</option>
+                                <option value="Mau">Mau</option>
+                                <option value="Avariado">Avariado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" (click)="guardar()" [disabled]="formPatrimonio.invalid">
+                    <i class="bi bi-save me-2"></i> Guardar Ativo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

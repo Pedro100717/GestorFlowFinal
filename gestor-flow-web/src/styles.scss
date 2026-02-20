@@ -1,0 +1,54 @@
+/* 1. Importar a fonte 'Inter' (A fonte mais usada em UIs modernas) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* 2. Definir as nossas Cores Personalizadas (A "Marca" GestorFlow) */
+$primary: #4F46E5;       /* Um Índigo moderno (em vez do azul normal) */
+$secondary: #64748B;     /* Um cinza azulado profissional */
+$success: #10B981;       /* Verde Esmeralda (Dinheiro a entrar) */
+$danger: #EF4444;        /* Vermelho Suave (Despesas/Erros) */
+$warning: #F59E0B;       /* Laranja (Alertas) */
+$info: #3B82F6;          /* Azul claro (Informação) */
+$light: #F3F4F6;         /* Fundo da página (Cinza muito claro) */
+$dark: #111827;          /* Texto escuro / Sidebar */
+
+/* 3. Configurações Globais */
+$font-family-base: 'Inter', sans-serif; /* Fonte limpa */
+$border-radius: 0.5rem;                 /* Cantos arredondados (8px) */
+$box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Sombra suave */
+
+/* 4. Importar o Bootstrap (AGORA ele usa as nossas cores acima) */
+@import "bootstrap/scss/bootstrap";
+/* 5. Importar os Ícones */
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+/* 6. Ajustes Extras de UI */
+body {
+    background-color: $light; /* O fundo cinza suave para não cansar a vista */
+    color: $dark;
+}
+
+/* Cartões modernos */
+.card {
+    border: none; /* Sem borda preta */
+    box-shadow: $box-shadow; /* Com sombra */
+    transition: transform 0.2s; /* Efeito ao passar o rato */
+}
+
+/* Links do menu lateral */
+.nav-link {
+    font-weight: 500;
+    color: #9CA3AF; /* Cinza claro */
+    padding: 12px 16px;
+    border-radius: 8px;
+    transition: all 0.3s;
+    
+    &:hover, &.active {
+        background-color: rgba(255, 255, 255, 0.1); /* Efeito vidro */
+        color: white;
+    }
+    
+    i {
+        margin-right: 10px;
+        font-size: 1.1rem;
+    }
+}

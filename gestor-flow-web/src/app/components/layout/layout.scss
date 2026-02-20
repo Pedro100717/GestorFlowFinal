@@ -1,0 +1,28 @@
+/* Quando o link está ativo (página selecionada) */
+.active-link {
+    color: #4F46E5 !important; /* A nossa cor Indigo */
+    background-color: white !important;
+    border-radius: 0.5rem; /* Cantos arredondados */
+    margin: 0 10px; /* Margem para não colar às bordas */
+}
+
+/* Efeito ao passar o rato nos links normais */
+.list-group-item {
+    border: none;
+    padding: 15px 20px;
+    margin: 2px 10px; /* Espaço entre botões */
+    border-radius: 0.5rem;
+    transition: all 0.3s;
+}
+
+.list-group-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white !important;
+    transform: translateX(5px); /* Pequeno movimento para a direita */
+}
+
+/* Sidebar fixa */
+.sidebar-heading {
+    letter-spacing: 1px;
+    font-family: 'Inter', sans-serif;
+}
