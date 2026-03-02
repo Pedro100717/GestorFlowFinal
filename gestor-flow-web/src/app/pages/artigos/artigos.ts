@@ -27,30 +27,28 @@ export class ArtigosComponent implements OnInit {
 
   ngOnInit() {
     this.inicializarFormulario();
-    this.carregarArtigos();
+    
+    // --- A MÁGICA REATIVA ---
+    // 1. O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
+    this.artigoService.artigos$.subscribe(artigos => {
+      this.listaArtigos = artigos;
+      this.cd.detectChanges();
+    });
+
+    // 2. Manda o serviço encher o cofre pela primeira vez
+    this.artigoService.carregarArtigosDaAPI();
   }
 
   inicializarFormulario() {
     this.formArtigo = this.fb.group({
       nome: ['', [Validators.required, Validators.minLength(3)]],
       codigoBarras: [''],
-      
       // Lógica: True = Mercadoria (Stock), False = Serviço
       movimentaStock: [true],
     });
   }
 
   get f() { return this.formArtigo.controls; }
-
-  carregarArtigos() {
-    this.artigoService.listar().subscribe({
-      next: (dados: any) => {
-        this.listaArtigos = dados.content || dados;
-        this.cd.detectChanges();
-      },
-      error: (erro) => console.error('Erro ao carregar artigos:', erro)
-    });
-  }
 
   abrirModalNovo() {
     this.idEmEdicao = null;
@@ -64,13 +62,15 @@ export class ArtigosComponent implements OnInit {
 
   editarArtigo(artigo: Artigo) {
     this.idEmEdicao = artigo.id!; 
-
+  
     this.formArtigo.patchValue({
       nome: artigo.nome,
       codigoBarras: artigo.codigoBarras,
-      movimentaStock: artigo.movimentaStock,
+      // Tradução: Se o tipo for MERCADORIA, o switch "movimentaStock" deve estar ON (true)
+      movimentaStock: artigo.tipo === 'MERCADORIA',
+      familiaId: artigo.familiaId
     });
-
+  
     this.abrirModal();
   }
 
@@ -97,10 +97,8 @@ export class ArtigosComponent implements OnInit {
   eliminarArtigo(id: number) {
     if (confirm('Tens a certeza que queres eliminar este artigo?')) {
       this.artigoService.apagar(id).subscribe({
-        next: () => {
-          alert('Artigo eliminado!');
-          this.carregarArtigos();
-        },
+        // Já não precisamos de mandar recarregar a lista do Java! O cofre trata disso.
+        next: () => alert('Artigo eliminado!'),
         error: (e) => alert('Erro ao eliminar.')
       });
     }
@@ -108,7 +106,7 @@ export class ArtigosComponent implements OnInit {
 
   finalizarAcao(msg: string) {
     alert(msg);
-    this.carregarArtigos();
+    // REMOVIDO: this.carregarArtigos(); -> O delay foi eliminado!
     const modalElement = document.getElementById('modalArtigo');
     if (modalElement) {
        const modal = bootstrap.Modal.getInstance(modalElement);
@@ -119,7 +117,6 @@ export class ArtigosComponent implements OnInit {
   abrirModal() {
     const el = document.getElementById('modalArtigo');
     if(el) {
-        // Garante que abre limpo
         let modal = bootstrap.Modal.getInstance(el);
         if (!modal) modal = new bootstrap.Modal(el);
         modal.show();

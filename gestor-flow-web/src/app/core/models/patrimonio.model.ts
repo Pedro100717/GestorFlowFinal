@@ -3,13 +3,25 @@ export interface Patrimonio {
     nome: string;
     dataAquisicao?: string;
     valorAquisicao?: number;
-    // Campos específicos opcionais (para a listagem geral funcionar)
+    
+    // O Java agora envia-nos isto limpinho
+    tipoPatrimonio?: string; 
+
+    // Campos de Viatura
     matricula?: string;
     marca?: string;
     modelo?: string;
+    validadeSeguro?: string;
+    proximaInspecao?: string;
+
+    // Campos de Imóvel
     morada?: string;
+    artigoMatricial?: string;
+    tipo?: string;
+
+    // Campos de Ferramenta
     numeroSerie?: string;
+    estadoConservacao?: string;
 }
 
-// Tipos auxiliares para o formulário
 export type TipoPatrimonio = 'VIATURA' | 'IMOVEL' | 'FERRAMENTA';

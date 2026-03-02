@@ -2,10 +2,11 @@ package pt.gestorflow.backend.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.*;
-import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.service.PatrimonioService;
 
 import java.util.List;
@@ -17,32 +18,29 @@ public class PatrimonioController {
 
     private final PatrimonioService service;
 
-    // Listar tudo
     @GetMapping
-    public List<Patrimonio> listar() {
-        return service.listarPatrimonio();
+    public Page<PatrimonioResponseDTO> listar(Pageable pageable) {
+        return service.listarPatrimonio(pageable);
     }
 
-    // Criar Viatura
     @PostMapping("/viaturas")
-    public ResponseEntity<PatrimonioViatura> criarViatura(@Valid @RequestBody PatrimonioViaturaDTO dto) {
+    public ResponseEntity<PatrimonioResponseDTO> criarViatura(@Valid @RequestBody PatrimonioViaturaDTO dto) {
         return ResponseEntity.ok(service.criarViatura(dto));
     }
 
-    // Criar Imovel
     @PostMapping("/imoveis")
-    public ResponseEntity<PatrimonioImovel> criarImovel(@Valid @RequestBody PatrimonioImovelDTO dto) {
+    public ResponseEntity<PatrimonioResponseDTO> criarImovel(@Valid @RequestBody PatrimonioImovelDTO dto) {
         return ResponseEntity.ok(service.criarImovel(dto));
     }
 
-    // Criar Ferramenta
     @PostMapping("/ferramentas")
-    public ResponseEntity<PatrimonioFerramenta> criarFerramenta(@Valid @RequestBody PatrimonioFerramentaDTO dto) {
+    public ResponseEntity<PatrimonioResponseDTO> criarFerramenta(@Valid @RequestBody PatrimonioFerramentaDTO dto) {
         return ResponseEntity.ok(service.criarFerramenta(dto));
     }
 
     @DeleteMapping("/{id}")
-    public void eliminar(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         service.eliminar(id);
+        return ResponseEntity.noContent().build();
     }
 }

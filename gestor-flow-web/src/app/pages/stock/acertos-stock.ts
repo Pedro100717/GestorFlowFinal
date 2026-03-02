@@ -16,7 +16,6 @@ declare var bootstrap: any;
 })
 export class AcertosStockComponent implements OnInit {
 
-  // Controlo das abas
   abaAtiva: 'inventario' | 'historico' = 'inventario';
 
   listaHistorico: MovimentoStock[] = [];
@@ -32,7 +31,19 @@ export class AcertosStockComponent implements OnInit {
 
   ngOnInit() {
     this.inicializarFormulario();
-    this.carregarDados();
+    this.carregarDadosIniciais();
+
+    // ESCUTAR O COFRE DO HISTÓRICO
+    this.stockService.historico$.subscribe((lista: MovimentoStock[]) => {
+      this.listaHistorico = lista;
+      this.cd.detectChanges();
+    });
+
+    // ESCUTAR O COFRE DOS ARTIGOS
+    this.artigoService.artigos$.subscribe((lista: any[]) => {
+      this.listaMercadorias = lista.filter((a: any) => a.tipo === 'MERCADORIA');
+      this.cd.detectChanges();
+    });
   }
 
   inicializarFormulario() {
@@ -46,32 +57,18 @@ export class AcertosStockComponent implements OnInit {
 
   get f() { return this.formAcerto.controls; }
 
-  carregarDados() {
-    this.stockService.listarHistorico().subscribe({
-      next: (dados: any) => {
-        this.listaHistorico = dados.content || dados; 
-        this.cd.detectChanges();
-      }
-    });
-
-    this.artigoService.listar().subscribe({
-      next: (dados: any) => {
-        const todosArtigos: Artigo[] = dados.content || dados;
-        this.listaMercadorias = todosArtigos.filter(a => a.movimentaStock === true);
-        this.cd.detectChanges();
-      }
-    });
+  carregarDadosIniciais() {
+    this.stockService.carregarHistoricoDaAPI();
+    this.artigoService.carregarArtigosDaAPI();
   }
 
-  // Agora recebe opcionalmente o ID da mercadoria para pré-selecionar no formulário
   abrirModalNovo(mercadoriaId: number | null = null) {
     this.formAcerto.reset({ 
         tipo: 'ENTRADA', 
         quantidade: 1,
         mercadoriaId: mercadoriaId 
     });
-    const modal = new bootstrap.Modal(document.getElementById('modalAcerto'));
-    modal.show();
+    new bootstrap.Modal(document.getElementById('modalAcerto')).show();
   }
 
   guardarAcerto() {
@@ -86,8 +83,11 @@ export class AcertosStockComponent implements OnInit {
     }
 
     this.stockService.registarAcerto(formValues).subscribe({
-      next: () => {
-        this.carregarDados();
+      next: (novoAcerto: any) => {
+        // Atualiza a memória instantaneamente sem ir ao Java
+        this.artigoService.atualizarStockNaMemoria(formValues.mercadoriaId, novoAcerto.stockAposMovimento); 
+
+        alert('Acerto registado com sucesso!');
         bootstrap.Modal.getInstance(document.getElementById('modalAcerto'))?.hide();
       },
       error: (e: any) => alert('Erro: ' + (e.error?.message || 'Falha ao registar.'))

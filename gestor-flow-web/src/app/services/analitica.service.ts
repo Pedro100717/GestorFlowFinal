@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay, tap } from 'rxjs';
 import { CentroCusto, SeccaoHomo } from '../core/models/analitica.model';
 
 @Injectable({
@@ -12,43 +12,68 @@ export class AnaliticaService {
   private readonly API_CC = 'http://localhost:8080/api/centros-custo';
   private readonly API_SH = 'http://localhost:8080/api/seccoes-homogeneas';
 
+  private cacheCentros$: Observable<CentroCusto[]> | null = null;
+  private cacheSeccoes$: Observable<SeccaoHomo[]> | null = null;
+
   constructor(private http: HttpClient) { }
 
   // ==========================================
   // CENTROS DE CUSTO
   // ==========================================
   listarCentros(): Observable<CentroCusto[]> {
-    return this.http.get<CentroCusto[]>(this.API_CC);
+    if(!this.cacheCentros$) {
+      this.cacheCentros$ = this.http.get<CentroCusto[]>(this.API_CC).pipe(
+        shareReplay(1)
+      );
+    }
+    return this.cacheCentros$;
   }
 
   criarCentro(dto: CentroCusto): Observable<CentroCusto> {
-    return this.http.post<CentroCusto>(this.API_CC, dto);
+    return this.http.post<CentroCusto>(this.API_CC, dto).pipe(
+      tap(() => this.cacheCentros$ = null) // Limpa o cache para forçar atualização na próxima listagem
+    );
   }
 
   atualizarCentro(id: number, dto: CentroCusto): Observable<CentroCusto> {
-    return this.http.put<CentroCusto>(`${this.API_CC}/${id}`, dto);
+    return this.http.put<CentroCusto>(`${this.API_CC}/${id}`, dto).pipe(
+      tap(() => this.cacheCentros$ = null) // Limpa o cache para forçar atualização na próxima listagem
+    );
   }
 
   eliminarCentro(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.API_CC}/${id}`);
+    return this.http.delete<void>(`${this.API_CC}/${id}`).pipe(
+      tap(() => this.cacheCentros$ = null) // Limpa o cache para forçar atualização na próxima listagem
+    );
   }
 
   // ==========================================
   // SECÇÕES HOMOGÉNEAS
   // ==========================================
   listarSeccoes(): Observable<SeccaoHomo[]> {
-    return this.http.get<SeccaoHomo[]>(this.API_SH);
+    if(!this.cacheSeccoes$) {
+      this.cacheSeccoes$ = this.http.get<SeccaoHomo[]>(this.API_SH).pipe(
+        shareReplay(1)
+      );
+    }
+    return this.cacheSeccoes$;
   }
 
   criarSeccao(dto: SeccaoHomo): Observable<SeccaoHomo> {
-    return this.http.post<SeccaoHomo>(this.API_SH, dto);
+    return this.http.post<SeccaoHomo>(this.API_SH, dto).pipe(
+      tap(() => this.cacheSeccoes$ = null)
+    ); 
   }
 
   atualizarSeccao(id: number, dto: SeccaoHomo): Observable<SeccaoHomo> {
-    return this.http.put<SeccaoHomo>(`${this.API_SH}/${id}`, dto);
+    return this.http.put<SeccaoHomo>(`${this.API_SH}/${id}`, dto).pipe(
+      tap(() => this.cacheSeccoes$ = null)
+    );
   }
 
   eliminarSeccao(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.API_SH}/${id}`);
+    return this.http.delete<void>(`${this.API_SH}/${id}`).pipe(
+      tap(() => this.cacheSeccoes$ = null)
+    );
   }
 }

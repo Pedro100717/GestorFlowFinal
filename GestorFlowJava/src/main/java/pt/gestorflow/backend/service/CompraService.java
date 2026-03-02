@@ -10,6 +10,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.CompraDTO;
+import pt.gestorflow.backend.dto.CompraResponseDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
@@ -28,12 +29,16 @@ public class CompraService {
     private final SeccaoHomoRepository seccaoHomoRepository;
     private final TxIvaRepository txIvaRepository;
 
+    // --- INJEÇÕES DA TESOURARIA ---
+    private final ContaBancariaRepository contaRepository;
+    private final MovimentoRepository movimentoRepository;
+
     private Utilizador getUtilizadorLogado() {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
     @Transactional
-    public Compra registarCompra(CompraDTO dto) {
+    public CompraResponseDTO registarCompra(CompraDTO dto) {
         Utilizador user = getUtilizadorLogado();
 
         Fornecedor fornecedor = fornecedorRepository.findById(dto.getFornecedorId())
@@ -47,8 +52,7 @@ public class CompraService {
                 .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
 
         // 2. Lógica de Stock e Custo
-
-        // NOVO: Verifica se é Mercadoria antes de mexer no stock!
+        // Verifica se é Mercadoria antes de mexer no stock!
         if (artigo instanceof Mercadoria mercadoria) {
             mercadoria.setStockAtual(mercadoria.getStockAtual().add(dto.getQuantidade()));
             // O save no final atualiza tudo
@@ -68,7 +72,7 @@ public class CompraService {
         compra.setFornecedor(fornecedor);
         compra.setArtigo(artigo);
         compra.setUtilizador(user);
-        compra.setTaxaIva(taxaIva); // Guardamos a taxa usada nesta compra
+        compra.setTaxaIva(taxaIva);
 
         compra.setQuantidade(dto.getQuantidade());
         compra.setPrecoUnitario(dto.getPrecoUnitario());
@@ -79,7 +83,6 @@ public class CompraService {
         BigDecimal totalComIva = totalSemIva.multiply(fatorIva);
 
         compra.setTotal(totalComIva);
-
         compra.setNumeroFaturaFornecedor(dto.getNumeroFaturaFornecedor());
 
         if (dto.getDesignacaoPersonalizada() != null && !dto.getDesignacaoPersonalizada().isBlank()) {
@@ -96,16 +99,99 @@ public class CompraService {
             seccaoHomoRepository.findById(dto.getSeccaoHomoId()).ifPresent(compra::setSeccaoHomo);
         }
 
-        return compraRepository.save(compra);
+        // Guardar a compra primeiro para gerar o ID na base de dados
+        Compra compraGuardada = compraRepository.save(compra);
+
+        // ==========================================
+        // 4. LIGAÇÃO À TESOURARIA: PAGAMENTO AUTOMÁTICO
+        // ==========================================
+        ContaBancaria conta = contaRepository.findById(dto.getContaBancariaId())
+                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada"));
+
+        compraGuardada.setContaBancaria(conta);
+        compraRepository.save(compraGuardada);
+
+        // Segurança: Garantir que a conta é do utilizador logado
+        if (!conta.getUtilizador().getId().equals(user.getId())) {
+            throw new RuntimeException("Sem permissão para movimentar esta conta.");
+        }
+
+        // Tirar o dinheiro da conta (Débito)
+        conta.setSaldo(conta.getSaldo().subtract(totalComIva));
+        contaRepository.save(conta);
+
+        // Registar o rasto no extrato bancário
+        Movimento mov = new Movimento();
+        mov.setConta(conta);
+        mov.setUtilizador(user);
+        mov.setTipo(Movimento.TipoMovimento.DEBITO);
+        mov.setValor(totalComIva);
+        mov.setSaldoApos(conta.getSaldo());
+
+        // Construir a descrição do movimento
+        String refFatura = dto.getNumeroFaturaFornecedor() != null && !dto.getNumeroFaturaFornecedor().isBlank()
+                ? " | Fatura: " + dto.getNumeroFaturaFornecedor()
+                : "";
+        mov.setDescricao("Pagamento de Compra a " + fornecedor.getNome() + refFatura);
+
+        // Ligações vitais ao Fornecedor e à Compra
+        mov.setCompra(compraGuardada);
+        mov.setFornecedor(fornecedor);
+
+        movimentoRepository.save(mov);
+
+        // Devolver o DTO Plano limpo e sem ciclos infinitos!
+        return converterParaDTO(compraGuardada);
     }
 
-    public Page<Compra> listarMinhasCompras(int pagina, int tamanho) {
+    public Page<CompraResponseDTO> listarMinhasCompras(int pagina, int tamanho) {
         Utilizador user = getUtilizadorLogado();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataCompra").descending());
-        return compraRepository.findAllByUtilizadorId(user.getId(), pageable);
+        // A magia acontece aqui: converte cada Entidade do repositório no DTO de Saída
+        return compraRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
     }
 
     public List<TxIva> listarTaxasIva() {
         return txIvaRepository.findAll();
+    }
+
+    // ==========================================
+    // CONVERSOR: Entidade -> Flat DTO
+    // ==========================================
+    private CompraResponseDTO converterParaDTO(Compra c) {
+        CompraResponseDTO dto = new CompraResponseDTO();
+        dto.setId(c.getId());
+        dto.setDataCompra(c.getDataCompra());
+        dto.setNumeroFaturaFornecedor(c.getNumeroFaturaFornecedor());
+        dto.setDesignacao(c.getDesignacao());
+        dto.setQuantidade(c.getQuantidade());
+        dto.setPrecoUnitario(c.getPrecoUnitario());
+        dto.setTotal(c.getTotal());
+
+        if (c.getFornecedor() != null) {
+            dto.setFornecedorId(c.getFornecedor().getId());
+            dto.setFornecedorNome(c.getFornecedor().getNome());
+        }
+        if (c.getArtigo() != null) {
+            dto.setArtigoId(c.getArtigo().getId());
+            dto.setArtigoNome(c.getArtigo().getNome());
+        }
+        if (c.getCentroCusto() != null) {
+            dto.setCentroCustoId(c.getCentroCusto().getId());
+            dto.setCentroCustoCodigo(c.getCentroCusto().getCodigo());
+        }
+        if (c.getSeccaoHomo() != null) {
+            dto.setSeccaoHomoId(c.getSeccaoHomo().getId());
+            dto.setSeccaoHomoCodigo(c.getSeccaoHomo().getCodigo());
+        }
+        if (c.getTaxaIva() != null) {
+            dto.setTaxaIvaId(c.getTaxaIva().getId());
+            dto.setTaxaIvaValor(c.getTaxaIva().getValor());
+        }
+        if (c.getContaBancaria() != null) {
+            dto.setContaBancariaId(c.getContaBancaria().getId());
+            dto.setContaBancariaNome(c.getContaBancaria().getNome());
+        }
+        return dto;
     }
 }

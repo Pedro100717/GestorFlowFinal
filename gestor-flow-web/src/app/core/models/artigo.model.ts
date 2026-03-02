@@ -2,17 +2,16 @@ export interface Artigo {
     id?: number;
     nome: string;
     codigoBarras?: string;
-    preco: number;            // Preço de Venda
-    
-    // NOVO
+    preco?: number;            // Preço de Venda
     ultimoPrecoCusto?: number; 
-
-    movimentaStock: boolean;
+    
+    // --- NOVO: Campos do DTO Plano ---
+    tipo?: 'MERCADORIA' | 'SERVICO';
     stockAtual?: number;
-    stockInicial?: number;
-
-    // REMOVIDO: txIvaId e taxaIva
-    // REMOVIDO: familiaId (ou manténs se quiseres usar famílias, mas no DTO Java vi que tinhas)
+    
     familiaId?: number;
-    familia?: { id: number; nome: string; };
+    familiaNome?: string;
+
+    // Mantemos este para o Formulário de criação saber o que enviar ao Java
+    movimentaStock?: boolean; 
 }

@@ -6,7 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.MovimentoStockDTO;
-import pt.gestorflow.backend.model.MovimentoStock;
+import pt.gestorflow.backend.dto.MovimentoStockResponseDTO; // NOVO IMPORT
 import pt.gestorflow.backend.service.MovimentoStockService;
 
 @RestController
@@ -17,12 +17,12 @@ public class MovimentoStockController {
     private final MovimentoStockService service;
 
     @PostMapping("/acerto")
-    public ResponseEntity<MovimentoStock> registarAcerto(@Valid @RequestBody MovimentoStockDTO dto) {
+    public ResponseEntity<MovimentoStockResponseDTO> registarAcerto(@Valid @RequestBody MovimentoStockDTO dto) {
         return ResponseEntity.ok(service.registarAcerto(dto));
     }
 
     @GetMapping("/historico")
-    public ResponseEntity<Page<MovimentoStock>> listarHistorico(
+    public ResponseEntity<Page<MovimentoStockResponseDTO>> listarHistorico(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {

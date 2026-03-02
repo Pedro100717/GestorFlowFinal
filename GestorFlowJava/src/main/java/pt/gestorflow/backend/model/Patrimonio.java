@@ -32,6 +32,9 @@ public abstract class Patrimonio {
     @Column(precision = 12, scale = 2)
     private BigDecimal valorAquisicao;
 
+    @Column(nullable = false)
+    private boolean ativo = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
     @JsonIgnore

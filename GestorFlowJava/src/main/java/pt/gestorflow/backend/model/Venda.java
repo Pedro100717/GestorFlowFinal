@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -59,6 +60,11 @@ public class Venda {
     @JoinColumn(name = "utilizador_id", nullable = false)
     @JsonIgnore
     private Utilizador utilizador;
+
+    @ManyToOne
+    @JoinColumn(name = "conta_bancaria_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private ContaBancaria contaBancaria;
 
     @PrePersist
     protected void onCreate() {

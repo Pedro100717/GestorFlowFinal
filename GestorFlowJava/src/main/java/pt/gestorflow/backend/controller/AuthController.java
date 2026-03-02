@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.LoginDTO;
+import pt.gestorflow.backend.dto.LoginResponseDTO;
 import pt.gestorflow.backend.dto.RegistoDTO;
 import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.UtilizadorRepository;
@@ -30,6 +31,7 @@ public class AuthController {
     private final UtilizadorService utilizadorService;
 
     // --- LOGIN (Já tinhas) ---
+    // --- LOGIN ---
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO dados) {
         Optional<Utilizador> userOpt = repository.findByEmail(dados.getEmail());
@@ -47,7 +49,16 @@ public class AuthController {
         }
 
         String token = tokenService.gerarToken(user);
-        return ResponseEntity.ok(token);
+
+        // --- A FORMA "ENTERPRISE" ---
+        // Usamos o nosso DTO para empacotar a resposta (Token, Nome e Email)
+        LoginResponseDTO resposta = new LoginResponseDTO(
+                token,
+                user.getNomeUtilizador(), // Repara que aqui usamos o nome exato da tua Entidade!
+                user.getEmail()
+        );
+
+        return ResponseEntity.ok(resposta);
     }
 
     // --- REGISTO (NOVO - O que faltava!) ---

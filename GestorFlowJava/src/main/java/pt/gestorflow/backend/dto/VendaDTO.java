@@ -35,5 +35,8 @@ public class VendaDTO {
     private Long centroCustoId;
     private Long seccaoHomoId;
 
+    @NotNull(message = "A conta bancaria de recebimento é obrigatoria")
+    private Long contaBancariaId;
+
     private LocalDate dataVenda;
 }

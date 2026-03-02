@@ -144,29 +144,29 @@ public class OrcamentoService {
 
     // --- 3. CONVERTER EM VENDA (A "Magia") ---
     @Transactional
-    public void converterEmVenda(Long orcamentoId) {
+    public void converterEmVenda(Long orcamentoId, Long contaBancariaId) { // <--- RECEBE A CONTA
         Orcamento orcamento = buscarPorId(orcamentoId);
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
             throw new RuntimeException("Este orçamento já foi processado anteriormente.");
         }
 
-        // Gera uma venda para cada linha do orçamento
         for (LinhaOrcamento linha : orcamento.getLinhas()) {
             VendaDTO vendaDTO = new VendaDTO();
             vendaDTO.setClienteId(orcamento.getCliente().getId());
             vendaDTO.setArtigoId(linha.getArtigo().getId());
             vendaDTO.setTaxaIvaId(linha.getTaxaIva().getId());
             vendaDTO.setQuantidade(linha.getQuantidade());
-            vendaDTO.setPrecoUnitario(linha.getPrecoVendaUnitario()); // Usa o preço aprovado no orçamento
+            vendaDTO.setPrecoUnitario(linha.getPrecoVendaUnitario());
             vendaDTO.setDesignacaoPersonalizada("Origem: Orçamento #" + orcamento.getId());
             vendaDTO.setDataVenda(LocalDateTime.now().toLocalDate());
 
-            // Chama o VendaService existente (que trata do stock e validações)
+            // ---> A MÁGICA AQUI: Associar o dinheiro à conta escolhida! <---
+            vendaDTO.setContaBancariaId(contaBancariaId);
+
             vendaService.registarVenda(vendaDTO);
         }
 
-        // Atualiza estado
         orcamento.setEstado(Orcamento.EstadoOrcamento.CONVERTIDO_VENDA);
         orcamentoRepository.save(orcamento);
     }

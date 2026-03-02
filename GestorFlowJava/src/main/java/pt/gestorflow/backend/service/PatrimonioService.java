@@ -2,6 +2,8 @@ package pt.gestorflow.backend.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.*;
@@ -9,6 +11,7 @@ import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.PatrimonioRepository;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,33 +23,33 @@ public class PatrimonioService {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
-    // Listar TUDO junto (A tabela vai mostrar tudo misturado, o que é bom para visão geral)
-    public List<Patrimonio> listarPatrimonio() {
-        return repository.findAllByUtilizadorId(getUtilizadorLogado().getId());
+    // LISTAR TUDO (Agora devolve o DTO plano e apenas os ATIVOS)
+    public Page<PatrimonioResponseDTO> listarPatrimonio(Pageable pageable) {
+        return repository.findAllByUtilizadorIdAndAtivoTrue(getUtilizadorLogado().getId(), pageable)
+                .map(this::mapToDTO); // O Page.map() converte cada item e mantém a formatação da página!
     }
 
     // --- CRIAR VIATURA ---
     @Transactional
-    public PatrimonioViatura criarViatura(PatrimonioViaturaDTO dto) {
+    public PatrimonioResponseDTO criarViatura(PatrimonioViaturaDTO dto) {
         PatrimonioViatura p = new PatrimonioViatura();
-        // Dados Base
         p.setNome(dto.getNome());
         p.setDataAquisicao(dto.getDataAquisicao());
         p.setValorAquisicao(dto.getValorAquisicao());
         p.setUtilizador(getUtilizadorLogado());
-        // Dados Específicos
+
         p.setMatricula(dto.getMatricula());
         p.setMarca(dto.getMarca());
         p.setModelo(dto.getModelo());
         p.setValidadeSeguro(dto.getValidadeSeguro());
         p.setProximaInspecao(dto.getProximaInspecao());
 
-        return repository.save(p);
+        return mapToDTO(repository.save(p));
     }
 
     // --- CRIAR IMÓVEL ---
     @Transactional
-    public PatrimonioImovel criarImovel(PatrimonioImovelDTO dto) {
+    public PatrimonioResponseDTO criarImovel(PatrimonioImovelDTO dto) {
         PatrimonioImovel p = new PatrimonioImovel();
         p.setNome(dto.getNome());
         p.setDataAquisicao(dto.getDataAquisicao());
@@ -57,12 +60,12 @@ public class PatrimonioService {
         p.setArtigoMatricial(dto.getArtigoMatricial());
         p.setTipo(dto.getTipo());
 
-        return repository.save(p);
+        return mapToDTO(repository.save(p));
     }
 
     // --- CRIAR FERRAMENTA ---
     @Transactional
-    public PatrimonioFerramenta criarFerramenta(PatrimonioFerramentaDTO dto) {
+    public PatrimonioResponseDTO criarFerramenta(PatrimonioFerramentaDTO dto) {
         PatrimonioFerramenta p = new PatrimonioFerramenta();
         p.setNome(dto.getNome());
         p.setDataAquisicao(dto.getDataAquisicao());
@@ -72,14 +75,48 @@ public class PatrimonioService {
         p.setNumeroSerie(dto.getNumeroSerie());
         p.setEstadoConservacao(dto.getEstadoConservacao());
 
-        return repository.save(p);
+        return mapToDTO(repository.save(p));
     }
 
-    // Apagar qualquer coisa
+    // --- ELIMINAR (AGORA É SOFT DELETE) ---
     public void eliminar(Long id) {
-        // Validação de segurança básica
-        Patrimonio p = repository.findById(id).orElseThrow();
-        if(!p.getUtilizador().getId().equals(getUtilizadorLogado().getId())) throw new RuntimeException("Proibido");
-        repository.deleteById(id);
+        Patrimonio p = repository.findById(id).orElseThrow(() -> new RuntimeException("Património não encontrado"));
+        if(!p.getUtilizador().getId().equals(getUtilizadorLogado().getId())) {
+            throw new RuntimeException("Acesso negado");
+        }
+
+        // Em vez de repository.deleteById(id), fazemos isto:
+        p.setAtivo(false);
+        repository.save(p);
+    }
+
+    // --- CONVERSOR (MAPPER) MÁGICO PARA DTO ---
+    private PatrimonioResponseDTO mapToDTO(Patrimonio p) {
+        PatrimonioResponseDTO dto = new PatrimonioResponseDTO();
+        dto.setId(p.getId());
+        dto.setNome(p.getNome());
+        dto.setDataAquisicao(p.getDataAquisicao());
+        dto.setValorAquisicao(p.getValorAquisicao());
+
+        if (p instanceof PatrimonioViatura v) {
+            dto.setTipoPatrimonio("VIATURA");
+            dto.setMatricula(v.getMatricula());
+            dto.setMarca(v.getMarca());
+            dto.setModelo(v.getModelo());
+            dto.setValidadeSeguro(v.getValidadeSeguro());
+            dto.setProximaInspecao(v.getProximaInspecao());
+        }
+        else if (p instanceof PatrimonioImovel i) {
+            dto.setTipoPatrimonio("IMOVEL");
+            dto.setMorada(i.getMorada());
+            dto.setArtigoMatricial(i.getArtigoMatricial());
+            dto.setTipo(i.getTipo());
+        }
+        else if (p instanceof PatrimonioFerramenta f) {
+            dto.setTipoPatrimonio("FERRAMENTA");
+            dto.setNumeroSerie(f.getNumeroSerie());
+            dto.setEstadoConservacao(f.getEstadoConservacao());
+        }
+        return dto;
     }
 }

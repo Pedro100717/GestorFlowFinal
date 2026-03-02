@@ -26,7 +26,16 @@ export class FornecedoresComponent implements OnInit {
 
   ngOnInit() {
     this.inicializarFormulario();
-    this.carregarFornecedores();
+
+    // --- A MÁGICA REATIVA ---
+    // 1. O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
+    this.fornecedorService.fornecedores$.subscribe(fornecedores => {
+      this.listaFornecedores = fornecedores;
+      this.cd.detectChanges();
+    });
+
+    // 2. Manda o serviço encher o cofre pela primeira vez
+    this.fornecedorService.carregarFornecedoresDaAPI();
   }
 
   inicializarFormulario() {
@@ -41,17 +50,6 @@ export class FornecedoresComponent implements OnInit {
   }
 
   get f() { return this.formFornecedor.controls; }
-
-  carregarFornecedores() {
-    this.fornecedorService.listar().subscribe({
-      next: (dados: any) => {
-        // Suporte para lista simples ou paginada, por segurança
-        this.listaFornecedores = Array.isArray(dados) ? dados : (dados.content || []);
-        this.cd.detectChanges();
-      },
-      error: (e) => console.error('Erro:', e)
-    });
-  }
 
   // --- AÇÕES ---
 
@@ -93,10 +91,8 @@ export class FornecedoresComponent implements OnInit {
   eliminarFornecedor(id: number) {
     if (confirm('Tem a certeza?')) {
       this.fornecedorService.apagar(id).subscribe({
-        next: () => {
-          alert('Eliminado com sucesso!');
-          this.carregarFornecedores();
-        },
+        // Adeus delays e recarregamentos da tabela!
+        next: () => alert('Eliminado com sucesso!'),
         error: (e: any) => alert('Erro: Este fornecedor já tem compras associadas.')
       });
     }
@@ -104,7 +100,7 @@ export class FornecedoresComponent implements OnInit {
 
   finalizar(msg: string) {
     alert(msg);
-    this.carregarFornecedores();
+    // REMOVIDO: this.carregarFornecedores(); -> Já não precisamos disto!
     const modalElement = document.getElementById('modalFornecedor');
     if (modalElement) {
       bootstrap.Modal.getInstance(modalElement)?.hide();

@@ -35,7 +35,17 @@ export class TarefasComponent implements OnInit {
 
   ngOnInit() {
     this.inicializarFormulario();
-    this.carregarDados();
+    this.carregarClientesEInicializarTarefas();
+
+    // A MAGIA DO KANBAN: 
+    // Sempre que o Service modificar a lista (criar, alterar, mover estado),
+    // isto dispara automaticamente e reorganiza as colunas em zero segundos!
+    this.tarefaService.tarefas$.subscribe(todas => {
+      this.pendentes = todas.filter(t => t.estado === 'PENDENTE');
+      this.emCurso = todas.filter(t => t.estado === 'EM_CURSO');
+      this.concluidas = todas.filter(t => t.estado === 'CONCLUIDA');
+      this.cd.detectChanges();
+    });
   }
 
   inicializarFormulario() {
@@ -49,20 +59,15 @@ export class TarefasComponent implements OnInit {
     });
   }
 
-  carregarDados() {
-    // 1. Carregar Clientes para o Select
-    this.clienteService.listar().subscribe(d => this.listaClientes = d.content || d);
-
-    // 2. Carregar Tarefas e Distribuir pelas Colunas
-    this.tarefaService.listar().subscribe(dados => {
-      const todas: Tarefa[] = dados.content || dados;
-      
-      this.pendentes = todas.filter(t => t.estado === 'PENDENTE');
-      this.emCurso = todas.filter(t => t.estado === 'EM_CURSO');
-      this.concluidas = todas.filter(t => t.estado === 'CONCLUIDA');
-      
-      this.cd.detectChanges();
+  carregarClientesEInicializarTarefas() {
+    // 1. Carregar Clientes para o Select (Normal, sem gestão de estado)
+    this.clienteService.listar().subscribe(d => {
+        this.listaClientes = d.content || d;
+        this.cd.detectChanges();
     });
+
+    // 2. Manda o Serviço ir ao Java buscar as Tarefas e encher o "cofre"
+    this.tarefaService.carregarTarefasDaAPI();
   }
 
   // --- AÇÕES ---
@@ -94,28 +99,28 @@ export class TarefasComponent implements OnInit {
     const dto = this.formTarefa.value;
 
     if (this.idEmEdicao) {
-      this.tarefaService.atualizar(this.idEmEdicao, dto).subscribe(() => this.finalizar());
+      this.tarefaService.atualizar(this.idEmEdicao, dto).subscribe(() => this.fecharModal());
     } else {
-      this.tarefaService.criar(dto).subscribe(() => this.finalizar());
+      this.tarefaService.criar(dto).subscribe(() => this.fecharModal());
     }
   }
 
   // Mover cartão de uma coluna para outra (Ex: Pendente -> Em Curso)
   moverEstado(tarefa: Tarefa, novoEstado: EstadoTarefa) {
-    this.tarefaService.mudarEstado(tarefa.id!, tarefa, novoEstado).subscribe(() => {
-      this.carregarDados(); // Recarrega para mudar de coluna
-    });
+    // Já NÃO FAZEMOS o carregarDados()! O tap() no service vai atirar a tarefa para a coluna certa na memória.
+    this.tarefaService.mudarEstado(tarefa.id!, tarefa, novoEstado).subscribe();
   }
 
   eliminar(id: number) {
     if(confirm('Apagar esta tarefa?')) {
-        this.tarefaService.eliminar(id).subscribe(() => this.carregarDados());
+        // Já NÃO FAZEMOS o carregarDados()! O tap() vai tirar a tarefa do ecrã instantaneamente.
+        this.tarefaService.eliminar(id).subscribe();
     }
   }
 
-  finalizar() {
+  fecharModal() {
     bootstrap.Modal.getInstance(document.getElementById('modalTarefa'))?.hide();
-    this.carregarDados();
+    // Adeus recarregamento constante de listas!
   }
 
   // Helper para cores das prioridades

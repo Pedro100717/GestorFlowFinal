@@ -22,7 +22,7 @@
             <tbody>
               <tr *ngFor="let o of listaOrcamentos">
                 <td class="ps-4 fw-bold text-primary">#{{ o.id }}</td>
-                <td class="fw-bold">{{ o.cliente?.nome }}</td>
+                <td class="fw-bold">{{ o.cliente?.nome || o.clienteNome }}</td>
                 <td class="text-muted">{{ o.dataValidade | date:'dd/MM/yyyy' }}</td>
                 <td class="text-center">
                     <span class="badge" 
@@ -37,10 +37,11 @@
                 </td>
                 <td class="text-end fw-bold">{{ o.totalComIva | currency:'EUR' }}</td>
                 <td class="text-end pe-4">
+                    
                     <button *ngIf="o.estado !== 'CONVERTIDO_VENDA'" 
                             class="btn btn-sm btn-success me-2" 
                             title="Converter em Venda e Abater Stock"
-                            (click)="converterEmVenda(o.id!)">
+                            (click)="prepararConversao(o)">
                         <i class="bi bi-check2-circle"></i>
                     </button>
 
@@ -56,7 +57,8 @@
 </div>
 
 <div class="modal fade" id="modalOrcamento" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable"> <div class="modal-content border-0 shadow">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"> 
+      <div class="modal-content border-0 shadow">
         <div class="modal-header bg-primary text-white">
           <h5 class="modal-title fw-bold">Editor de Orçamento</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -67,21 +69,31 @@
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label small fw-bold">Cliente</label>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold">Cliente <span class="text-danger">*</span></label>
                             <select class="form-select" formControlName="clienteId">
                                 <option [ngValue]="null">Selecione...</option>
                                 <option *ngFor="let c of listaClientes" [ngValue]="c.id">{{ c.nome }}</option>
                             </select>
                         </div>
-                        <div class="col-md-3 mb-3">
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold">Conta Bancária (Opcional)</label>
+                            <select class="form-select" formControlName="contaBancariaId">
+                                <option [ngValue]="null">Decidir mais tarde...</option>
+                                <option *ngFor="let conta of listaContas" [ngValue]="conta.id">{{ conta.nome }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 mb-3">
                             <label class="form-label small fw-bold">Válido Até</label>
                             <input type="date" class="form-control" formControlName="dataValidade">
                         </div>
-                        <div class="col-md-3 mb-3 d-flex align-items-end justify-content-end">
+
+                        <div class="col-md-2 mb-3 d-flex align-items-end justify-content-end">
                             <div class="text-end">
                                 <small class="text-muted text-uppercase fw-bold">Total Previsto</small>
-                                <h3 class="mb-0 text-primary fw-bold">{{ totalGeralPrevisto | currency:'EUR' }}</h3>
+                                <h4 class="mb-0 text-primary fw-bold">{{ totalGeralPrevisto | currency:'EUR' }}</h4>
                             </div>
                         </div>
                     </div>
@@ -160,5 +172,32 @@
             </button>
           </div>
       </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEscolherConta" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h6 class="modal-title fw-bold"><i class="bi bi-bank me-2"></i>Destino do Dinheiro</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <p class="small text-muted mb-3">O Orçamento <strong>#{{ orcamentoParaConverter?.id }}</strong> não tem conta atribuída. Para faturar a venda, indique para onde vai o dinheiro:</p>
+                
+                <select class="form-select mb-3" [(ngModel)]="contaSelecionadaParaConversao">
+                    <option [ngValue]="null">-- Escolha a Conta --</option>
+                    <option *ngFor="let conta of listaContas" [ngValue]="conta.id">{{ conta.nome }}</option>
+                </select>
+            </div>
+            <div class="modal-footer bg-light p-2 justify-content-center">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-success fw-bold" 
+                        [disabled]="!contaSelecionadaParaConversao"
+                        (click)="confirmarConversaoComNovaConta()">
+                    <i class="bi bi-check-lg me-1"></i> Confirmar Fatura
+                </button>
+            </div>
+        </div>
     </div>
 </div>

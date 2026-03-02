@@ -6,8 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.VendaDTO;
-import pt.gestorflow.backend.model.TxIva; // Importar
-import pt.gestorflow.backend.model.Venda;
+import pt.gestorflow.backend.dto.VendaResponseDTO; // <--- NOVO IMPORT
+import pt.gestorflow.backend.model.TxIva;
 import pt.gestorflow.backend.service.VendaService;
 
 import java.util.List;
@@ -29,14 +29,13 @@ public class VendaController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<Venda>> listar(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+    public ResponseEntity<Page<VendaResponseDTO>> listar( // <--- CORRIGIDO AQUI PARA O DTO
+                                                          @RequestParam(defaultValue = "0") int page,
+                                                          @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(service.listarMinhasVendas(page, size));
     }
 
-    // --- NOVO: Endpoint para fornecer as taxas ao Frontend ---
     @GetMapping("/taxas-iva")
     public List<TxIva> listarTaxasIva() {
         return service.listarTaxasIva();

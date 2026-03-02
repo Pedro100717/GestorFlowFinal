@@ -6,32 +6,29 @@ export interface Venda {
     id?: number;
     dataVenda?: string;
     designacao?: string;
-    
     quantidade: number;
     precoUnitario: number;
-    
-    // Valores calculados pelo Backend
     totalSemIva?: number;
-    totalComIva?: number; // O valor final que o cliente paga
+    totalComIva?: number;
 
-    // Relações de Leitura
-    cliente?: Cliente;
-    artigo?: Artigo;
-    centroCusto?: CentroCusto;
-    seccaoHomo?: SeccaoHomo;
-    
-    taxaIva?: {
-        id: number;
-        descricao: string;
-        valor: number;
-    };
-
-    // Relações de Escrita (IDs para o formulário)
+    // Flat Fields (Substitui os objetos antigos)
     clienteId?: number;
+    clienteNome?: string;
+
     artigoId?: number;
+    artigoNome?: string;
+
     centroCustoId?: number;
+    centroCustoCodigo?: string;
+
     seccaoHomoId?: number;
+    seccaoHomoCodigo?: string;
+
     taxaIvaId?: number;
+    taxaIvaValor?: number;
+
+    contaBancariaId?: number;
+    contaBancariaNome?: string;
     
     designacaoPersonalizada?: string;
 }

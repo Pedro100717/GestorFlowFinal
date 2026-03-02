@@ -24,12 +24,15 @@
                 <td class="ps-4">
                     <div class="fw-bold text-dark">{{ artigo.nome }}</div>
                     <div class="small text-muted" *ngIf="artigo.codigoBarras">{{ artigo.codigoBarras }}</div>
+                    <div class="badge bg-light text-secondary border small" style="font-size: 0.7rem;" *ngIf="artigo.familiaNome">
+                      {{ artigo.familiaNome }}
+                    </div>
                 </td>
                 
-                <td class="text-muted">{{ artigo.preco | currency:'EUR' }}</td>
-
+                <td class="text-muted">{{ (artigo.preco || 0) | currency:'EUR' }}</td>
+            
                 <td>
-                  <ng-container *ngIf="artigo.movimentaStock; else isServico">
+                  <ng-container *ngIf="artigo.tipo === 'MERCADORIA'; else isServico">
                       <span class="badge" 
                             [ngClass]="(artigo.stockAtual || 0) > 0 ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
                         <i class="bi bi-box-seam me-1"></i> {{ artigo.stockAtual || 0 }} Un
@@ -41,7 +44,7 @@
                       </span>
                   </ng-template>
                 </td>
-
+            
                 <td class="text-end pe-4">
                   <button class="btn btn-sm btn-light text-primary me-2" (click)="editarArtigo(artigo)">
                     <i class="bi bi-pencil"></i>

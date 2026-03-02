@@ -4,13 +4,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import pt.gestorflow.backend.dto.ContaBancariaDTO; // Novo Import
+import pt.gestorflow.backend.dto.ContaBancariaDTO;
 import pt.gestorflow.backend.dto.MovimentoDTO;
+import pt.gestorflow.backend.dto.MovimentoResponseDTO; // NOVO IMPORT
+import pt.gestorflow.backend.dto.TransferenciaDTO;
 import pt.gestorflow.backend.model.ContaBancaria;
-import pt.gestorflow.backend.model.Movimento;
 import pt.gestorflow.backend.service.TesourariaService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tesouraria")
@@ -30,12 +32,18 @@ public class TesourariaController {
     }
 
     @PostMapping("/movimentos")
-    public ResponseEntity<Movimento> criarMovimento(@Valid @RequestBody MovimentoDTO dto) {
+    public ResponseEntity<MovimentoResponseDTO> criarMovimento(@Valid @RequestBody MovimentoDTO dto) {
         return ResponseEntity.ok(service.registarMovimento(dto));
     }
 
     @GetMapping("/contas/{id}/extrato")
-    public List<Movimento> verExtrato(@PathVariable Long id) {
+    public List<MovimentoResponseDTO> verExtrato(@PathVariable Long id) {
         return service.obterExtrato(id);
+    }
+
+    @PostMapping("/transferencias")
+    public ResponseEntity<?> realizarTransferencia(@Valid @RequestBody TransferenciaDTO dto) {
+        service.transferirEntreContas(dto);
+        return ResponseEntity.ok().body(Map.of("mensagem", "Transferência realizada com sucesso!"));
     }
 }

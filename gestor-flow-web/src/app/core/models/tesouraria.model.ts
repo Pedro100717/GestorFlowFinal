@@ -1,3 +1,7 @@
+// 1. IMPORTAR OS MODELOS REAIS
+import { Compra } from './compra.model';
+import { Venda } from './venda.model';
+
 export interface ContaBancaria {
     id?: number;
     nome: string;
@@ -14,4 +18,8 @@ export interface Movimento {
     valor: number;
     saldoApos?: number;
     contaId?: number; // Para facilitar envios
+    
+    // 2. LIGAÇÕES 100% TIPADAS (Sem 'any')
+    compraId?: number; 
+    vendaId?: number; 
 }

@@ -86,12 +86,14 @@
             <tbody>
               <tr *ngFor="let h of listaHistorico">
                 <td class="ps-4 text-muted small">{{ h.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
-                <td class="fw-bold text-dark">{{ h.mercadoria?.nome }}</td>
+                <td class="fw-bold text-dark">{{ h.mercadoriaNome }}</td>
                 <td class="text-center">
-                    <span class="badge" [ngClass]="{'bg-success bg-opacity-10 text-success border border-success': h.tipo === 'ENTRADA', 'bg-danger bg-opacity-10 text-danger border border-danger': h.tipo === 'SAIDA'}">
-                        {{ h.tipo }}
-                    </span>
-                </td>
+                  <span class="badge" [ngClass]="{
+                      'bg-success': h.tipo === 'ENTRADA', 
+                      'bg-danger': h.tipo === 'SAIDA'}">
+                      {{ h.tipo }}
+                  </span>
+              </td>
                 <td class="text-end fw-bold" [ngClass]="{'text-success': h.tipo === 'ENTRADA', 'text-danger': h.tipo === 'SAIDA'}">
                     {{ h.tipo === 'ENTRADA' ? '+' : '-' }}{{ h.quantidade }}
                 </td>

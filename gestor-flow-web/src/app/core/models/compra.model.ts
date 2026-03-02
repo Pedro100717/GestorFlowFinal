@@ -7,28 +7,26 @@ export interface Compra {
     dataCompra?: string;
     numeroFaturaFornecedor?: string;
     designacao?: string;
-    
     quantidade: number;
     precoUnitario: number;
     total?: number;
 
-    // --- Relações de Leitura (Vêm do Backend) ---
-    fornecedor?: Fornecedor;
-    artigo?: Artigo;
-    centroCusto?: CentroCusto;
-    seccaoHomo?: SeccaoHomo;
-    
-    // NOVO: O objeto Taxa de IVA completo
-    taxaIva?: {
-        id: number;
-        descricao: string;
-        valor: number;
-    };
-
-    // --- Relações de Escrita (IDs para enviar ao Backend) ---
+    // Flat Fields (Substitui os objetos antigos)
     fornecedorId?: number;
+    fornecedorNome?: string;
+
     artigoId?: number;
+    artigoNome?: string;
+
     centroCustoId?: number;
+    centroCustoCodigo?: string;
+
     seccaoHomoId?: number;
-    taxaIvaId?: number; // <--- NOVO: Obrigatório para criar a compra
+    seccaoHomoCodigo?: string;
+
+    taxaIvaId?: number;
+    taxaIvaValor?: number;
+
+    contaBancariaId?: number;
+    contaBancariaNome?: string;
 }

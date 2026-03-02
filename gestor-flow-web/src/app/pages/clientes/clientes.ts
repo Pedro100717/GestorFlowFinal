@@ -26,13 +26,22 @@ export class ClientesComponent implements OnInit {
 
   ngOnInit() {
     this.inicializarFormulario();
-    this.carregarClientes();
+
+    // --- A MÁGICA REATIVA ---
+    // 1. O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
+    this.clienteService.clientes$.subscribe(clientes => {
+      this.listaClientes = clientes;
+      this.cd.detectChanges();
+    });
+
+    // 2. Manda o serviço encher o cofre pela primeira vez
+    this.clienteService.carregarClientesDaAPI();
   }
 
   inicializarFormulario() {
     this.formCliente = this.fb.group({
       nome: ['', [Validators.required, Validators.minLength(3)]],
-      nif: ['', [Validators.pattern('^[0-9]{9}$')]], // Validação visual simples (9 dígitos)
+      nif: ['', [Validators.pattern('^[0-9]{9}$')]], 
       email: ['', [Validators.email]],
       telefone: [''],
       morada: [''],
@@ -41,17 +50,6 @@ export class ClientesComponent implements OnInit {
   }
 
   get f() { return this.formCliente.controls; }
-
-  carregarClientes() {
-    this.clienteService.listar().subscribe({
-      next: (dados) => {
-        // Suporte para Paginação (Spring retorna objeto Page) ou Lista direta
-        this.listaClientes = dados.content || dados;
-        this.cd.detectChanges();
-      },
-      error: (e) => console.error('Erro ao carregar clientes:', e)
-    });
-  }
 
   // --- AÇÕES ---
 
@@ -64,7 +62,7 @@ export class ClientesComponent implements OnInit {
 
   editarCliente(cliente: Cliente) {
     this.idEmEdicao = cliente.id!;
-    this.formCliente.patchValue(cliente); // Preenche tudo automaticamente
+    this.formCliente.patchValue(cliente); 
     const modal = new bootstrap.Modal(document.getElementById('modalCliente'));
     modal.show();
   }
@@ -93,10 +91,8 @@ export class ClientesComponent implements OnInit {
   eliminarCliente(id: number) {
     if (confirm('Tem a certeza? Isto apagará o histórico deste cliente.')) {
       this.clienteService.apagar(id).subscribe({
-        next: () => {
-          alert('Cliente eliminado!');
-          this.carregarClientes();
-        },
+        // Sem delay! Apenas dá o alerta de sucesso.
+        next: () => alert('Cliente eliminado!'),
         error: (e: any) => alert('Erro: Este cliente pode ter vendas associadas.')
       });
     }
@@ -104,7 +100,7 @@ export class ClientesComponent implements OnInit {
 
   finalizar(msg: string) {
     alert(msg);
-    this.carregarClientes();
+    // REMOVIDO: this.carregarClientes()! A tabela atualiza sozinha pelo Cofre.
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalCliente'));
     modal?.hide();
   }

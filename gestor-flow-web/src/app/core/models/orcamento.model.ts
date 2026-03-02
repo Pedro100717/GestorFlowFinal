@@ -27,12 +27,20 @@ export interface Orcamento {
     estado?: 'RASCUNHO' | 'ENVIADO' | 'APROVADO' | 'REJEITADO' | 'CONVERTIDO_VENDA';
     notas?: string;
     
-    clienteId: number;
-    cliente?: Cliente;
-
+    // --- TOTAIS (Faltava o totalComIva para o HTML) ---
     totalCusto?: number;
     totalSemIva?: number;
     totalComIva?: number;
+    
+    // --- DADOS DO CLIENTE ---
+    cliente?: Cliente | any; // Suporta a entidade completa (o.cliente?.nome)
+    clienteId?: number;
+    clienteNome?: string;    // Adicionado o '?' para ser opcional
+    
+    // --- DADOS DA CONTA BANCÁRIA ---
+    contaBancaria?: any;     // Suporta a entidade completa
+    contaBancariaId?: number;
 
-    linhas: LinhaOrcamento[];
+    // --- LINHAS ---
+    linhas?: LinhaOrcamento[] | any[]; // Essencial para a função de editar() no .ts
 }

@@ -11,4 +11,5 @@ export interface MovimentoStock {
     
     // Para envio no DTO de criação
     mercadoriaId?: number;
+    mercadoriaNome?: string;
 }

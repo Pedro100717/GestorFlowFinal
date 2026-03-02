@@ -2,8 +2,11 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold text-secondary">Tesouraria</h3>
         <div>
+            <button class="btn btn-outline-success me-2" (click)="novaTransferencia()">
+                <i class="bi bi-arrow-left-right me-2"></i>Transferência
+            </button>
             <button class="btn btn-outline-primary me-2" (click)="novoMovimento()">
-                <i class="bi bi-arrow-left-right me-2"></i>Movimento
+                <i class="bi bi-plus-slash-minus me-2"></i>Movimento Manual
             </button>
             <button class="btn btn-primary" (click)="novaConta()">
                 <i class="bi bi-bank me-2"></i>Nova Conta
@@ -57,6 +60,14 @@
                                   [ngClass]="m.tipo === 'CREDITO' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
                                 {{ m.tipo === 'CREDITO' ? 'Entrada' : 'Saída' }}
                             </span>
+
+                            <span *ngIf="m.compraId" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-2">
+                                <i class="bi bi-cart me-1"></i> Compra
+                            </span>
+                            <span *ngIf="m.vendaId" class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 me-2">
+                                <i class="bi bi-receipt me-1"></i> Venda
+                            </span>
+
                             {{ m.descricao }}
                         </td>
                         <td class="text-end pe-4 fw-bold" 
@@ -108,7 +119,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold">Registar Movimento</h5>
+                <h5 class="modal-title fw-bold">Registar Movimento Manual</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
@@ -147,6 +158,64 @@
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                 <button class="btn btn-primary" [disabled]="formMovimento.invalid" (click)="registarMovimento()">
                     Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalTransferencia" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-arrow-left-right me-2"></i>Transferência Interna
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form [formGroup]="formTransferencia">
+                    
+                    <div class="mb-3 p-3 bg-light rounded border">
+                        <label class="form-label small fw-bold text-danger">Retirar Dinheiro de:</label>
+                        <select class="form-select border-danger border-opacity-50" formControlName="contaOrigemId">
+                            <option [ngValue]="null" disabled>Selecione a conta de origem...</option>
+                            <option *ngFor="let c of listaContas" [ngValue]="c.id">
+                                {{ c.nome }} (Disponível: {{ c.saldo | currency:'EUR' }})
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4 p-3 bg-light rounded border">
+                        <label class="form-label small fw-bold text-success">Depositar Dinheiro em:</label>
+                        <select class="form-select border-success border-opacity-50" formControlName="contaDestinoId">
+                            <option [ngValue]="null" disabled>Selecione a conta de destino...</option>
+                            <option *ngFor="let c of listaContas" [ngValue]="c.id">
+                                {{ c.nome }} (Atual: {{ c.saldo | currency:'EUR' }})
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label small fw-bold">Valor a Transferir (€)</label>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold">€</span>
+                                <input type="number" class="form-control form-control-lg fw-bold text-center text-primary" formControlName="valor" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label small fw-bold text-muted">Descrição / Motivo (Opcional)</label>
+                        <input type="text" class="form-control" formControlName="descricao" placeholder="Ex: Reforço de Caixa">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success" [disabled]="formTransferencia.invalid" (click)="realizarTransferencia()">
+                    <i class="bi bi-check-circle me-1"></i>Confirmar Transferência
                 </button>
             </div>
         </div>

@@ -1,6 +1,7 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core'; // <--- Importar ChangeDetectorRef
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { DashboardService } from '../../services/dashboard.service';
+import { VendaResumo } from '../../core/models/dashboard.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -16,34 +17,28 @@ export class DashboardComponent implements OnInit {
   totalClientes: number = 0;
   valorStock: number = 0;
   totalCompras: number = 0;
-  
-  ultimasVendas: any[] = [];
+  ultimasVendas: VendaResumo[] = [];
 
   constructor(
-    private http: HttpClient,
-    private cd: ChangeDetectorRef // <--- Injetar o detetor de mudanças
+    private dashboardService: DashboardService,
+    private cd: ChangeDetectorRef 
   ) {}
 
   ngOnInit() {
-    this.carregarDados();
-  }
-
-  carregarDados() {
-    this.http.get<any>('http://localhost:8080/api/dashboard/resumo').subscribe({
-      next: (dados) => {
-        console.log('Dados recebidos:', dados); // Para confirmares na consola
-
-        // Atualizar variáveis
+    // 1. Fica à escuta do Cofre. Sempre que houver dados, atualiza as variáveis.
+    this.dashboardService.resumo$.subscribe(dados => {
+      if (dados) {
         this.totalVendas = dados.totalVendas || 0;
         this.valorStock = dados.valorStock || 0;
         this.totalClientes = dados.totalClientes || 0;
         this.totalCompras = dados.totalCompras || 0;
         this.ultimasVendas = dados.ultimasVendas || [];
-
-        // O SEGREDO: Forçar o Angular a atualizar o HTML agora mesmo!
+        
         this.cd.detectChanges(); 
-      },
-      error: (e) => console.error('Erro dashboard:', e)
+      }
     });
+
+    // 2. Manda o serviço ir ao Java ver se há novidades
+    this.dashboardService.carregarResumo();
   }
 }

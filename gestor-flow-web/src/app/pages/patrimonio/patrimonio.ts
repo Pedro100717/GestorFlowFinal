@@ -17,7 +17,6 @@ export class PatrimonioComponent implements OnInit {
   listaPatrimonio: Patrimonio[] = [];
   formPatrimonio!: FormGroup;
   
-  // Controla que tipo estamos a criar no momento
   tipoSelecionado: TipoPatrimonio = 'VIATURA';
 
   constructor(
@@ -27,30 +26,27 @@ export class PatrimonioComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.carregarPatrimonio();
-    this.construirFormulario(); // Inicia com VIATURA por defeito
-  }
+    this.construirFormulario(); 
+    this.carregarDadosIniciais();
 
-  carregarPatrimonio() {
-    this.patrimonioService.listar().subscribe({
-      next: (dados) => {
-        this.listaPatrimonio = dados;
-        this.cd.detectChanges();
-      },
-      error: (e) => console.error('Erro:', e)
+    // ESCUTAR O COFRE
+    this.patrimonioService.patrimonio$.subscribe((lista: Patrimonio[]) => {
+      this.listaPatrimonio = lista;
+      this.cd.detectChanges();
     });
   }
 
-  // Reconstrói o formulário consoante o tipo escolhido
+  carregarDadosIniciais() {
+    this.patrimonioService.carregarPatrimonioDaAPI();
+  }
+
   construirFormulario() {
-    // 1. Campos Comuns a todos
     const group: any = {
       nome: ['', Validators.required],
-      dataAquisicao: [new Date().toISOString().split('T')[0]], // Data de hoje
+      dataAquisicao: [new Date().toISOString().split('T')[0]], 
       valorAquisicao: [0, [Validators.min(0)]]
     };
 
-    // 2. Campos Específicos
     if (this.tipoSelecionado === 'VIATURA') {
       group.matricula = ['', Validators.required];
       group.marca = [''];
@@ -61,7 +57,7 @@ export class PatrimonioComponent implements OnInit {
     else if (this.tipoSelecionado === 'IMOVEL') {
       group.morada = ['', Validators.required];
       group.artigoMatricial = [''];
-      group.tipo = ['Urbano']; // Urbano ou Rústico
+      group.tipo = ['Urbano']; 
     } 
     else if (this.tipoSelecionado === 'FERRAMENTA') {
       group.numeroSerie = [''];
@@ -77,7 +73,7 @@ export class PatrimonioComponent implements OnInit {
   }
 
   abrirModalNovo() {
-    this.tipoSelecionado = 'VIATURA'; // Reset ao tipo padrão
+    this.tipoSelecionado = 'VIATURA'; 
     this.construirFormulario();
     const modal = new bootstrap.Modal(document.getElementById('modalPatrimonio'));
     modal.show();
@@ -92,7 +88,6 @@ export class PatrimonioComponent implements OnInit {
     const dados = this.formPatrimonio.value;
     let request;
 
-    // Decide qual endpoint chamar
     if (this.tipoSelecionado === 'VIATURA') {
       request = this.patrimonioService.criarViatura(dados);
     } else if (this.tipoSelecionado === 'IMOVEL') {
@@ -104,20 +99,23 @@ export class PatrimonioComponent implements OnInit {
     request.subscribe({
       next: () => {
         alert('Ativo criado com sucesso!');
-        this.carregarPatrimonio();
         bootstrap.Modal.getInstance(document.getElementById('modalPatrimonio'))?.hide();
       },
-      error: (e) => alert('Erro: ' + (e.error?.message || e.message))
+      error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
     });
   }
 
   eliminar(id: number) {
     if(confirm('Tem a certeza que deseja eliminar este ativo?')) {
-        this.patrimonioService.eliminar(id).subscribe(() => this.carregarPatrimonio());
+        this.patrimonioService.eliminar(id).subscribe({
+          next: () => {
+            // Removido da tabela automaticamente pelo serviço
+          },
+          error: (e: any) => alert('Erro ao eliminar ativo.')
+        });
     }
   }
 
-  // Helper para mostrar ícone na tabela
   getIcone(p: Patrimonio): string {
     if (p.matricula) return 'bi-car-front';
     if (p.morada) return 'bi-house-door';

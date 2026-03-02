@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Orcamento } from '../core/models/orcamento.model';
 
 @Injectable({
@@ -10,10 +10,19 @@ export class OrcamentoService {
 
   private readonly API_URL = 'http://localhost:8080/api/orcamentos';
 
+  private orcamentosSubject = new BehaviorSubject<Orcamento[]>([]);
+  public orcamentos$ = this.orcamentosSubject.asObservable();
+
   constructor(private http: HttpClient) { }
 
-  listar(): Observable<any> {
-    return this.http.get<any>(this.API_URL);
+  carregarOrcamentosDaAPI(): void {
+    this.http.get<any>(this.API_URL).subscribe({
+      next: (dados) => {
+        const lista = dados.content || dados;
+        this.orcamentosSubject.next(lista);
+      },
+      error: (err) => console.error('Erro ao carregar orçamentos:', err)
+    });
   }
 
   buscarPorId(id: number): Observable<Orcamento> {
@@ -21,22 +30,53 @@ export class OrcamentoService {
   }
 
   criar(orcamento: Orcamento): Observable<Orcamento> {
-    return this.http.post<Orcamento>(this.API_URL, orcamento);
+    return this.http.post<Orcamento>(this.API_URL, orcamento).pipe(
+      tap((novoOrcamento) => {
+        const lista = this.orcamentosSubject.getValue();
+        this.orcamentosSubject.next([novoOrcamento, ...lista]);
+      })
+    );
   }
 
   atualizar(id: number, orcamento: Orcamento): Observable<Orcamento> {
-    return this.http.put<Orcamento>(`${this.API_URL}/${id}`, orcamento);
+    return this.http.put<Orcamento>(`${this.API_URL}/${id}`, orcamento).pipe(
+      tap((orcAtualizado) => {
+        const lista = this.orcamentosSubject.getValue();
+        this.orcamentosSubject.next(lista.map(o => o.id === id ? orcAtualizado : o));
+      })
+    );
   }
 
   alterarEstado(id: number, estado: string): Observable<Orcamento> {
-    return this.http.patch<Orcamento>(`${this.API_URL}/${id}/estado?estado=${estado}`, {});
+    return this.http.patch<Orcamento>(`${this.API_URL}/${id}/estado?estado=${estado}`, {}).pipe(
+      tap((orcAtualizado) => {
+        const lista = this.orcamentosSubject.getValue();
+        this.orcamentosSubject.next(lista.map(o => o.id === id ? orcAtualizado : o));
+      })
+    );
   }
 
-  converterEmVenda(id: number): Observable<void> {
-    return this.http.post<void>(`${this.API_URL}/${id}/converter`, {});
+  converterEmVenda(id: number, contaBancariaId: number): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/${id}/converter?contaBancariaId=${contaBancariaId}`, {}).pipe(
+      tap(() => {
+        // Atualiza a memória na hora
+        const lista = this.orcamentosSubject.getValue();
+        this.orcamentosSubject.next(lista.map(o => {
+          if (o.id === id) {
+            return { ...o, estado: 'CONVERTIDO_VENDA' };
+          }
+          return o;
+        }));
+      })
+    );
   }
 
   eliminar(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.API_URL}/${id}`);
+    return this.http.delete<void>(`${this.API_URL}/${id}`).pipe(
+      tap(() => {
+        const lista = this.orcamentosSubject.getValue();
+        this.orcamentosSubject.next(lista.filter(o => o.id !== id));
+      })
+    );
   }
 }

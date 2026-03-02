@@ -55,8 +55,9 @@ public class OrcamentoController {
     }
 
     @PostMapping("/{id}/converter")
-    public ResponseEntity<Void> converterEmVenda(@PathVariable Long id) {
-        service.converterEmVenda(id);
+    public ResponseEntity<Void> converterEmVenda(@PathVariable Long id, @RequestParam Long contaBancariaId) {
+        service.converterEmVenda(id, contaBancariaId);
         return ResponseEntity.ok().build();
     }
+
 }
