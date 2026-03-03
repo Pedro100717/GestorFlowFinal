@@ -1,50 +1,43 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; 
-import { Router, RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { Component, OnInit } from '@angular/core'; 
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink], 
-  templateUrl: '../../pages/login/login.html', 
-  styleUrl: '../../pages/login/login.scss'     
+  imports: [RouterOutlet, RouterLink, RouterLinkActive], 
+  templateUrl: './layout.html',
+  styleUrl: './layout.scss'
 })
-export class LoginComponent {
+export class LayoutComponent implements OnInit {
 
-  email = '';
-  senha = '';
+  nomeUtilizador: string = 'Utilizador';
+  emailUtilizador: string = ''; // <--- Adicionada a variável do email
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private router: Router) {}
 
-  fazerLogin() {
-    console.log('A tentar login com:', this.email);
+  ngOnInit() {
+    // 1. Vai buscar os dados que foram guardados no momento do Login
+    const nomeCompleto = localStorage.getItem('userName'); 
+    const email = localStorage.getItem('userEmail'); // <--- Vai buscar o email
+    
+    if (nomeCompleto) {
+      // 2. Corta o nome pelos espaços e fica só com a primeira palavra
+      this.nomeUtilizador = nomeCompleto.split(' ')[0];
+    }
 
-    const loginData = {
-      email: this.email,
-      senha: this.senha
-    };
+    if (email) {
+      // 3. Guarda o email para mostrar no HTML
+      this.emailUtilizador = email;
+    }
+  }
 
-    // Chamada POST ao Backend (Sem o responseType: 'text', porque agora recebemos um JSON!)
-    this.http.post('http://localhost:8080/api/auth/login', loginData)
-      .subscribe({
-        next: (respostaDoJava: any) => {
-          // 1. Sucesso: O Java devolveu o pacote com os dados
-          console.log('Login Sucesso! Resposta:', respostaDoJava);
-          
-          // 2. Guardar TUDO no navegador
-          localStorage.setItem('token', respostaDoJava.token);
-          localStorage.setItem('userName', respostaDoJava.nome);
-          localStorage.setItem('userEmail', respostaDoJava.email);
-          
-          // 3. Redirecionar para o Dashboard
-          this.router.navigate(['/app/dashboard']);
-        },
-        error: (erro) => {
-          console.error('Erro no login:', erro);
-          alert('Login falhou! Verifica se o email/senha estão corretos ou se o Backend está ligado.');
-        }
-      });
+  logout() {
+    // 1. Limpar os dados da sessão todos
+    localStorage.removeItem('token');
+    localStorage.removeItem('userName'); 
+    localStorage.removeItem('userEmail'); // <--- Limpa também o email
+    
+    // 2. Redirecionar para o login
+    this.router.navigate(['/login']);
   }
 }
