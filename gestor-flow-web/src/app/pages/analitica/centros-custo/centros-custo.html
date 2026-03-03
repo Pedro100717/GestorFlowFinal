@@ -1,80 +1,83 @@
 <div class="container-fluid">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h3 class="fw-bold text-secondary">Centros de Custo</h3>
-      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
-        <i class="bi bi-plus-lg me-2"></i>Novo Centro
-      </button>
-    </div>
-  
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-              <tr>
-                <th class="ps-4 py-3 border-0 text-muted small uppercase">Código</th>
-                <th class="border-0 text-muted small uppercase">Nome do Centro</th>
-                <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let cc of listaCentros">
-                <td class="ps-4 fw-bold text-primary">{{ cc.codigo }}</td>
-                <td class="fw-bold text-dark">{{ cc.nome }}</td>
-                <td class="text-end pe-4">
-                  <button class="btn btn-sm btn-light text-primary me-2" (click)="editarCentro(cc)">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-light text-danger" (click)="eliminarCentro(cc.id!)">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="listaCentros.length === 0">
-                <td colspan="3" class="text-center py-5 text-muted">
-                  <span class="fw-bold">Nenhum Centro de Custo definido.</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold text-secondary">Centros de Custo</h3>
+    <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+      <i class="bi bi-plus-lg me-2"></i>Novo Centro
+    </button>
   </div>
-  
-  <div class="modal fade" id="modalCentro" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Novo' }} Centro de Custo</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body p-4">
-          <form [formGroup]="formCentro">
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4 py-3 border-0 text-muted small uppercase">Código</th>
+              <th class="border-0 text-muted small uppercase">Nome do Centro</th>
+              <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let cc of listaCentros">
+              <td class="ps-4 fw-bold text-primary">{{ cc.codigo }}</td>
+              <td class="fw-bold text-dark">{{ cc.nome }}</td>
+              <td class="text-end pe-4">
+                <button class="btn btn-sm btn-light text-primary me-2" (click)="editarCentro(cc)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-light text-danger" (click)="eliminarCentro(cc.id!)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
             
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Código (Ex: ADM, FAB1) <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" formControlName="codigo"
-                     [ngClass]="{ 'is-invalid': f['codigo'].touched && f['codigo'].invalid }">
-              <div *ngIf="f['codigo'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
-            </div>
-  
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Nome (Ex: Administração) <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" formControlName="nome"
-                     [ngClass]="{ 'is-invalid': f['nome'].touched && f['nome'].invalid }">
-              <div *ngIf="f['nome'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
-            </div>
-  
-          </form>
-        </div>
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" [disabled]="formCentro.invalid" (click)="guardarCentro()">
-            <i class="bi bi-save me-2"></i>Guardar
-          </button>
-        </div>
+            <tr *ngIf="listaCentros.length === 0">
+              <td colspan="3" class="text-center py-5 text-muted">
+                <i class="bi bi-diagram-3 fs-1 d-block mb-2 opacity-50"></i>
+                <span class="fw-bold">Ainda não definiste Centros de Custo.</span>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
+</div>
+
+<div class="modal fade" id="modalCentro" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Novo' }} Centro de Custo</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form [formGroup]="formCentro">
+          
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Código (Ex: ADM, FAB1) <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="codigo"
+                   [ngClass]="{ 'is-invalid': f['codigo'].touched && f['codigo'].invalid }">
+            <div *ngIf="f['codigo'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Nome (Ex: Administração) <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="nome"
+                   [ngClass]="{ 'is-invalid': f['nome'].touched && f['nome'].invalid }">
+            <div *ngIf="f['nome'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="formCentro.invalid" (click)="guardarCentro()">
+          <i class="bi bi-save me-2"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,115 +1,123 @@
 <div class="container-fluid">
   
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h3 class="fw-bold text-secondary">Meus Artigos</h3>
-      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
-        <i class="bi bi-plus-lg me-2"></i>Novo Artigo
-      </button>
-    </div>
-  
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-              <tr>
-                <th class="ps-4 py-3 border-0 text-muted small uppercase">Artigo</th>
-                <th class="border-0 text-muted small uppercase">Preço Ref.</th>
-                <th class="border-0 text-muted small uppercase">Tipo / Stock</th>
-                <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let artigo of listaArtigos">
-                <td class="ps-4">
-                    <div class="fw-bold text-dark">{{ artigo.nome }}</div>
-                    <div class="small text-muted" *ngIf="artigo.codigoBarras">{{ artigo.codigoBarras }}</div>
-                    <div class="badge bg-light text-secondary border small" style="font-size: 0.7rem;" *ngIf="artigo.familiaNome">
-                      {{ artigo.familiaNome }}
-                    </div>
-                </td>
-                
-                <td class="text-muted">{{ (artigo.preco || 0) | currency:'EUR' }}</td>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold text-secondary">Meus Artigos</h3>
+    <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+      <i class="bi bi-plus-lg me-2"></i>Novo Artigo
+    </button>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4 py-3 border-0 text-muted small uppercase">Artigo</th>
+              <th class="border-0 text-muted small uppercase">Preço Ref.</th>
+              <th class="border-0 text-muted small uppercase">Tipo / Stock</th>
+              <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let artigo of listaArtigos">
+              <td class="ps-4">
+                  <div class="fw-bold text-dark">{{ artigo.nome }}</div>
+                  <div class="small text-muted" *ngIf="artigo.codigoBarras">{{ artigo.codigoBarras }}</div>
+                  <div class="badge bg-light text-secondary border small" style="font-size: 0.7rem;" *ngIf="artigo.familiaNome">
+                    {{ artigo.familiaNome }}
+                  </div>
+              </td>
+              
+              <td class="text-muted">{{ (artigo.preco || 0) | currency:'EUR' }}</td>
+          
+              <td>
+                <ng-container *ngIf="artigo.tipo === 'MERCADORIA'; else isServico">
+                    <span class="badge" 
+                          [ngClass]="(artigo.stockAtual || 0) > 0 ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
+                      <i class="bi bi-box-seam me-1"></i> {{ artigo.stockAtual || 0 }} Un
+                    </span>
+                </ng-container>
+                <ng-template #isServico>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                      <i class="bi bi-gear-wide-connected me-1"></i> Serviço
+                    </span>
+                </ng-template>
+              </td>
+          
+              <td class="text-end pe-4">
+                <button class="btn btn-sm btn-light text-primary me-2" (click)="editarArtigo(artigo)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-light text-danger" (click)="eliminarArtigo(artigo.id!)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
             
-                <td>
-                  <ng-container *ngIf="artigo.tipo === 'MERCADORIA'; else isServico">
-                      <span class="badge" 
-                            [ngClass]="(artigo.stockAtual || 0) > 0 ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
-                        <i class="bi bi-box-seam me-1"></i> {{ artigo.stockAtual || 0 }} Un
-                      </span>
-                  </ng-container>
-                  <ng-template #isServico>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
-                        <i class="bi bi-gear-wide-connected me-1"></i> Serviço
-                      </span>
-                  </ng-template>
-                </td>
-            
-                <td class="text-end pe-4">
-                  <button class="btn btn-sm btn-light text-primary me-2" (click)="editarArtigo(artigo)">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-light text-danger" (click)="eliminarArtigo(artigo.id!)">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            <tr *ngIf="listaArtigos.length === 0">
+              <td colspan="4" class="text-center py-5 text-muted">
+                <i class="bi bi-box-seam fs-1 d-block mb-2 opacity-50"></i>
+                <span class="fw-bold">Ainda não tens artigos ou mercadorias.</span>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
       </div>
     </div>
+  </div>
 </div>
 
 <div class="modal fade" id="modalArtigo" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Novo' }} Artigo</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body p-4">
-          <form [formGroup]="formArtigo">
-            
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Nome do Artigo <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" formControlName="nome" placeholder="Ex: Caneta Azul">
-            </div>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Novo' }} Artigo</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form [formGroup]="formArtigo">
+          
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Nome do Artigo <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="nome" placeholder="Ex: Caneta Azul">
+          </div>
 
-            <div class="mb-3">
-                <label class="form-label small fw-bold">Código de Barras</label>
-                <input type="text" class="form-control" formControlName="codigoBarras">
-            </div>
-  
-            <hr>
+          <div class="mb-3">
+              <label class="form-label small fw-bold">Código de Barras</label>
+              <input type="text" class="form-control" formControlName="codigoBarras">
+          </div>
 
-            <div class="bg-light p-3 rounded border">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <label class="form-label small fw-bold mb-0">Movimenta Stock?</label>
-                        <div class="small text-muted" style="font-size: 0.75rem;">
-                            {{ f['movimentaStock'].value ? 'Sim (Mercadoria)' : 'Não (Serviço)' }}
-                        </div>
-                    </div>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" formControlName="movimentaStock" id="checkStock" style="cursor: pointer;">
-                    </div>
-                </div>
+          <hr>
 
-                <div class="mt-2 alert alert-info py-2 px-3 mb-0 small" *ngIf="f['movimentaStock'].value">
-                    <i class="bi bi-info-circle me-1"></i> O stock inicial será 0. Use "Compras" para adicionar stock.
-                </div>
-            </div>
-  
-          </form>
-        </div>
-        
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" [disabled]="formArtigo.invalid" (click)="guardarArtigo()">
-            <i class="bi bi-save me-2"></i> Guardar
-          </button>
-        </div>
+          <div class="bg-light p-3 rounded border">
+              <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                      <label class="form-label small fw-bold mb-0">Movimenta Stock?</label>
+                      <div class="small text-muted" style="font-size: 0.75rem;">
+                          {{ f['movimentaStock'].value ? 'Sim (Mercadoria)' : 'Não (Serviço)' }}
+                      </div>
+                  </div>
+                  <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" formControlName="movimentaStock" id="checkStock" style="cursor: pointer;">
+                  </div>
+              </div>
+
+              <div class="mt-2 alert alert-info py-2 px-3 mb-0 small" *ngIf="f['movimentaStock'].value">
+                  <i class="bi bi-info-circle me-1"></i> O stock inicial será 0. Use "Compras" para adicionar stock.
+              </div>
+          </div>
+
+        </form>
+      </div>
+      
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="formArtigo.invalid" (click)="guardarArtigo()">
+          <i class="bi bi-save me-2"></i> Guardar
+        </button>
       </div>
     </div>
+  </div>
 </div>
