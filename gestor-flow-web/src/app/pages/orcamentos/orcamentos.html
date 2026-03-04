@@ -50,6 +50,14 @@
                     </button>
                 </td>
               </tr>
+
+              <tr *ngIf="listaOrcamentos.length === 0">
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <i class="bi bi-file-earmark-text fs-1 d-block mb-2 opacity-50"></i>
+                  <span class="fw-bold">Ainda não tens orçamentos criados.</span>
+                </td>
+              </tr>
+
             </tbody>
           </table>
         </div>

@@ -68,6 +68,14 @@
               
               <td class="text-end fw-bold text-success pe-4">{{ v.totalComIva | currency:'EUR' }}</td>
             </tr>
+
+            <tr *ngIf="listaVendas.length === 0">
+              <td colspan="10" class="text-center py-5 text-muted">
+                <i class="bi bi-receipt fs-1 d-block mb-2 opacity-50"></i>
+                <span class="fw-bold">Ainda não tens vendas registadas.</span>
+              </td>
+            </tr>
+
           </tbody>
         </table>
       </div>

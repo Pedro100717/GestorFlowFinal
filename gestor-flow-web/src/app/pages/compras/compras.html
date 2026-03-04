@@ -68,6 +68,14 @@
               
               <td class="text-end fw-bold text-primary pe-4">{{ c.total | currency:'EUR' }}</td>
             </tr>
+
+            <tr *ngIf="listaCompras.length === 0">
+              <td colspan="10" class="text-center py-5 text-muted">
+                <i class="bi bi-cart-x fs-1 d-block mb-2 opacity-50"></i>
+                <span class="fw-bold">Ainda não tens compras registadas.</span>
+              </td>
+            </tr>
+
           </tbody>
         </table>
       </div>
