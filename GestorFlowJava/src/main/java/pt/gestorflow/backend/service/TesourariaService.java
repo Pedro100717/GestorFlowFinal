@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.ContaBancariaDTO;
+import pt.gestorflow.backend.dto.ContaBancariaResponseDTO; // NOVO IMPORT
 import pt.gestorflow.backend.dto.MovimentoDTO;
 import pt.gestorflow.backend.dto.MovimentoResponseDTO;
 import pt.gestorflow.backend.dto.TransferenciaDTO;
@@ -29,7 +30,7 @@ public class TesourariaService {
 
     // --- Contas Bancárias ---
 
-    public ContaBancaria criarConta(ContaBancariaDTO dto) {
+    public ContaBancariaResponseDTO criarConta(ContaBancariaDTO dto) {
         ContaBancaria c = new ContaBancaria();
         c.setNome(dto.getNome());
         c.setIban(dto.getIban());
@@ -37,11 +38,19 @@ public class TesourariaService {
         c.setSaldo(dto.getSaldoInicial() != null ? dto.getSaldoInicial() : BigDecimal.ZERO);
         c.setUtilizador(getUtilizadorLogado());
 
-        return contaRepository.save(c);
+        ContaBancaria contaGuardada = contaRepository.save(c);
+
+        // Retorna o DTO em vez da Entidade!
+        return converterContaParaDTO(contaGuardada);
     }
 
-    public List<ContaBancaria> listarContas() {
-        return contaRepository.findAllByUtilizadorId(getUtilizadorLogado().getId());
+    public List<ContaBancariaResponseDTO> listarContas() {
+        List<ContaBancaria> contas = contaRepository.findAllByUtilizadorId(getUtilizadorLogado().getId());
+
+        // Converte a lista da Base de Dados para uma lista de DTOs limpos
+        return contas.stream()
+                .map(this::converterContaParaDTO)
+                .collect(Collectors.toList());
     }
 
     // --- Movimentos ---
@@ -147,8 +156,18 @@ public class TesourariaService {
     }
 
     // ==========================================
-    // MAGIA: O CONVERSOR PARA O DTO DE SAÍDA
+    // MAGIA: OS CONVERSORES PARA OS DTOs DE SAÍDA
     // ==========================================
+
+    private ContaBancariaResponseDTO converterContaParaDTO(ContaBancaria conta) {
+        ContaBancariaResponseDTO dto = new ContaBancariaResponseDTO();
+        dto.setId(conta.getId());
+        dto.setNome(conta.getNome());
+        dto.setIban(conta.getIban());
+        dto.setSaldo(conta.getSaldo());
+        return dto;
+    }
+
     private MovimentoResponseDTO converterParaDTO(Movimento mov) {
         MovimentoResponseDTO dto = new MovimentoResponseDTO();
         dto.setId(mov.getId());

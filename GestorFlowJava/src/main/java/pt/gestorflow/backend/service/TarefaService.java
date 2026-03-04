@@ -9,6 +9,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.TarefaDTO;
+import pt.gestorflow.backend.dto.TarefaResponseDTO;
 import pt.gestorflow.backend.model.Cliente;
 import pt.gestorflow.backend.model.Tarefa;
 import pt.gestorflow.backend.model.Utilizador;
@@ -17,6 +18,7 @@ import pt.gestorflow.backend.repository.TarefaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +31,7 @@ public class TarefaService {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
-    public Tarefa criar(TarefaDTO dto) {
+    public TarefaResponseDTO criar(TarefaDTO dto) {
         Utilizador user = getUtilizadorLogado();
         Tarefa t = new Tarefa();
 
@@ -39,20 +41,19 @@ public class TarefaService {
         t.setDataLimite(dto.getDataLimite());
         t.setUtilizador(user);
 
-        // Se vier estado, usa, senão PENDENTE
         if (dto.getEstado() != null) t.setEstado(dto.getEstado());
 
-        // Ligar a Cliente (Opcional)
         if (dto.getClienteId() != null) {
             Cliente c = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), user.getId())
                     .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
             t.setCliente(c);
         }
 
-        return repository.save(t);
+        Tarefa guardada = repository.save(t);
+        return converterParaDTO(guardada);
     }
 
-    public Tarefa atualizar(Long id, TarefaDTO dto) {
+    public TarefaResponseDTO atualizar(Long id, TarefaDTO dto) {
         Tarefa t = repository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Tarefa não encontrada"));
 
@@ -61,15 +62,11 @@ public class TarefaService {
         t.setPrioridade(dto.getPrioridade());
         t.setDataLimite(dto.getDataLimite());
 
-        // Gestão inteligente do estado
         if (dto.getEstado() != null) {
             t.setEstado(dto.getEstado());
-            // Se passou para concluída, grava a data de hoje automaticamente
             if (dto.getEstado() == Tarefa.EstadoTarefa.CONCLUIDA && t.getDataConclusao() == null) {
                 t.setDataConclusao(LocalDateTime.now());
-            }
-            // Se reabriu a tarefa, limpa a data de conclusão
-            else if (dto.getEstado() != Tarefa.EstadoTarefa.CONCLUIDA) {
+            } else if (dto.getEstado() != Tarefa.EstadoTarefa.CONCLUIDA) {
                 t.setDataConclusao(null);
             }
         }
@@ -79,25 +76,47 @@ public class TarefaService {
                     .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
             t.setCliente(c);
         } else {
-            t.setCliente(null); // Pode desassociar
+            t.setCliente(null);
         }
 
-        return repository.save(t);
+        Tarefa atualizada = repository.save(t);
+        return converterParaDTO(atualizada);
     }
 
-    public Page<Tarefa> listarMinhasTarefas(int pagina, int tamanho) {
-        // Ordena por prioridade (URGENTE primeiro) e depois por data limite
+    public Page<TarefaResponseDTO> listarMinhasTarefas(int pagina, int tamanho) {
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("prioridade").descending().and(Sort.by("dataLimite")));
-        return repository.findAllByUtilizadorId(getUtilizadorLogado().getId(), pageable);
+        return repository.findAllByUtilizadorId(getUtilizadorLogado().getId(), pageable)
+                .map(this::converterParaDTO);
     }
 
-    public List<Tarefa> listarPorEstado(Tarefa.EstadoTarefa estado) {
-        return repository.findAllByUtilizadorIdAndEstado(getUtilizadorLogado().getId(), estado);
+    public List<TarefaResponseDTO> listarPorEstado(Tarefa.EstadoTarefa estado) {
+        return repository.findAllByUtilizadorIdAndEstado(getUtilizadorLogado().getId(), estado).stream()
+                .map(this::converterParaDTO)
+                .collect(Collectors.toList());
     }
 
     public void eliminar(Long id) {
         Tarefa t = repository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Tarefa não encontrada"));
         repository.delete(t);
+    }
+
+    // --- CONVERSOR ---
+    private TarefaResponseDTO converterParaDTO(Tarefa t) {
+        TarefaResponseDTO dto = new TarefaResponseDTO();
+        dto.setId(t.getId());
+        dto.setTitulo(t.getTitulo());
+        dto.setDescricao(t.getDescricao());
+        dto.setPrioridade(t.getPrioridade().name());
+        dto.setEstado(t.getEstado().name());
+        dto.setDataLimite(t.getDataLimite());
+        dto.setDataCriacao(t.getDataCriacao());
+        dto.setDataConclusao(t.getDataConclusao());
+
+        if (t.getCliente() != null) {
+            dto.setClienteId(t.getCliente().getId());
+            dto.setClienteNome(t.getCliente().getNome());
+        }
+        return dto;
     }
 }

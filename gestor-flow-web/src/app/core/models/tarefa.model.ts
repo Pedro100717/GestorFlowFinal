@@ -1,5 +1,3 @@
-import { Cliente } from "./cliente.model";
-
 export type EstadoTarefa = 'PENDENTE' | 'EM_CURSO' | 'CONCLUIDA' | 'CANCELADA';
 export type PrioridadeTarefa = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
 
@@ -13,7 +11,7 @@ export interface Tarefa {
     dataConclusao?: string;
     dataCriacao?: string;
 
-    // Relação com Cliente (Opcional)
+    // Novos Flat Fields do DTO (Sem necessidade de importar o Cliente!)
     clienteId?: number;
-    cliente?: Cliente;
+    clienteNome?: string;
 }

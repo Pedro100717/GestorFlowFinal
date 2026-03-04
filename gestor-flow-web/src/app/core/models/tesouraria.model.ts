@@ -7,19 +7,21 @@ export interface ContaBancaria {
     nome: string;
     iban?: string;
     saldo: number;
-    // Opcional: utilizadorId se precisares
 }
 
 export interface Movimento {
     id?: number;
-    dataMovimento: string; // O Java envia datas como String ISO
+    dataMovimento?: string; // O Java envia datas como String ISO
     descricao: string;
-    tipo: 'CREDITO' | 'DEBITO'; // Igual ao Enum do Java
+    tipo: 'CREDITO' | 'DEBITO';
     valor: number;
-    saldoApos?: number;
-    contaId?: number; // Para facilitar envios
     
-    // 2. LIGAÇÕES 100% TIPADAS (Sem 'any')
+    // Campos usados no Input (quando criamos um movimento)
+    contaId?: number;
+    
+    // --- Campos devolvidos pelo Response DTO (Flat Fields) ---
     compraId?: number; 
     vendaId?: number; 
+    fornecedorNome?: string; // Para mostrar na tabela de tesouraria
+    clienteNome?: string;    // Para mostrar na tabela de tesouraria
 }
