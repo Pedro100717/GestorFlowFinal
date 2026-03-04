@@ -86,7 +86,7 @@ export class TarefasComponent implements OnInit {
       prioridade: t.prioridade,
       estado: t.estado,
       dataLimite: t.dataLimite,
-      clienteId: t.cliente?.id
+      clienteId: t.clienteId
     });
     new bootstrap.Modal(document.getElementById('modalTarefa')).show();
   }
