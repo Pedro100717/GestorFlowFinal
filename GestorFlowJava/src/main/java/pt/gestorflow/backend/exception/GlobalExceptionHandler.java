@@ -2,6 +2,7 @@ package pt.gestorflow.backend.exception;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice // Isto diz ao Spring: "Captura erros de TODOS os controllers aqui"
 public class GlobalExceptionHandler {
 
@@ -40,9 +42,12 @@ public class GlobalExceptionHandler {
     }
 
     // 4. Erros Gerais (Bugs não esperados)
+    // 4. Erros Gerais (Bugs não esperados)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
-        ex.printStackTrace(); // Loga o erro na consola para tu veres
+        // Em produção, isto vai para ficheiros de log guardados no servidor com timestamp e stacktrace limpa
+        log.error("Erro interno não tratado no servidor: ", ex);
+
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Ocorreu um erro interno no servidor.");
     }
 

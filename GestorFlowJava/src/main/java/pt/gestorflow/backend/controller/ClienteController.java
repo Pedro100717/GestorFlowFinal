@@ -1,15 +1,13 @@
 package pt.gestorflow.backend.controller;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor; // Usar esta anotação se quiseres evitar o construtor manual
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.ClienteDTO;
-import pt.gestorflow.backend.model.Cliente;
+import pt.gestorflow.backend.dto.ClienteResponseDTO; // <-- A ÚNICA COISA QUE ELE CONHECE AGORA
 import pt.gestorflow.backend.service.ClienteService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -19,22 +17,20 @@ public class ClienteController {
     private final ClienteService service;
 
     @PostMapping
-    public ResponseEntity<Cliente> criar(@Valid @RequestBody ClienteDTO dto) {
-        // Se o NIF for inválido, o @Valid dispara e o GlobalExceptionHandler apanha
-        // Se o NIF for duplicado, o Service lança erro e o GlobalExceptionHandler apanha
+    public ResponseEntity<ClienteResponseDTO> criar(@Valid @RequestBody ClienteDTO dto) {
         return ResponseEntity.ok(service.criarCliente(dto));
     }
 
     @GetMapping
-    public ResponseEntity<Page<Cliente>> listar(
-            @RequestParam(defaultValue = "0") int page, // Página 0 é a primeira
-            @RequestParam(defaultValue = "10") int size // 10 itens por defeito
+    public ResponseEntity<Page<ClienteResponseDTO>> listar(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(service.listarMeusClientes(page, size));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Cliente> atualizar(@PathVariable Long id, @Valid @RequestBody ClienteDTO dto) {
+    public ResponseEntity<ClienteResponseDTO> atualizar(@PathVariable Long id, @Valid @RequestBody ClienteDTO dto) {
         return ResponseEntity.ok(service.atualizarCliente(id, dto));
     }
 

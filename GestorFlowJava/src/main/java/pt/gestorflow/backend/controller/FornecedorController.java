@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.FornecedorDTO;
 import pt.gestorflow.backend.model.Fornecedor;
+import pt.gestorflow.backend.repository.FornecedorResponseDTO;
 import pt.gestorflow.backend.service.FornecedorService;
 
 import java.util.List;
@@ -18,17 +19,17 @@ public class FornecedorController {
     private final FornecedorService service;
 
     @GetMapping
-    public List<Fornecedor> listar() {
+    public List<FornecedorResponseDTO> listar() {
         return service.listar();
     }
 
     @PostMapping
-    public ResponseEntity<Fornecedor> criar(@Valid @RequestBody FornecedorDTO dto) {
+    public ResponseEntity<FornecedorResponseDTO> criar(@Valid @RequestBody FornecedorDTO dto) {
         return ResponseEntity.ok(service.criar(dto));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Fornecedor> atualizar(@PathVariable Long id, @Valid @RequestBody FornecedorDTO dto) {
+    public ResponseEntity<FornecedorResponseDTO> atualizar(@PathVariable Long id, @Valid @RequestBody FornecedorDTO dto) {
         return ResponseEntity.ok(service.atualizar(id, dto));
     }
 

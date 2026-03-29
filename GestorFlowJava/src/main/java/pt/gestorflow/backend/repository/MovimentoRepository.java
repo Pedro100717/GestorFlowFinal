@@ -10,34 +10,21 @@ import java.util.List;
 
 public interface MovimentoRepository extends JpaRepository<Movimento, Long> {
 
-    // Buscar movimentos de uma conta ordenados por data (Extrato normal)
     List<Movimento> findAllByContaIdOrderByDataMovimentoDesc(Long contaId);
 
-    // ==========================================
-    // QUERIES DE ESTATÍSTICA E LUCRO (TESOURARIA)
-    // ==========================================
-
     // 1. Quanto pagámos a este Fornecedor a partir desta Conta específica?
-    @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.fornecedor.id = :fornecedorId AND m.conta.id = :contaId AND m.tipo = 'DEBITO'")
-    BigDecimal totalPagoAFornecedorPorConta(@Param("fornecedorId") Long fornecedorId, @Param("contaId") Long contaId);
+    @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.fornecedor.id = :fornecedorId AND m.conta.id = :contaId AND m.tipo = 'DEBITO' AND m.utilizador.id = :userId")
+    BigDecimal totalPagoAFornecedorPorConta(@Param("fornecedorId") Long fornecedorId, @Param("contaId") Long contaId, @Param("userId") Long userId);
 
-    // 2. Quanto pagámos a este Fornecedor no total (juntando todas as nossas contas)?
-    @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.fornecedor.id = :fornecedorId AND m.tipo = 'DEBITO'")
-    BigDecimal totalGastoComFornecedor(@Param("fornecedorId") Long fornecedorId);
+    // 2. Quanto pagámos a este Fornecedor no total?
+    @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.fornecedor.id = :fornecedorId AND m.tipo = 'DEBITO' AND m.utilizador.id = :userId")
+    BigDecimal totalGastoComFornecedor(@Param("fornecedorId") Long fornecedorId, @Param("userId") Long userId);
 
-    // 3. O Lucro / Fluxo Real da Conta (Soma dos Créditos menos a Soma dos Débitos)
-    @Query(value = "SELECT COALESCE(SUM(CASE WHEN tipo = 'CREDITO' THEN valor ELSE (valor * -1) END), 0) FROM movimentos_tesouraria WHERE conta_bancaria_id = :contaId", nativeQuery = true)
-    BigDecimal lucroRealDaConta(@Param("contaId") Long contaId);
+    // 3. O Lucro / Fluxo Real da Conta (Agora em JPQL seguro e isolado por utilizador)
+    @Query("SELECT COALESCE(SUM(CASE WHEN m.tipo = 'CREDITO' THEN m.valor ELSE (m.valor * -1) END), 0) FROM Movimento m WHERE m.conta.id = :contaId AND m.utilizador.id = :userId")
+    BigDecimal lucroRealDaConta(@Param("contaId") Long contaId, @Param("userId") Long userId);
 
-    // ==========================================
-    // ESTATÍSTICAS DE CLIENTES
-    // ==========================================
-
-    // 4. Quanto recebemos deste Cliente no total (juntando todas as contas)?
-    @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.cliente.id = :clienteId AND m.tipo = 'CREDITO'")
-    BigDecimal totalRecebidoDeCliente(@Param("clienteId") Long clienteId);
-
-    // 5. Opcional: Quanto recebemos deste Cliente para uma conta específica?
-    @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.cliente.id = :clienteId AND m.conta.id = :contaId AND m.tipo = 'CREDITO'")
-    BigDecimal totalRecebidoDeClientePorConta(@Param("clienteId") Long clienteId, @Param("contaId") Long contaId);
+    // 4. Quanto recebemos deste Cliente no total?
+    @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.cliente.id = :clienteId AND m.tipo = 'CREDITO' AND m.utilizador.id = :userId")
+    BigDecimal totalRecebidoDeCliente(@Param("clienteId") Long clienteId, @Param("userId") Long userId);
 }

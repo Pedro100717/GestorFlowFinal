@@ -1,6 +1,8 @@
 package pt.gestorflow.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -8,7 +10,12 @@ import java.time.LocalDate;
 @Data
 public class PatrimonioFerramentaDTO {
     @NotBlank private String nome;
+
+    @NotNull(message = "A data de aquisição é obrigatória")
     private LocalDate dataAquisicao;
+
+    @NotNull(message = "O valor de aquisição é obrigatório")
+    @PositiveOrZero(message = "O valor não pode ser negativo")
     private BigDecimal valorAquisicao;
 
     private String numeroSerie;

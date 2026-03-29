@@ -38,22 +38,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String userId = tokenService.validarToken(token);
 
                 if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    // 3. Vai buscar o utilizador à BD para confirmar que ainda existe
-                    Optional<Utilizador> userOpt = repository.findById(Long.parseLong(userId));
 
-                    if (userOpt.isPresent()) {
-                        Utilizador user = userOpt.get();
+                    Utilizador userAutenticado = new Utilizador();
+                    userAutenticado.setId(Long.parseLong(userId));
 
-                        // 4. Cria a "Ficha de Entrada" oficial do Spring Security
-                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                user,
-                                null,
-                                new ArrayList<>() // Aqui iriam as permissões (ADMIN, USER, etc)
-                        );
+                    //Ficha de entrada
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userAutenticado,
+                            null,
+                            new ArrayList<>()
+                    );
 
-                        // 5. Diz ao Spring: "Este gajo está autenticado!"
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    }
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {
                 // Token inválido ou expirado - Não fazemos nada, o Spring vai bloquear a seguir

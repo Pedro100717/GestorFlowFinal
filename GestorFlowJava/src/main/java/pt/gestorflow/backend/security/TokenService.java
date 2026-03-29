@@ -3,6 +3,7 @@ package pt.gestorflow.backend.security;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.model.Utilizador;
 
@@ -12,12 +13,14 @@ import java.util.Date;
 @Service
 public class TokenService {
 
-    // A Chave Secreta (Assinatura do "Porteiro").
-    // Em PROD, isto deve vir de variáveis de ambiente, nunca hardcoded!
-    // Tem de ser grande e aleatória para ser segura.
-    private static final String SECRET_KEY_STRING = "UmaChaveMuitoCompridaESeguraParaOGestorFlowQueNinguemDescobre123!";
+    private final Key key;
 
-    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY_STRING.getBytes());
+    // A MAGIA ACONTECE AQUI:
+    // O @Value vai ler a linha "jwt.secret=..." do teu application.properties
+    // e injetar esse texto na variável 'secret' quando o servidor iniciar.
+    public TokenService(@Value("${jwt.secret}") String secret) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+    }
 
     public String gerarToken(Utilizador utilizador) {
         // Validade do Token: 24 horas (em milissegundos)
@@ -34,7 +37,7 @@ public class TokenService {
                 .compact();
     }
 
-    // Validar se o token é fidedigno (usaremos no futuro)
+    // Validar se o token é fidedigno
     public String validarToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
