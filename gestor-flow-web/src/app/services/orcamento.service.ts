@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Orcamento } from '../core/models/orcamento.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class OrcamentoService {
 
-  private readonly API_URL = 'http://localhost:8080/api/orcamentos';
+  private readonly API_URL = `${environment.apiUrl}/orcamentos`;
 
   private orcamentosSubject = new BehaviorSubject<Orcamento[]>([]);
   public orcamentos$ = this.orcamentosSubject.asObservable();

@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, shareReplay, tap } from 'rxjs';
 import { Venda } from '../core/models/venda.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class VendaService {
 
-  private readonly API_URL = 'http://localhost:8080/api/vendas';
+  private readonly API_URL = `${environment.apiUrl}/vendas`;
 
   // --- GESTÃO DE ESTADO (STATE MANAGEMENT) ---
   // 1. O "Cofre" fechado onde guardamos a lista atual de Vendas (começa vazio)

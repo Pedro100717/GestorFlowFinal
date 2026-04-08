@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap, shareReplay } from 'rxjs'; // <--- ADICIONADOS IMPORTS NOVOS
 import { Artigo } from '../core/models/artigo.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ArtigoService {
 
-  private readonly API_URL = 'http://localhost:8080/api/artigos';
+  private readonly API_URL = `${environment.apiUrl}/artigos`;
   
   // Cache das Taxas de IVA (Mantida intacta!)
   private cacheTaxasIva$: Observable<any[]> | null = null;

@@ -12,6 +12,6 @@ export interface SeccaoHomo {
     // Para escrita (enviar para o Backend)
     centroCustoId: number;
     
-    // Para leitura (receber do Backend - o objeto completo)
-    centroCusto?: CentroCusto;
+    // Para leitura (Agora achatado/flat, igual ao DTO do Java!)
+    centroCustoNome?: string; 
 }

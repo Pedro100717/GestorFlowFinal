@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, shareReplay, tap } from 'rxjs';
 import { CentroCusto, SeccaoHomo } from '../core/models/analitica.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -9,8 +10,8 @@ import { CentroCusto, SeccaoHomo } from '../core/models/analitica.model';
 export class AnaliticaService {
 
   // Aponta para os teus novos controllers
-  private readonly API_CC = 'http://localhost:8080/api/centros-custo';
-  private readonly API_SH = 'http://localhost:8080/api/seccoes-homogeneas';
+  private readonly API_CC = `${environment.apiUrl}/centros-custo`;
+  private readonly API_SH = `${environment.apiUrl}/seccoes-homogeneas`;
 
   private cacheCentros$: Observable<CentroCusto[]> | null = null;
   private cacheSeccoes$: Observable<SeccaoHomo[]> | null = null;

@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, shareReplay, tap } from 'rxjs'; // <--- NOVOS IMPORTS
 import { Compra } from '../core/models/compra.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CompraService {
 
-  private readonly API_URL = 'http://localhost:8080/api/compras';
+  private readonly API_URL = `${environment.apiUrl}/compras`;
 
   // --- GESTÃO DE ESTADO (STATE MANAGEMENT) ---
   // 1. O "Cofre" das compras

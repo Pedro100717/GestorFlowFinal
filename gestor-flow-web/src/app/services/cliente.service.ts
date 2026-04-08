@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Cliente } from '../core/models/cliente.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ClienteService {
 
-  private readonly API_URL = 'http://localhost:8080/api/clientes';
+  private readonly API_URL = `${environment.apiUrl}/clientes`;
 
   // --- O NOVO COFRE DOS CLIENTES ---
   private clientesSubject = new BehaviorSubject<Cliente[]>([]);

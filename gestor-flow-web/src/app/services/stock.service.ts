@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { MovimentoStock } from '../core/models/stock.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class StockService {
 
-  private readonly API_URL = 'http://localhost:8080/api/stock';
+  private readonly API_URL = `${environment.apiUrl}/stock`;
 
   // --- O COFRE DO HISTÓRICO DE ACERTOS ---
   private historicoSubject = new BehaviorSubject<MovimentoStock[]>([]);

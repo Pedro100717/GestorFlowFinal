@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Patrimonio } from '../core/models/patrimonio.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PatrimonioService {
 
-  private readonly API_URL = 'http://localhost:8080/api/patrimonio';
+  private readonly API_URL = `${environment.apiUrl}/patrimonio`;
 
   // --- O COFRE DO PATRIMÓNIO ---
   private patrimonioSubject = new BehaviorSubject<Patrimonio[]>([]);

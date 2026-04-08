@@ -1,14 +1,17 @@
 export interface VendaResumo {
-    cliente?: { nome: string };
-    dataVenda: string;
-    designacao: string;
-    totalComIva: number;
-  }
+  // 1. Substituímos o objeto antigo pelo Flat Field do Java
+  clienteNome?: string; 
   
-  export interface DashboardResumo {
-    totalVendas: number;
-    totalClientes: number;
-    valorStock: number;
-    totalCompras: number;
-    ultimasVendas: VendaResumo[];
-  }
+  dataVenda: string;
+  designacao: string;
+  totalComIva: number;
+}
+
+export interface DashboardResumo {
+  // 2. Isto mantém-se 100% igual, está perfeito!
+  totalVendas: number;
+  totalClientes: number;
+  valorStock: number;
+  totalCompras: number;
+  ultimasVendas: VendaResumo[];
+}

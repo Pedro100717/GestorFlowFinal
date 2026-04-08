@@ -4,17 +4,16 @@ import { Artigo } from "./artigo.model";
 export interface LinhaOrcamento {
     id?: number;
     artigoId: number;
-    artigo?: Artigo; // Para leitura
+    artigoNome?: string; // Flat field
     
     taxaIvaId: number;
-    taxaIva?: any; // Para leitura
+    taxaIvaValor?: number; // Flat field
     
     quantidade: number;
     precoCustoUnitario?: number;
     margemLucroPercentual?: number;
-    precoVendaUnitarioOverride?: number; // Se o user escrever o preço final à mão
+    precoVendaUnitarioOverride?: number; 
     
-    // Calculados
     precoVendaUnitario?: number;
     totalLinhaSemIva?: number;
     totalLinhaComIva?: number;
@@ -27,20 +26,16 @@ export interface Orcamento {
     estado?: 'RASCUNHO' | 'ENVIADO' | 'APROVADO' | 'REJEITADO' | 'CONVERTIDO_VENDA';
     notas?: string;
     
-    // --- TOTAIS (Faltava o totalComIva para o HTML) ---
     totalCusto?: number;
     totalSemIva?: number;
     totalComIva?: number;
     
-    // --- DADOS DO CLIENTE ---
-    cliente?: Cliente | any; // Suporta a entidade completa (o.cliente?.nome)
+    // Flat Fields (sem o objeto Cliente ou Conta inteiros)
     clienteId?: number;
-    clienteNome?: string;    // Adicionado o '?' para ser opcional
+    clienteNome?: string;    
     
-    // --- DADOS DA CONTA BANCÁRIA ---
-    contaBancaria?: any;     // Suporta a entidade completa
-    contaBancariaId?: number;
-
-    // --- LINHAS ---
-    linhas?: LinhaOrcamento[] | any[]; // Essencial para a função de editar() no .ts
+    contaBancariaId?: number; 
+    contaBancariaNome?: string;
+    
+    linhas?: LinhaOrcamento[];
 }

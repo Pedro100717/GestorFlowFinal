@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { DashboardResumo } from '../core/models/dashboard.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DashboardService {
 
-  private readonly API_URL = 'http://localhost:8080/api/dashboard';
+  private readonly API_URL = `${environment.apiUrl}/dashboard`;
 
   // O Cofre do Dashboard
   private resumoSubject = new BehaviorSubject<DashboardResumo | null>(null);

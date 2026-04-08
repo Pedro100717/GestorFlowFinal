@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { ContaBancaria, Movimento } from '../core/models/tesouraria.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TesourariaService {
 
-  private readonly API_URL = 'http://localhost:8080/api/tesouraria';
+  private readonly API_URL = `${environment.apiUrl}/tesouraria`;
 
   // --- OS COFRES PRINCIPAIS ---
   private contasSubject = new BehaviorSubject<ContaBancaria[]>([]);

@@ -60,15 +60,16 @@
                                   [ngClass]="m.tipo === 'CREDITO' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
                                 {{ m.tipo === 'CREDITO' ? 'Entrada' : 'Saída' }}
                             </span>
-
+                        
                             <span *ngIf="m.compraId" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-2">
-                                <i class="bi bi-cart me-1"></i> Compra
+                                <i class="bi bi-cart me-1"></i> Compra: {{ m.fornecedorNome }}
                             </span>
+                            
                             <span *ngIf="m.vendaId" class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 me-2">
-                                <i class="bi bi-receipt me-1"></i> Venda
+                                <i class="bi bi-receipt me-1"></i> Venda: {{ m.clienteNome }}
                             </span>
-
-                            {{ m.descricao }}
+                        
+                            <span class="text-dark">{{ m.descricao }}</span>
                         </td>
                         <td class="text-end pe-4 fw-bold" 
                             [ngClass]="m.tipo === 'CREDITO' ? 'text-success' : 'text-danger'">

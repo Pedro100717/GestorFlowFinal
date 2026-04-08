@@ -7,7 +7,6 @@ export interface MovimentoStock {
     quantidade: number;
     motivo: string;
     stockAposMovimento?: number; // Calculado pelo backend
-    mercadoria?: Artigo; // O Artigo que sofreu o acerto
     
     // Para envio no DTO de criação
     mercadoriaId?: number;

@@ -82,7 +82,7 @@
                         </thead>
                         <tbody>
                             <tr *ngFor="let venda of ultimasVendas">
-                                <td class="ps-4 fw-bold">{{ venda.cliente?.nome }}</td>
+                                <td class="ps-4 fw-bold">{{ venda.clienteNome }}</td>
                                 <td class="text-muted">{{ venda.dataVenda | date:'dd/MM/yyyy HH:mm' }}</td>
                                 <td class="text-muted small">{{ venda.designacao }}</td>
                                 <td class="text-end fw-bold text-success pe-4">{{ venda.totalComIva | currency:'EUR' }}</td>

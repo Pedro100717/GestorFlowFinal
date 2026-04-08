@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap, catchError } from 'rxjs'; // <--- NOVO IMPORT
 import { Tarefa, EstadoTarefa } from '../core/models/tarefa.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TarefaService {
 
-  private readonly API_URL = 'http://localhost:8080/api/tarefas';
+  private readonly API_URL = `${environment.apiUrl}/tarefas`;
 
   // --- GESTÃO DE ESTADO (STATE MANAGEMENT) ---
   private tarefasSubject = new BehaviorSubject<Tarefa[]>([]); // O "cofre"

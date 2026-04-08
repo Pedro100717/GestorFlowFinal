@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Fornecedor } from '../core/models/fornecedor.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class FornecedorService {
 
-  private readonly API_URL = 'http://localhost:8080/api/fornecedores';
+  private readonly API_URL = `${environment.apiUrl}/fornecedores`;
 
   // --- O NOVO COFRE DOS FORNECEDORES ---
   private fornecedoresSubject = new BehaviorSubject<Fornecedor[]>([]);

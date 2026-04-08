@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router'; // RouterLink para o botão de voltar
-import { HttpClient } from '@angular/common/http';
+import { Router, RouterLink } from '@angular/router'; 
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
@@ -17,29 +17,51 @@ export class RegisterComponent {
   email = '';
   senha = '';
 
-  constructor(private http: HttpClient, private router: Router) {}
+  erros: any = {}; 
+  erroGeral: string = '';
+
+  constructor(private authService: AuthService, private router: Router) {}
 
   fazerRegisto() {
-    // Objeto igual ao RegisterDTO do Java
+    this.erros = {};
+    this.erroGeral = '';
+
     const novoUtilizador = {
       nomeUtilizador: this.nome,
       email: this.email,
       senha: this.senha
     };
 
-    console.log('A enviar registo...', novoUtilizador);
-
-    this.http.post('http://localhost:8080/api/auth/register', novoUtilizador)
-      .subscribe({
+    this.authService.registar(novoUtilizador).subscribe({
         next: (resposta) => {
           alert('Conta criada com sucesso! Podes fazer login agora.');
-          // Redireciona para o Login para a pessoa entrar
           this.router.navigate(['/login']);
         },
-        error: (erro) => {
-          console.error(erro);
-          alert('Erro ao criar conta. Verifica se o email já existe.');
+        error: (erroHttp) => {
+          console.error('Erro do backend:', erroHttp);
+          
+          if (erroHttp.status === 400) {
+            
+            // Se o erro for o DTO com as várias mensagens de validação
+            if (typeof erroHttp.error === 'object' && erroHttp.error !== null) {
+              this.erros = erroHttp.error;
+              
+              // CRIAR O POP-UP PARA O UTILIZADOR
+              let msgAlerta = "Atenção! Verifique os seguintes campos:\n\n";
+              for (const campo in erroHttp.error) {
+                msgAlerta += `❌ ${erroHttp.error[campo]}\n`;
+              }
+              alert(msgAlerta);
+            } 
+            // Se for um erro geral (ex: "Email já existe")
+            else if (typeof erroHttp.error === 'string') {
+              this.erroGeral = erroHttp.error;
+              alert("❌ " + this.erroGeral);
+            }
+          } else {
+            alert('Ocorreu um erro no servidor. Tente mais tarde.');
+          }
         }
-      });
+    });
   }
 }

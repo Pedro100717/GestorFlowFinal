@@ -78,7 +78,7 @@ export class SeccoesHomoComponent implements OnInit {
       nome: seccao.nome,
       codigo: seccao.codigo,
       // O backend envia o objeto 'centroCusto' completo, extraímos o ID
-      centroCustoId: seccao.centroCusto?.id 
+      centroCustoId: seccao.centroCustoId
     });
     const modal = new bootstrap.Modal(document.getElementById('modalSeccao'));
     modal.show();

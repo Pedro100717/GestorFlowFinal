@@ -22,7 +22,7 @@
             <tbody>
               <tr *ngFor="let o of listaOrcamentos">
                 <td class="ps-4 fw-bold text-primary">#{{ o.id }}</td>
-                <td class="fw-bold">{{ o.cliente?.nome || o.clienteNome }}</td>
+                <td class="fw-bold">{{ o.clienteNome }}</td>
                 <td class="text-muted">{{ o.dataValidade | date:'dd/MM/yyyy' }}</td>
                 <td class="text-center">
                     <span class="badge" 

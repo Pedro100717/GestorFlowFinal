@@ -1,47 +1,60 @@
 <div class="d-flex align-items-center justify-content-center vh-100 bg-light">
-    <div class="card shadow-lg p-4 border-0" style="width: 450px; border-radius: 15px;">
-      <div class="card-body">
-        <h2 class="text-center text-primary mb-2 fw-bold">Criar Conta</h2>
-        <p class="text-center text-muted mb-4">Junte-se ao GestorFlow</p>
-        
-        <form (ngSubmit)="fazerRegisto()">
-          
-          <div class="mb-3">
-            <label class="form-label fw-bold small">Nome Completo</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white border-end-0"><i class="bi bi-person"></i></span>
-              <input type="text" class="form-control border-start-0 ps-0" [(ngModel)]="nome" name="nome" placeholder="Seu Nome" required>
-            </div>
-          </div>
-  
-          <div class="mb-3">
-            <label class="form-label fw-bold small">Email</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white border-end-0"><i class="bi bi-envelope"></i></span>
-              <input type="email" class="form-control border-start-0 ps-0" [(ngModel)]="email" name="email" placeholder="email@exemplo.com" required>
-            </div>
-          </div>
-  
-          <div class="mb-4">
-            <label class="form-label fw-bold small">Senha</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white border-end-0"><i class="bi bi-lock"></i></span>
-              <input type="password" class="form-control border-start-0 ps-0" [(ngModel)]="senha" name="senha" placeholder="******" required>
-            </div>
-          </div>
-  
-          <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-primary btn-lg shadow-sm">Criar Conta Grátis</button>
-          </div>
-        </form>
-  
-        <hr class="my-4">
-  
-        <div class="text-center">
-          <span class="text-muted">Já tem conta? </span>
-          <a routerLink="/login" class="text-primary fw-bold text-decoration-none">Entrar agora</a>
-        </div>
-  
+  <div class="card shadow-lg p-4 border-0" style="width: 450px; border-radius: 15px;">
+    <div class="card-body">
+      <h2 class="text-center text-primary mb-2 fw-bold">Criar Conta</h2>
+      <p class="text-center text-muted mb-4">Junte-se ao GestorFlow</p>
+
+      <div class="alert alert-danger py-2 px-3 small" *ngIf="erroGeral">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ erroGeral }}
       </div>
+      
+      <form (ngSubmit)="fazerRegisto()">
+        
+        <div class="mb-3">
+          <label class="form-label fw-bold small">Nome Completo</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-person"></i></span>
+            <input type="text" class="form-control border-start-0 ps-0" [ngClass]="{'is-invalid': erros.nomeUtilizador}" [(ngModel)]="nome" name="nome" placeholder="Seu Nome" required>
+          </div>
+          <div class="text-danger small mt-1 fw-semibold" *ngIf="erros.nomeUtilizador">
+            {{ erros.nomeUtilizador }}
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold small">Email</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-envelope"></i></span>
+            <input type="email" class="form-control border-start-0 ps-0" [ngClass]="{'is-invalid': erros.email}" [(ngModel)]="email" name="email" placeholder="email@exemplo.com" required>
+          </div>
+          <div class="text-danger small mt-1 fw-semibold" *ngIf="erros.email">
+            {{ erros.email }}
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold small">Senha</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-lock"></i></span>
+            <input type="password" class="form-control border-start-0 ps-0" [ngClass]="{'is-invalid': erros.senha}" [(ngModel)]="senha" name="senha" placeholder="******" required>
+          </div>
+          <div class="text-danger small mt-1 fw-semibold" *ngIf="erros.senha">
+            {{ erros.senha }}
+          </div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary btn-lg shadow-sm">Criar Conta Grátis</button>
+        </div>
+      </form>
+
+      <hr class="my-4">
+
+      <div class="text-center">
+        <span class="text-muted">Já tem conta? </span>
+        <a routerLink="/login" class="text-primary fw-bold text-decoration-none">Entrar agora</a>
+      </div>
+
     </div>
   </div>
+</div>
