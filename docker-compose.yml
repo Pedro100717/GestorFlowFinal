@@ -15,8 +15,7 @@ services:
   backend:
     build: ./GestorFlowJava
     container_name: gestorflow-backend
-    ports:
-      - "8080:8080"
+    # APAGÁMOS AS PORTS DAQUI POR SEGURANÇA!
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/gestorflow
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
@@ -31,6 +30,9 @@ services:
     container_name: gestorflow-frontend
     ports:
       - "80:80" 
+      - "443:443"  # <-- PORTA DO CADEADO
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro  # <-- LIGAÇÃO AO CERTIFICADO DO SERVIDOR
     depends_on:
       - backend
     restart: unless-stopped
