@@ -39,7 +39,9 @@ public class SecurityConfig {
                             "http://localhost:80",
                             "http://localhost:4200",
                             "https://*.ngrok-free.app",
-                            "https://*.ngrok.app"
+                            "https://*.ngrok.app",
+                            "https://gestorflow.178.104.156.13.nip.io", // <-- ADICIONA ISTO
+                            "http://gestorflow.178.104.156.13.nip.io"
                     ));
 
                     corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
