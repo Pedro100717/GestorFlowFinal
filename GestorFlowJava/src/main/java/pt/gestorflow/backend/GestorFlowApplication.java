@@ -2,8 +2,10 @@ package pt.gestorflow.backend; // Ajusta conforme o nome do teu pacote
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
+@EnableJpaAuditing(auditorAwareRef = "auditorAwareImpl")
 public class GestorFlowApplication {
 
     public static void main(String[] args) {

@@ -3,12 +3,18 @@ package pt.gestorflow.backend.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "contas_bancarias")
-@Data
-public class ContaBancaria {
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true)
+public class ContaBancaria extends Auditable{
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

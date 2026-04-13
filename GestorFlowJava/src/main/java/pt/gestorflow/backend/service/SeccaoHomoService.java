@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.SeccaoHomoDTO;
 import pt.gestorflow.backend.dto.SeccaoHomoResponseDTO;
 import pt.gestorflow.backend.model.CentroCusto;
@@ -40,6 +41,7 @@ public class SeccaoHomoService {
         return converterParaDTO(seccaoRepository.save(sh));
     }
 
+    @Transactional(readOnly = true)
     public List<SeccaoHomoResponseDTO> listar() {
         return seccaoRepository.findAllByUtilizadorId(getUtilizadorLogado().getId())
                 .stream().map(this::converterParaDTO).toList();

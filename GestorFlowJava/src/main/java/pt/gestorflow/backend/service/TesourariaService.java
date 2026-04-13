@@ -1,7 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -44,6 +44,7 @@ public class TesourariaService {
         return converterContaParaDTO(contaGuardada);
     }
 
+    @Transactional(readOnly = true)
     public List<ContaBancariaResponseDTO> listarContas() {
         List<ContaBancaria> contas = contaRepository.findAllByUtilizadorId(getUtilizadorLogado().getId());
 
@@ -89,6 +90,7 @@ public class TesourariaService {
         return converterParaDTO(movGuardado);
     }
 
+    @Transactional(readOnly = true)
     public List<MovimentoResponseDTO> obterExtrato(Long contaId) {
         ContaBancaria conta = contaRepository.findById(contaId)
                 .orElseThrow(() -> new EntityNotFoundException("Conta não encontrada"));

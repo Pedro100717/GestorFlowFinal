@@ -4,11 +4,12 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.FornecedorDTO;
 import pt.gestorflow.backend.model.Fornecedor;
 import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.FornecedorRepository;
-import pt.gestorflow.backend.repository.FornecedorResponseDTO;
+import pt.gestorflow.backend.dto.FornecedorResponseDTO;
 
 import java.util.List;
 
@@ -43,6 +44,7 @@ public class FornecedorService {
         return converterParaDTO(repository.save(f));
     }
 
+    @Transactional(readOnly = true)
     public List<FornecedorResponseDTO> listar() {
         return repository.findAllByUtilizadorId(getUtilizadorLogado().getId())
                 .stream().map(this::converterParaDTO).toList();

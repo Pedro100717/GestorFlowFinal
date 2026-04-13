@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.ArtigoDTO;
 import pt.gestorflow.backend.dto.ArtigoResponseDTO; // Importar novo DTO
 import pt.gestorflow.backend.model.*;
@@ -54,6 +55,7 @@ public class ArtigoService {
         return converterParaDTO(artigoRepository.save(artigo));
     }
 
+    @Transactional(readOnly = true)
     public Page<ArtigoResponseDTO> listarMeusArtigos(int pagina, int tamanho) {
         Utilizador user = getUtilizadorLogado();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("nome").ascending());

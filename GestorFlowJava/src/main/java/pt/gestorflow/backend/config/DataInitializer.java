@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.config;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // <--- O IMPORT DO LOGGER
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import pt.gestorflow.backend.model.TxIva;
@@ -9,6 +10,7 @@ import pt.gestorflow.backend.repository.TxIvaRepository;
 import java.math.BigDecimal;
 import java.util.Arrays;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
@@ -17,10 +19,8 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-
-        // Verifica se a tabela JÁ tem dados. Se tiver, não faz nada.
         if (txIvaRepository.count() == 0) {
-            System.out.println("⚠️ A iniciar inserção de Taxas de IVA...");
+            log.info("⚠️ A iniciar inserção de Taxas de IVA...");
 
             TxIva normal = new TxIva(null, "Taxa Normal", new BigDecimal("23.00"));
             TxIva intermedia = new TxIva(null, "Taxa Intermédia", new BigDecimal("13.00"));
@@ -29,7 +29,7 @@ public class DataInitializer implements CommandLineRunner {
 
             txIvaRepository.saveAll(Arrays.asList(normal, intermedia, reduzida, isenta));
 
-            System.out.println("✅ Taxas de IVA inseridas com sucesso!");
+            log.info("✅ Taxas de IVA inseridas com sucesso!");
         }
     }
 }

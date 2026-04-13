@@ -1,6 +1,6 @@
 package pt.gestorflow.backend.service;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional; // Import Correto
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,9 +9,6 @@ import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.*;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.PatrimonioRepository;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,10 +20,11 @@ public class PatrimonioService {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
-    // LISTAR TUDO (Agora devolve o DTO plano e apenas os ATIVOS)
+    // LISTAR TUDO
+    @Transactional(readOnly = true)
     public Page<PatrimonioResponseDTO> listarPatrimonio(Pageable pageable) {
         return repository.findAllByUtilizadorIdAndAtivoTrue(getUtilizadorLogado().getId(), pageable)
-                .map(this::mapToDTO); // O Page.map() converte cada item e mantém a formatação da página!
+                .map(this::mapToDTO);
     }
 
     // --- CRIAR VIATURA ---
@@ -78,14 +76,14 @@ public class PatrimonioService {
         return mapToDTO(repository.save(p));
     }
 
-    // --- ELIMINAR (AGORA É SOFT DELETE) ---
+    // --- ELIMINAR (SOFT DELETE) ---
+    @Transactional
     public void eliminar(Long id) {
         Patrimonio p = repository.findById(id).orElseThrow(() -> new RuntimeException("Património não encontrado"));
         if(!p.getUtilizador().getId().equals(getUtilizadorLogado().getId())) {
             throw new RuntimeException("Acesso negado");
         }
 
-        // Em vez de repository.deleteById(id), fazemos isto:
         p.setAtivo(false);
         repository.save(p);
     }

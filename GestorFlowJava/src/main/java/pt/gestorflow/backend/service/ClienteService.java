@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.ClienteDTO;
 import pt.gestorflow.backend.dto.ClienteResponseDTO;
 import pt.gestorflow.backend.model.Cliente;
@@ -63,6 +64,7 @@ public class ClienteService {
         return converterParaDTO(repository.save(cliente));
     }
 
+    @Transactional(readOnly = true)
     public Page<ClienteResponseDTO> listarMeusClientes(int pagina, int tamanho) {
         Utilizador user = getUtilizadorLogado();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("id").descending());

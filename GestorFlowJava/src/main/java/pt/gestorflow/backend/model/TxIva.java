@@ -3,6 +3,7 @@ package pt.gestorflow.backend.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode; // <--- Import obrigatório
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
@@ -12,7 +13,8 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TxIva {
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para a herança funcionar com o Lombok
+public class TxIva extends Auditable { // <--- Escudo de Auditoria Ativado
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

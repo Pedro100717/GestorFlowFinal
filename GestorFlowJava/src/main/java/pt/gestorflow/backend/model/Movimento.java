@@ -4,17 +4,24 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode; // <--- Não esquecer!
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "movimentos_tesouraria")
-@Data
-public class Movimento {
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório por causa da herança
+public class Movimento extends Auditable { // <--- Escudo de Auditoria Ativado
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 🛡️ Tempo de Negócio: O dia em que o dinheiro efetivamente mexeu no banco
     @Column(nullable = false)
     private LocalDateTime dataMovimento;
 
@@ -42,9 +49,6 @@ public class Movimento {
     @JsonIgnore
     private Utilizador utilizador;
 
-    @PrePersist
-    protected void onCreate() { if (dataMovimento == null) dataMovimento = LocalDateTime.now(); }
-
     public enum TipoMovimento {
         CREDITO, // Entra dinheiro (+)
         DEBITO   // Sai dinheiro (-)
@@ -67,4 +71,12 @@ public class Movimento {
     @JoinColumn(name = "cliente_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Cliente cliente;
+
+    // Rede de Segurança (Mudei o nome para não haver risco de conflito interno do JPA)
+    @PrePersist
+    protected void onPrePersist() {
+        if (dataMovimento == null) {
+            dataMovimento = LocalDateTime.now();
+        }
+    }
 }

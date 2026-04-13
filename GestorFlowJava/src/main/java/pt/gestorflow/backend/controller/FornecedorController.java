@@ -5,8 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.FornecedorDTO;
-import pt.gestorflow.backend.model.Fornecedor;
-import pt.gestorflow.backend.repository.FornecedorResponseDTO;
+import pt.gestorflow.backend.dto.FornecedorResponseDTO;
 import pt.gestorflow.backend.service.FornecedorService;
 
 import java.util.List;

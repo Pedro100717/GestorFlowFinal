@@ -5,13 +5,19 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode; // <--- Importatório obrigatório
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "patrimonio")
 @Inheritance(strategy = InheritanceType.JOINED) // CRÍTICO: Cria tabelas separadas mas ligadas por ID
-@Data
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para fundir com a classe Auditable
 // Configuração para o JSON saber qual filho criar quando recebe dados do Frontend
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "tipoPatrimonio")
 @JsonSubTypes({
@@ -19,7 +25,7 @@ import java.time.LocalDate;
         @JsonSubTypes.Type(value = PatrimonioImovel.class, name = "IMOVEL"),
         @JsonSubTypes.Type(value = PatrimonioFerramenta.class, name = "FERRAMENTA")
 })
-public abstract class Patrimonio {
+public abstract class Patrimonio extends Auditable { // <--- Escudo de Auditoria Ativado na classe Mãe
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -27,6 +33,7 @@ public abstract class Patrimonio {
     @Column(nullable = false)
     private String nome; // Ex: "Carrinha Mercedes", "Escritório Lisboa"
 
+    // 🛡️ Tempo de Negócio
     private LocalDate dataAquisicao;
 
     @Column(precision = 12, scale = 2)

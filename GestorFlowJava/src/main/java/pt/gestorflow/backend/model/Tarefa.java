@@ -3,13 +3,19 @@ package pt.gestorflow.backend.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode; // <--- Importatório obrigatório
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tarefas")
-@Data
-public class Tarefa {
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para fundir com o Auditable
+public class Tarefa extends Auditable { // <--- Escudo de Auditoria Ativado
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,12 +37,11 @@ public class Tarefa {
 
     private LocalDate dataLimite; // Deadline
 
+    // 🛡️ Tempo de Negócio: Quando o trabalho foi efetivamente terminado
     @Column(name = "data_conclusao")
     private LocalDateTime dataConclusao;
 
     // --- Relações ---
-
-    // Opcional: A tarefa pode ser sobre um cliente específico
     @ManyToOne
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
@@ -45,14 +50,6 @@ public class Tarefa {
     @JoinColumn(name = "utilizador_id", nullable = false)
     @JsonIgnore
     private Utilizador utilizador;
-
-    @Column(name = "data_criacao", updatable = false)
-    private LocalDateTime dataCriacao;
-
-    @PrePersist
-    protected void onCreate() {
-        dataCriacao = LocalDateTime.now();
-    }
 
     public enum EstadoTarefa {
         PENDENTE, EM_CURSO, CONCLUIDA, CANCELADA

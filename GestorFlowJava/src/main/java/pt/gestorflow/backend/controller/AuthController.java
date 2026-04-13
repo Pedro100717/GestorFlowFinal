@@ -30,14 +30,13 @@ public class AuthController {
     // 1. INJEÇÃO DO SERVIÇO DE UTILIZADORES (Para criar a conta)
     private final UtilizadorService utilizadorService;
 
-    // --- LOGIN (Já tinhas) ---
     // --- LOGIN ---
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO dados) {
         Optional<Utilizador> userOpt = repository.findByEmail(dados.getEmail());
 
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body("Login incorreto (Email não encontrado)");
+            return ResponseEntity.status(401).body("Credenciais Invalidas.");
         }
 
         Utilizador user = userOpt.get();
@@ -45,12 +44,11 @@ public class AuthController {
         boolean senhaValida = passwordEncoder.matches(dados.getSenha(), user.getSenha());
 
         if (!senhaValida) {
-            return ResponseEntity.status(401).body("Login incorreto (Senha errada)");
+            return ResponseEntity.status(401).body("Credenciais Invalidas.");
         }
 
         String token = tokenService.gerarToken(user);
 
-        // --- A FORMA "ENTERPRISE" ---
         // Usamos o nosso DTO para empacotar a resposta (Token, Nome e Email)
         LoginResponseDTO resposta = new LoginResponseDTO(
                 token,

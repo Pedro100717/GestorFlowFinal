@@ -1,7 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -138,6 +138,7 @@ public class VendaService {
         return converterParaDTO(vendaGuardada);
     }
 
+    @Transactional(readOnly = true)
     public Page<VendaResponseDTO> listarMinhasVendas(int pagina, int tamanho) {
         Utilizador user = getUtilizadorLogado();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataVenda").descending());

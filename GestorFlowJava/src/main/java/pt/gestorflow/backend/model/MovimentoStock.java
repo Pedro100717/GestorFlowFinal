@@ -3,18 +3,25 @@ package pt.gestorflow.backend.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode; // <--- Importatório obrigatório
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "movimentos_stock")
-@Data
-public class MovimentoStock {
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório por causa da herança
+public class MovimentoStock extends Auditable { // <--- Escudo de Auditoria Ativado
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 🛡️ Tempo de Negócio: Quando o stock efetivamente mexeu
     @Column(nullable = false)
     private LocalDateTime dataMovimento;
 
@@ -42,13 +49,16 @@ public class MovimentoStock {
     @JsonIgnore
     private Utilizador utilizador;
 
-    @PrePersist
-    protected void onCreate() {
-        if (dataMovimento == null) dataMovimento = LocalDateTime.now();
-    }
-
     public enum TipoMovimentoStock {
         ENTRADA,
         SAIDA
+    }
+
+    // A nossa rede de segurança de negócio, renomeada para não causar conflitos
+    @PrePersist
+    protected void onPrePersist() {
+        if (dataMovimento == null) {
+            dataMovimento = LocalDateTime.now();
+        }
     }
 }

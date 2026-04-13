@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -12,8 +16,10 @@ import java.time.LocalDateTime;
 @Table(name = "artigos")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE) // Tudo na mesma tabela 'artigos'
 @DiscriminatorColumn(name = "tipo_artigo", discriminatorType = DiscriminatorType.STRING)
-@Data
-public abstract class Artigo { // <--- Agora é ABSTRACT
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true)
+public abstract class Artigo extends Auditable{ // <--- Agora é ABSTRACT
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,9 +36,6 @@ public abstract class Artigo { // <--- Agora é ABSTRACT
     @Column(precision = 10, scale = 2)
     private BigDecimal ultimoPrecoCusto;
 
-    // Removemos 'movimentaStock' e 'stockAtual' daqui!
-    // Eles vão para a classe Mercadoria.
-
     @ManyToOne
     @JoinColumn(name = "familia_id")
     private Familia familia;
@@ -42,16 +45,9 @@ public abstract class Artigo { // <--- Agora é ABSTRACT
     @JsonIgnore
     private Utilizador utilizador;
 
-    @Column(name = "data_criacao", updatable = false)
-    private LocalDateTime dataCriacao;
-
     @Transient
     public boolean getMovimentaStock() {
         return this instanceof Mercadoria;
     }
 
-    @PrePersist
-    protected void onCreate() {
-        dataCriacao = LocalDateTime.now();
-    }
 }

@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.transaction.annotation.Transactional; // Import Correto
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +32,7 @@ public class TarefaService {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
+    @Transactional
     public TarefaResponseDTO criar(TarefaDTO dto) {
         Utilizador user = getUtilizadorLogado();
         Tarefa t = new Tarefa();
@@ -53,6 +55,7 @@ public class TarefaService {
         return converterParaDTO(guardada);
     }
 
+    @Transactional
     public TarefaResponseDTO atualizar(Long id, TarefaDTO dto) {
         Tarefa t = repository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Tarefa não encontrada"));
@@ -83,18 +86,21 @@ public class TarefaService {
         return converterParaDTO(atualizada);
     }
 
+    @Transactional(readOnly = true)
     public Page<TarefaResponseDTO> listarMinhasTarefas(int pagina, int tamanho) {
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("prioridade").descending().and(Sort.by("dataLimite")));
         return repository.findAllByUtilizadorId(getUtilizadorLogado().getId(), pageable)
                 .map(this::converterParaDTO);
     }
 
+    @Transactional(readOnly = true)
     public List<TarefaResponseDTO> listarPorEstado(Tarefa.EstadoTarefa estado) {
         return repository.findAllByUtilizadorIdAndEstado(getUtilizadorLogado().getId(), estado).stream()
                 .map(this::converterParaDTO)
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public void eliminar(Long id) {
         Tarefa t = repository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Tarefa não encontrada"));
@@ -110,7 +116,8 @@ public class TarefaService {
         dto.setPrioridade(t.getPrioridade().name());
         dto.setEstado(t.getEstado().name());
         dto.setDataLimite(t.getDataLimite());
-        dto.setDataCriacao(t.getDataCriacao());
+
+        dto.setDataCriacao(t.getDataCriacaoSistema());
         dto.setDataConclusao(t.getDataConclusao());
 
         if (t.getCliente() != null) {

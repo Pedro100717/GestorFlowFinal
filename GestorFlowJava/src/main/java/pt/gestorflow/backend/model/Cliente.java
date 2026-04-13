@@ -2,17 +2,18 @@ package pt.gestorflow.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "clientes")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Cliente {
+@EqualsAndHashCode(callSuper = true)
+public class Cliente extends Auditable{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,9 +34,6 @@ public class Cliente {
     @Column(columnDefinition = "TEXT")
     private String anotacoes;
 
-    @Column(name = "data_criacao", updatable = false)
-    private LocalDateTime dataCriacao;
-
     // A Chave Estrangeira!
     // @JsonIgnore: Impede que, ao pedires um cliente, ele traga o utilizador inteiro (com password e tudo)
     @ManyToOne(fetch = FetchType.LAZY)
@@ -43,8 +41,4 @@ public class Cliente {
     @JsonIgnore
     private Utilizador utilizador;
 
-    @PrePersist
-    protected void onCreate() {
-        dataCriacao = LocalDateTime.now();
-    }
 }

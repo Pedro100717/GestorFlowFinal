@@ -1,4 +1,4 @@
-package pt.gestorflow.backend.repository;
+package pt.gestorflow.backend.dto;
 
 import lombok.Data;
 

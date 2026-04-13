@@ -3,12 +3,18 @@ package pt.gestorflow.backend.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode; // <--- Não esquecer!
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "orcamentos_linhas")
-@Data
-public class LinhaOrcamento {
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para fundir com a classe mãe
+public class LinhaOrcamento extends Auditable { // <--- Controlo anti-fraude ativado
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

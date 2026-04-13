@@ -4,18 +4,25 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode; // <--- Importatório
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "vendas")
-@Data
-public class Venda {
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para fundir com a auditoria
+public class Venda extends Auditable { // <--- Escudo de Auditoria Ativado
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 🛡️ Tempo de Negócio: O momento em que a venda efetivamente ocorreu
     @Column(nullable = false)
     private LocalDateTime dataVenda;
 
@@ -23,7 +30,7 @@ public class Venda {
     private BigDecimal quantidade;
 
     @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal precoUnitario; // Guardamos o preço no momento da venda, pois o preço do artigo pode mudar no futuro!
+    private BigDecimal precoUnitario; // Excelente decisão de arquitetura guardar a "fotografia" do preço aqui!
 
     @Column(precision = 10, scale = 2)
     private BigDecimal totalSemIva;
@@ -66,8 +73,9 @@ public class Venda {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private ContaBancaria contaBancaria;
 
+    // Renomeado para onPrePersist para evitar conflitos de ciclo de vida
     @PrePersist
-    protected void onCreate() {
+    protected void onPrePersist() {
         if (dataVenda == null) dataVenda = LocalDateTime.now();
     }
 }

@@ -1,11 +1,16 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional; // Import Correto do Spring
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.OrcamentoDTO;
+import pt.gestorflow.backend.dto.OrcamentoResponseDTO;
 import pt.gestorflow.backend.dto.VendaDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
@@ -13,6 +18,8 @@ import pt.gestorflow.backend.repository.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +29,7 @@ public class OrcamentoService {
     private final ClienteRepository clienteRepository;
     private final ArtigoRepository artigoRepository;
     private final TxIvaRepository txIvaRepository;
-    private final VendaService vendaService; // Para converter em venda
+    private final VendaService vendaService;
 
     private Utilizador getUtilizadorLogado() {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -41,24 +48,23 @@ public class OrcamentoService {
         orcamento.setUtilizador(user);
         orcamento.setDataValidade(dto.getDataValidade());
         orcamento.setNotas(dto.getNotas());
-        orcamento.setEstado(Orcamento.EstadoOrcamento.RASCUNHO); // Começa sempre como Rascunho
+        orcamento.setEstado(Orcamento.EstadoOrcamento.RASCUNHO);
 
-        // Processa as linhas e calcula totais
         processarLinhasOrcamento(orcamento, dto);
 
         return orcamentoRepository.save(orcamento);
     }
 
-    // --- 2. ATUALIZAR (CRÍTICO PARA O "SIMULADOR") ---
+    // --- 2. ATUALIZAR ---
     @Transactional
     public Orcamento atualizarOrcamento(Long id, OrcamentoDTO dto) {
-        Orcamento orcamento = buscarPorId(id); // Já valida utilizador
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado ou sem permissão."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
             throw new RuntimeException("Não é possível alterar um orçamento que já foi convertido em venda.");
         }
 
-        // Atualiza cabeçalho
         if (dto.getClienteId() != null) {
             Cliente novoCliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), getUtilizadorLogado().getId())
                     .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
@@ -67,17 +73,12 @@ public class OrcamentoService {
         orcamento.setDataValidade(dto.getDataValidade());
         orcamento.setNotas(dto.getNotas());
 
-        // Atualiza estado se vier no DTO (opcional, ou via endpoint específico)
-        // orcamento.setEstado(dto.getEstado());
-
-        // Limpa as linhas antigas e adiciona as novas (Estratégia mais limpa para edição completa)
         orcamento.getLinhas().clear();
         processarLinhasOrcamento(orcamento, dto);
 
         return orcamentoRepository.save(orcamento);
     }
 
-    // --- Lógica Auxiliar de Cálculo (Usada no Criar e Atualizar) ---
     private void processarLinhasOrcamento(Orcamento orcamento, OrcamentoDTO dto) {
         BigDecimal totalCustoGeral = BigDecimal.ZERO;
         BigDecimal totalSemIvaGeral = BigDecimal.ZERO;
@@ -95,16 +96,12 @@ public class OrcamentoService {
             linha.setTaxaIva(taxaIva);
             linha.setQuantidade(linhaDto.getQuantidade());
 
-            // 1. Custo (Snapshot)
             BigDecimal custoUnitario = artigo.getUltimoPrecoCusto() != null ? artigo.getUltimoPrecoCusto() : BigDecimal.ZERO;
             linha.setPrecoCustoUnitario(custoUnitario);
 
-            // 2. Cálculo do Preço de Venda (Margem vs Override)
             BigDecimal precoVendaFinal;
             if (linhaDto.getPrecoVendaUnitarioOverride() != null) {
-                // Utilizador forçou um preço final
                 precoVendaFinal = linhaDto.getPrecoVendaUnitarioOverride();
-                // Calcula a margem implícita para registro
                 if (custoUnitario.compareTo(BigDecimal.ZERO) > 0) {
                     BigDecimal lucro = precoVendaFinal.subtract(custoUnitario);
                     linha.setMargemLucroPercentual(lucro.divide(custoUnitario, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)));
@@ -112,7 +109,6 @@ public class OrcamentoService {
                     linha.setMargemLucroPercentual(BigDecimal.valueOf(100));
                 }
             } else {
-                // Utilizador definiu uma margem %
                 BigDecimal margem = linhaDto.getMargemLucroPercentual() != null ? linhaDto.getMargemLucroPercentual() : BigDecimal.ZERO;
                 linha.setMargemLucroPercentual(margem);
                 BigDecimal fatorMargem = margem.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP).add(BigDecimal.ONE);
@@ -120,7 +116,6 @@ public class OrcamentoService {
             }
             linha.setPrecoVendaUnitario(precoVendaFinal);
 
-            // 3. Totais da Linha
             BigDecimal totalLinhaSemIva = precoVendaFinal.multiply(linha.getQuantidade());
             BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP).add(BigDecimal.ONE);
             BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva);
@@ -128,10 +123,8 @@ public class OrcamentoService {
             linha.setTotalLinhaSemIva(totalLinhaSemIva);
             linha.setTotalLinhaComIva(totalLinhaComIva);
 
-            // Adiciona à lista
             orcamento.getLinhas().add(linha);
 
-            // Acumula Totais Gerais
             totalCustoGeral = totalCustoGeral.add(custoUnitario.multiply(linha.getQuantidade()));
             totalSemIvaGeral = totalSemIvaGeral.add(totalLinhaSemIva);
             totalComIvaGeral = totalComIvaGeral.add(totalLinhaComIva);
@@ -142,10 +135,11 @@ public class OrcamentoService {
         orcamento.setTotalComIva(totalComIvaGeral);
     }
 
-    // --- 3. CONVERTER EM VENDA (A "Magia") ---
+    // --- 3. CONVERTER EM VENDA ---
     @Transactional
-    public void converterEmVenda(Long orcamentoId, Long contaBancariaId) { // <--- RECEBE A CONTA
-        Orcamento orcamento = buscarPorId(orcamentoId);
+    public void converterEmVenda(Long orcamentoId, Long contaBancariaId) {
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(orcamentoId, getUtilizadorLogado().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
             throw new RuntimeException("Este orçamento já foi processado anteriormente.");
@@ -160,8 +154,6 @@ public class OrcamentoService {
             vendaDTO.setPrecoUnitario(linha.getPrecoVendaUnitario());
             vendaDTO.setDesignacaoPersonalizada("Origem: Orçamento #" + orcamento.getId());
             vendaDTO.setDataVenda(LocalDateTime.now().toLocalDate());
-
-            // ---> A MÁGICA AQUI: Associar o dinheiro à conta escolhida! <---
             vendaDTO.setContaBancariaId(contaBancariaId);
 
             vendaService.registarVenda(vendaDTO);
@@ -172,36 +164,84 @@ public class OrcamentoService {
     }
 
     // --- 4. LISTAR E BUSCAR ---
-    public org.springframework.data.domain.Page<Orcamento> listarMeusOrcamentos(int pagina, int tamanho) {
+    @Transactional(readOnly = true)
+    public Page<OrcamentoResponseDTO> listarMeusOrcamentos(int pagina, int tamanho) {
         Utilizador user = getUtilizadorLogado();
-        org.springframework.data.domain.Pageable pageable =
-                org.springframework.data.domain.PageRequest.of(pagina, tamanho, org.springframework.data.domain.Sort.by("dataCriacao").descending());
-        return orcamentoRepository.findAllByUtilizadorId(user.getId(), pageable);
+        Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataCriacaoSistema").descending());
+        return orcamentoRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
     }
 
-    public Orcamento buscarPorId(Long id) {
-        return orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+    @Transactional(readOnly = true)
+    public OrcamentoResponseDTO buscarPorId(Long id) {
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado ou sem permissão."));
+        return converterParaDTO(orcamento);
     }
 
     // --- 5. ELIMINAR ---
     @Transactional
     public void eliminarOrcamento(Long id) {
-        Orcamento orcamento = buscarPorId(id);
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
             throw new RuntimeException("Não é possível eliminar um orçamento que já gerou vendas. Arquive-o ou anule a venda primeiro.");
         }
         orcamentoRepository.delete(orcamento);
     }
 
-    // --- 6. ALTERAR ESTADO (Aprovado/Rejeitado) ---
-    public Orcamento alterarEstado(Long id, Orcamento.EstadoOrcamento novoEstado) {
-        Orcamento orcamento = buscarPorId(id);
-        // Não permitir voltar atrás se já foi convertido
+    // --- 6. ALTERAR ESTADO ---
+    @Transactional
+    public OrcamentoResponseDTO alterarEstado(Long id, Orcamento.EstadoOrcamento novoEstado) {
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
+
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
             throw new RuntimeException("Orçamento já convertido em venda.");
         }
         orcamento.setEstado(novoEstado);
-        return orcamentoRepository.save(orcamento);
+        return converterParaDTO(orcamentoRepository.save(orcamento));
+    }
+
+    // --- 7. CONVERSOR DTO MÁGICO ---
+    private OrcamentoResponseDTO converterParaDTO(Orcamento o) {
+        OrcamentoResponseDTO dto = new OrcamentoResponseDTO();
+        dto.setId(o.getId());
+        dto.setDataCriacao(o.getDataCriacaoSistema());
+        dto.setDataValidade(o.getDataValidade());
+        dto.setEstado(o.getEstado().name());
+        dto.setNotas(o.getNotas());
+        dto.setTotalCusto(o.getTotalCusto());
+        dto.setTotalSemIva(o.getTotalSemIva());
+        dto.setTotalComIva(o.getTotalComIva());
+
+        if (o.getCliente() != null) {
+            dto.setClienteId(o.getCliente().getId());
+            dto.setClienteNome(o.getCliente().getNome());
+        }
+
+        if (o.getLinhas() != null) {
+            List<OrcamentoResponseDTO.LinhaResponseDTO> linhasDto = o.getLinhas().stream().map(linha -> {
+                OrcamentoResponseDTO.LinhaResponseDTO lDto = new OrcamentoResponseDTO.LinhaResponseDTO();
+                lDto.setId(linha.getId());
+                if (linha.getArtigo() != null) {
+                    lDto.setArtigoId(linha.getArtigo().getId());
+                    lDto.setArtigoNome(linha.getArtigo().getNome());
+                }
+                lDto.setQuantidade(linha.getQuantidade());
+                lDto.setPrecoCustoUnitario(linha.getPrecoCustoUnitario());
+                lDto.setPrecoVendaUnitario(linha.getPrecoVendaUnitario());
+                lDto.setMargemLucroPercentual(linha.getMargemLucroPercentual());
+                lDto.setTotalLinhaSemIva(linha.getTotalLinhaSemIva());
+                lDto.setTotalLinhaComIva(linha.getTotalLinhaComIva());
+
+                if (linha.getTaxaIva() != null) {
+                    lDto.setTaxaIvaId(linha.getTaxaIva().getId());
+                    lDto.setTaxaIvaValor(linha.getTaxaIva().getValor());
+                }
+                return lDto;
+            }).collect(Collectors.toList());
+            dto.setLinhas(linhasDto);
+        }
+        return dto;
     }
 }

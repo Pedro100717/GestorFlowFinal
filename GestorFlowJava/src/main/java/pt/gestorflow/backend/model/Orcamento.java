@@ -2,24 +2,27 @@ package pt.gestorflow.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "orcamentos")
-@Data
-public class Orcamento {
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório por causa da herança
+public class Orcamento extends Auditable { // <--- Escudo de Auditoria Ativado
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 🛡️ Tempo de Negócio: O dia que vai impresso no PDF do Orçamento
     @Column(nullable = false)
-    private LocalDateTime dataCriacao;
+    private LocalDate dataEmissao;
 
     private LocalDate dataValidade; // Até quando o preço é garantido
 
@@ -51,13 +54,16 @@ public class Orcamento {
     private Utilizador utilizador;
 
     // Cascade: Se apagares o orçamento, apaga as linhas.
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "orcamento", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LinhaOrcamento> linhas = new ArrayList<>();
 
+    // Rede de segurança para os dados de negócio
     @PrePersist
-    protected void onCreate() {
-        if (dataCriacao == null) dataCriacao = LocalDateTime.now();
-        if (dataValidade == null) dataValidade = LocalDate.now().plusDays(30); // 30 dias por defeito
+    protected void onPrePersist() {
+        if (dataEmissao == null) dataEmissao = LocalDate.now();
+        if (dataValidade == null) dataValidade = dataEmissao.plusDays(30); // 30 dias a partir da data de emissão
     }
 
     public enum EstadoOrcamento {

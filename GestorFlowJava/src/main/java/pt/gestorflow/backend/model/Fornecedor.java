@@ -3,13 +3,19 @@ package pt.gestorflow.backend.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode; // <--- Importante!
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "fornecedores")
-@Data
-public class Fornecedor {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true) // <--- Obrigatório por causa da herança do Auditable
+public class Fornecedor extends Auditable { // <--- Liga o motor de auditoria
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
@@ -26,9 +32,4 @@ public class Fornecedor {
     @JsonIgnore
     private Utilizador utilizador;
 
-    @Column(name = "data_criacao", updatable = false)
-    private LocalDateTime dataCriacao;
-
-    @PrePersist
-    protected void onCreate() { dataCriacao = LocalDateTime.now(); }
 }
