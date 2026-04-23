@@ -1,29 +1,25 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "artigos")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE) // Tudo na mesma tabela 'artigos'
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "tipo_artigo", discriminatorType = DiscriminatorType.STRING)
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true)
-public abstract class Artigo extends Auditable{ // <--- Agora é ABSTRACT
+public abstract class Artigo extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version // 🛡️ Ativado na Fase 1 para evitar conflitos de stock/preço
+    private Long version;
 
     @Column(nullable = false)
     private String nome;
@@ -31,23 +27,34 @@ public abstract class Artigo extends Auditable{ // <--- Agora é ABSTRACT
     private String codigoBarras;
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal preco; // Preço de Venda
+    private BigDecimal preco;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal ultimoPrecoCusto;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY) // 🚀 Performance: Só carrega a família se pedires
     @JoinColumn(name = "familia_id")
     private Familia familia;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY) // 🚀 Performance: Nunca carregar o utilizador sem necessidade
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
     private Utilizador utilizador;
 
     @Transient
-    public boolean getMovimentaStock() {
+    public boolean isMovimentaStock() {
         return this instanceof Mercadoria;
     }
 
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Artigo artigo)) return false;
+        return id != null && id.equals(artigo.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

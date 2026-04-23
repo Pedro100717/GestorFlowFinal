@@ -9,6 +9,5 @@ public class SeccaoHomoResponseDTO {
     private String codigo;
 
     //Flat Fields frontend tem que saber a que cc isto pertence
-    private Long centroCustoId;
     private String centroCustoNome;
 }

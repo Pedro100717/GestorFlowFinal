@@ -15,6 +15,7 @@
               <th class="ps-4 py-3 border-0 text-muted small uppercase">Data</th>
               <th class="border-0 text-muted small uppercase">Cliente</th>
               <th class="border-0 text-muted small uppercase">Artigo / Designação</th>
+              <th class="border-0 text-muted small uppercase">Estado</th>
               <th class="border-0 text-muted small uppercase">Conta Movimentada</th>
               <th class="border-0 text-muted small uppercase">C. Custo</th>
               <th class="border-0 text-muted small uppercase">Secção</th>
@@ -31,12 +32,20 @@
               <td class="fw-bold text-dark">{{ v.clienteNome }}</td>
               
               <td>
-                  <div class="fw-bold">{{ v.artigoNome }}</div>
-                  <div class="small text-muted" *ngIf="v.designacao !== v.artigoNome">
-                      {{ v.designacao }}
+                  <div class="fw-bold">{{ v.linhas?.[0]?.artigoNome }}</div>
+                  <div class="small text-muted" *ngIf="v.linhas?.[0]?.designacaoPersonalizada">
+                      {{ v.linhas?.[0]?.designacaoPersonalizada }}
                   </div>
               </td>
               
+              <td>
+                  <span class="badge" 
+                        [ngClass]="v.estadoPagamento === 'PAGO' ? 'bg-success' : 'bg-warning text-dark'">
+                      <i class="bi" [ngClass]="v.estadoPagamento === 'PAGO' ? 'bi-check-circle' : 'bi-hourglass-split'"></i>
+                      {{ v.estadoPagamento === 'PAGO' ? 'Pago' : 'Pendente' }}
+                  </span>
+              </td>
+
               <td>
                   <span *ngIf="v.contaBancariaNome" class="badge bg-light text-dark border">
                       <i class="bi bi-bank me-1"></i>{{ v.contaBancariaNome }}
@@ -58,24 +67,22 @@
                   <span *ngIf="!v.seccaoHomoCodigo" class="text-muted small">-</span>
               </td>
               
-              <td class="text-end font-monospace">{{ v.quantidade }}</td>
-              <td class="text-end font-monospace">{{ v.precoUnitario | currency:'EUR' }}</td>
+              <td class="text-end font-monospace">{{ v.linhas?.[0]?.quantidade }}</td>
+              <td class="text-end font-monospace">{{ v.linhas?.[0]?.precoUnitario | currency:'EUR' }}</td>
               
               <td class="text-end text-muted small">
-                  <span *ngIf="v.taxaIvaValor">{{ v.taxaIvaValor }}%</span>
-                  <span *ngIf="!v.taxaIvaValor">-</span>
+                  <span *ngIf="v.linhas?.[0]?.taxaIvaValor">{{ v.linhas?.[0]?.taxaIvaValor }}%</span>
+                  <span *ngIf="!v.linhas?.[0]?.taxaIvaValor">-</span>
               </td>
               
               <td class="text-end fw-bold text-success pe-4">{{ v.totalComIva | currency:'EUR' }}</td>
             </tr>
-
             <tr *ngIf="listaVendas.length === 0">
-              <td colspan="10" class="text-center py-5 text-muted">
-                <i class="bi bi-receipt fs-1 d-block mb-2 opacity-50"></i>
-                <span class="fw-bold">Ainda não tens vendas registadas.</span>
-              </td>
+                <td colspan="11" class="text-center py-5 text-muted">
+                  <i class="bi bi-receipt fs-1 d-block mb-2 opacity-50"></i>
+                  <span class="fw-bold">Ainda não há vendas registadas.</span>
+                </td>
             </tr>
-
           </tbody>
         </table>
       </div>
@@ -93,27 +100,13 @@
       <div class="modal-body p-4">
         <form [formGroup]="formVenda">
 
-          <div class="mb-3 bg-light p-3 rounded border">
+          <div class="mb-4 bg-light p-3 rounded border">
               <label class="form-label small fw-bold text-primary">
                   <i class="bi bi-calendar-check me-2"></i>Data da Venda
               </label>
               <input type="datetime-local" class="form-control border-primary" formControlName="dataVenda">
           </div>
 
-          <div class="mb-4 p-3 bg-success bg-opacity-10 rounded border border-success border-opacity-25">
-              <label class="form-label small fw-bold text-success">
-                  <i class="bi bi-wallet2 me-2"></i>Conta de Recebimento (Para onde vai o dinheiro?) <span class="text-danger">*</span>
-              </label>
-              <select class="form-select border-success border-opacity-50 fw-bold text-success" formControlName="contaBancariaId"
-                      [ngClass]="{ 'is-invalid': f['contaBancariaId'].touched && f['contaBancariaId'].invalid }">
-                  <option [ngValue]="null" disabled>Selecione a conta a creditar...</option>
-                  <option *ngFor="let c of listaContas" [ngValue]="c.id">
-                      {{ c.nome }} (Saldo Atual: {{ c.saldo | currency:'EUR' }})
-                  </option>
-              </select>
-              <div class="invalid-feedback">A conta bancária é obrigatória.</div>
-          </div>
-          
           <div class="row">
               <div class="col-md-6 mb-3">
                   <label class="form-label small fw-bold">Cliente <span class="text-danger">*</span></label>
@@ -135,7 +128,7 @@
               </div>
           </div>
 
-          <hr class="my-2 opacity-10">
+          <hr class="my-3 opacity-10">
           <p class="small fw-bold text-muted text-uppercase mb-2">
               Contabilidade Analítica <span class="text-danger">*</span>
           </p>
@@ -194,7 +187,7 @@
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-primary" [disabled]="formVenda.invalid" (click)="registarVenda()">
-          <i class="bi bi-check-lg me-2"></i> Confirmar Venda
+          <i class="bi bi-check-lg me-2"></i> Emitir Venda
         </button>
       </div>
     </div>

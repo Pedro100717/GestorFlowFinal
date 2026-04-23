@@ -14,73 +14,156 @@
         </div>
     </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-4" *ngFor="let conta of listaContas">
-            <div class="card shadow-sm border-0 h-100" 
-                 [ngClass]="{'ring-2 ring-primary border-primary': contaSelecionada?.id === conta.id}"
-                 (click)="verExtrato(conta)"
-                 style="cursor: pointer; transition: all 0.2s;">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="fw-bold text-secondary mb-1">{{ conta.nome }}</h6>
-                            <small class="text-muted" style="font-size: 0.8rem;">{{ conta.iban || 'Sem IBAN' }}</small>
+    <ul class="nav nav-tabs mb-4 border-bottom-0">
+        <li class="nav-item">
+            <a class="nav-link fw-bold border-0 border-bottom" 
+               [ngClass]="abaAtiva === 'contas' ? 'active text-primary border-primary border-3' : 'text-muted'" 
+               (click)="abaAtiva = 'contas'" style="cursor: pointer;">
+                <i class="bi bi-wallet2 me-2"></i>Saldos e Extratos
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold border-0 border-bottom" 
+               [ngClass]="abaAtiva === 'pendentes' ? 'active text-primary border-primary border-3' : 'text-muted'" 
+               (click)="abaAtiva = 'pendentes'" style="cursor: pointer;">
+                <i class="bi bi-hourglass-split me-2"></i>Documentos Pendentes
+                <span class="badge bg-danger ms-2 rounded-pill" *ngIf="listaPendentes.length > 0">{{ listaPendentes.length }}</span>
+            </a>
+        </li>
+    </ul>
+
+    <div *ngIf="abaAtiva === 'contas'">
+        <div class="row g-3 mb-4">
+            <div class="col-md-4" *ngFor="let conta of listaContas">
+                <div class="card shadow-sm border-0 h-100" 
+                     [ngClass]="{'ring-2 ring-primary border-primary': contaSelecionada?.id === conta.id}"
+                     (click)="verExtrato(conta)"
+                     style="cursor: pointer; transition: all 0.2s;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="fw-bold text-secondary mb-1">{{ conta.nome }}</h6>
+                                <small class="text-muted" style="font-size: 0.8rem;">{{ conta.iban || 'Sem IBAN' }}</small>
+                            </div>
+                            <div class="icon-box bg-light text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-wallet2"></i>
+                            </div>
                         </div>
-                        <div class="icon-box bg-light text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                            <i class="bi bi-wallet2"></i>
-                        </div>
+                        <h4 class="mt-3 mb-0 fw-bold" 
+                            [ngClass]="conta.saldo >= 0 ? 'text-dark' : 'text-danger'">
+                            {{ conta.saldo | currency:'EUR' }}
+                        </h4>
                     </div>
-                    <h4 class="mt-3 mb-0 fw-bold" 
-                        [ngClass]="conta.saldo >= 0 ? 'text-dark' : 'text-danger'">
-                        {{ conta.saldo | currency:'EUR' }}
-                    </h4>
                 </div>
+            </div>
+
+            <div *ngIf="listaContas.length === 0" class="col-12 text-center py-5 bg-white rounded shadow-sm border border-light">
+                <i class="bi bi-safe fs-1 d-block mb-3 text-muted opacity-50"></i>
+                <h5 class="fw-bold text-secondary">Ainda não tens contas bancárias criadas.</h5>
+                <p class="text-muted small mb-0">Clica em "Nova Conta" para começares a gerir a tua tesouraria.</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 bg-light mb-4" *ngIf="!contaSelecionada && listaContas.length > 0">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-hand-index-thumb fs-1 d-block mb-3 text-muted opacity-50"></i>
+                <h5 class="fw-bold text-secondary">Seleciona uma conta acima</h5>
+                <p class="text-muted small mb-0">Clica num dos cartões bancários para veres o extrato detalhado.</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0" *ngIf="contaSelecionada">
+            <div class="card-header bg-white py-3 border-0">
+                <h5 class="mb-0 fw-bold text-secondary">Extrato: {{ contaSelecionada.nome }}</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 border-0 text-muted small uppercase">Data</th>
+                            <th class="border-0 text-muted small uppercase">Descrição</th>
+                            <th class="border-0 text-muted small uppercase text-end pe-4">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let m of movimentos">
+                            <td class="ps-4 text-muted small">{{ m.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
+                            <td>
+                                <span class="badge me-2" 
+                                      [ngClass]="m.tipo === 'CREDITO' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
+                                    {{ m.tipo === 'CREDITO' ? 'Entrada' : 'Saída' }}
+                                </span>
+                            
+                                <span *ngIf="m.compraId" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-2">
+                                    <i class="bi bi-cart me-1"></i> Compra: {{ m.fornecedorNome }}
+                                </span>
+                                
+                                <span *ngIf="m.vendaId" class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 me-2">
+                                    <i class="bi bi-receipt me-1"></i> Venda: {{ m.clienteNome }}
+                                </span>
+                            
+                                <span class="text-dark">{{ m.descricao }}</span>
+                            </td>
+                            <td class="text-end pe-4 fw-bold" 
+                                [ngClass]="m.tipo === 'CREDITO' ? 'text-success' : 'text-danger'">
+                                {{ m.tipo === 'CREDITO' ? '+' : '-' }} {{ m.valor | currency:'EUR' }}
+                            </td>
+                        </tr>
+                        
+                        <tr *ngIf="movimentos.length === 0">
+                            <td colspan="3" class="text-center py-5 text-muted">
+                                <i class="bi bi-receipt fs-2 d-block mb-2 opacity-50"></i>
+                                <span class="fw-bold">Nenhum movimento registado nesta conta.</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <div class="card shadow-sm border-0" *ngIf="contaSelecionada">
-        <div class="card-header bg-white py-3 border-0">
-            <h5 class="mb-0 fw-bold text-secondary">Extrato: {{ contaSelecionada.nome }}</h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4 border-0 text-muted small uppercase">Data</th>
-                        <th class="border-0 text-muted small uppercase">Descrição</th>
-                        <th class="border-0 text-muted small uppercase text-end pe-4">Valor</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr *ngFor="let m of movimentos">
-                        <td class="ps-4 text-muted small">{{ m.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
-                        <td>
-                            <span class="badge me-2" 
-                                  [ngClass]="m.tipo === 'CREDITO' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
-                                {{ m.tipo === 'CREDITO' ? 'Entrada' : 'Saída' }}
-                            </span>
-                        
-                            <span *ngIf="m.compraId" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-2">
-                                <i class="bi bi-cart me-1"></i> Compra: {{ m.fornecedorNome }}
-                            </span>
-                            
-                            <span *ngIf="m.vendaId" class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 me-2">
-                                <i class="bi bi-receipt me-1"></i> Venda: {{ m.clienteNome }}
-                            </span>
-                        
-                            <span class="text-dark">{{ m.descricao }}</span>
-                        </td>
-                        <td class="text-end pe-4 fw-bold" 
-                            [ngClass]="m.tipo === 'CREDITO' ? 'text-success' : 'text-danger'">
-                            {{ m.tipo === 'CREDITO' ? '+' : '-' }} {{ m.valor | currency:'EUR' }}
-                        </td>
-                    </tr>
-                    <tr *ngIf="movimentos.length === 0">
-                        <td colspan="3" class="text-center py-4 text-muted">Sem movimentos registados nesta conta.</td>
-                    </tr>
-                </tbody>
-            </table>
+    <div *ngIf="abaAtiva === 'pendentes'" class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3 border-0 text-muted small uppercase">Tipo</th>
+                            <th class="border-0 text-muted small uppercase">Data Emissão</th>
+                            <th class="border-0 text-muted small uppercase">Entidade</th>
+                            <th class="border-0 text-muted small uppercase text-end">Valor Total</th>
+                            <th class="border-0 text-muted small uppercase text-end pe-4">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let doc of listaPendentes">
+                            <td class="ps-4">
+                                <span class="badge" [ngClass]="doc.tipo === 'VENDA' ? 'bg-success bg-opacity-10 text-success border border-success' : 'bg-danger bg-opacity-10 text-danger border border-danger'">
+                                    <i class="bi" [ngClass]="doc.tipo === 'VENDA' ? 'bi-box-arrow-in-down-left' : 'bi-box-arrow-up-right'"></i> 
+                                    {{ doc.tipo === 'VENDA' ? 'Recebimento' : 'Pagamento' }}
+                                </span>
+                            </td>
+                            <td class="text-muted small">{{ doc.data | date:'dd/MM/yyyy HH:mm' }}</td>
+                            <td class="fw-bold text-dark">{{ doc.entidade }}</td>
+                            <td class="text-end fw-bold fs-6">{{ doc.total | currency:'EUR' }}</td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm shadow-sm" 
+                                        [ngClass]="doc.tipo === 'VENDA' ? 'btn-success' : 'btn-danger'"
+                                        (click)="abrirModalConfirmacao(doc)">
+                                    Liquidar <i class="bi bi-chevron-right ms-1"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr *ngIf="listaPendentes.length === 0">
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-check-circle fs-1 d-block mb-3 text-success opacity-50"></i>
+                                <span class="fw-bold fs-5 text-secondary">Tudo em dia!</span>
+                                <p class="small mb-0 mt-1">Não há faturas de Compras ou Vendas a aguardar pagamento.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -217,6 +300,49 @@
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                 <button class="btn btn-success" [disabled]="formTransferencia.invalid" (click)="realizarTransferencia()">
                     <i class="bi bi-check-circle me-1"></i>Confirmar Transferência
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalConfirmacao" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header text-white" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'bg-success' : 'bg-danger'">
+                <h5 class="modal-title fw-bold">
+                    Liquidar {{ docParaConfirmar?.tipo === 'VENDA' ? 'Recebimento' : 'Pagamento' }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                
+                <h2 class="fw-bold mb-0 text-dark">{{ docParaConfirmar?.total | currency:'EUR' }}</h2>
+                <p class="text-muted mb-4">{{ docParaConfirmar?.entidade }}</p>
+
+                <form [formGroup]="formConfirmacao" class="text-start">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Data de Movimentação (Extrato)</label>
+                        <input type="datetime-local" class="form-control" formControlName="dataPagamento">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Por onde foi pago? <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-lg fw-bold" formControlName="contaBancariaId">
+                            <option [ngValue]="null" disabled>-- Selecione a Conta Bancária --</option>
+                            <option *ngFor="let c of listaContas" [ngValue]="c.id">
+                                {{ c.nome }} (Saldo: {{ c.saldo | currency:'EUR' }})
+                            </option>
+                        </select>
+                    </div>
+                </form>
+
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'btn-success' : 'btn-danger'"
+                        [disabled]="formConfirmacao.invalid" (click)="confirmarTransacao()">
+                    <i class="bi bi-check-lg me-1"></i> Confirmar Liquidação
                 </button>
             </div>
         </div>

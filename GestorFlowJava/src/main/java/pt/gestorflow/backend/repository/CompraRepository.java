@@ -6,11 +6,18 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import pt.gestorflow.backend.model.Compra;
+import pt.gestorflow.backend.model.EstadoPagamento;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 public interface CompraRepository extends JpaRepository<Compra, Long> {
+
+    // Usamos o @EntityGraph para que o "buscarPorId" seja uma autêntica bala de performance.
+    @EntityGraph(attributePaths = {"fornecedor", "artigo", "contaBancaria", "centroCusto", "seccaoHomo", "taxaIva"})
+    Optional<Compra> findByIdAndUtilizadorId(Long id, Long utilizadorId);
 
     //Vai buscar tudo numa so Query
     @EntityGraph(attributePaths = {"fornecedor", "artigo", "contaBancaria", "centroCusto", "seccaoHomo", "taxaIva"})
@@ -19,4 +26,6 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
     //Soma total de compras da vida inteira
     @Query("SELECT COALESCE(SUM(c.total), 0) FROM Compra c WHERE c.utilizador.id = :userId")
     BigDecimal totalGastos(Long userId);
+
+    List<Compra> findAllByUtilizadorIdAndEstadoPagamento(Long utilizadorId, EstadoPagamento estadoPagamento);
 }

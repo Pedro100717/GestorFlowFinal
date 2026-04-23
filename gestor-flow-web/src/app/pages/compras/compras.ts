@@ -13,6 +13,8 @@ import { Fornecedor } from '../../core/models/fornecedor.model';
 import { CentroCusto, SeccaoHomo } from '../../core/models/analitica.model';
 import { forkJoin } from 'rxjs';
 
+import Swal from 'sweetalert2';
+
 declare var bootstrap: any;
 
 @Component({
@@ -28,8 +30,8 @@ export class ComprasComponent implements OnInit {
   listaFornecedores: Fornecedor[] = [];
   listaCentros: CentroCusto[] = [];
   listaSeccoes: SeccaoHomo[] = [];
+  // ❌ seccoesFiltradas removida
   listaTaxasIva: any[] = []; 
-  listaContas: any[] = []; 
 
   formCompra!: FormGroup;
   totalCalculado: number = 0;
@@ -49,15 +51,10 @@ export class ComprasComponent implements OnInit {
     this.carregarTudo();
     this.formCompra.valueChanges.subscribe(() => this.calcularTotal());
     
+    // ❌ Subscrição do centroCustoId removida
+
     this.compraService.compras$.subscribe((comprasAtualizadas) => {
       this.listaCompras = comprasAtualizadas;
-      this.cd.detectChanges();
-    });
-
-    // --- A MÁGICA REATIVA ---
-    // Escuta as contas diretamente da memória da Tesouraria!
-    this.tesourariaService.contas$.subscribe(contas => {
-      this.listaContas = contas;
       this.cd.detectChanges();
     });
   }
@@ -68,9 +65,8 @@ export class ComprasComponent implements OnInit {
       fornecedorId: [null, [Validators.required]],
       artigoId: [null, [Validators.required]],
       taxaIvaId: [null, [Validators.required]], 
-      contaBancariaId: [null, [Validators.required]], 
       quantidade: [1, [Validators.required, Validators.min(0.001)]],
-      precoUnitario: [0, [Validators.required, Validators.min(0)]],
+      precoUnitario: [null, [Validators.required, Validators.min(0)]],
       numeroFaturaFornecedor: [''],
       designacaoPersonalizada: [''],
       centroCustoId: [null, [Validators.required]], 
@@ -88,11 +84,7 @@ export class ComprasComponent implements OnInit {
 
   carregarTudo() {
     this.compraService.carregarComprasDaAPI();
-    
-    // Manda a Tesouraria carregar as contas (ela avisa o Cofre e preenche o ecrã)
-    this.tesourariaService.carregarContasDaAPI();
 
-    // Já NÃO TEMOS aqui o tesourariaService.listarContas() !
     forkJoin({
       artigos: this.artigoService.listar(),
       fornecedores: this.fornecedorService.listar(),
@@ -112,13 +104,10 @@ export class ComprasComponent implements OnInit {
     });
   }
 
+  // ❌ Função filtrarSeccoes removida
+
   aoSelecionarArtigo() {
-    const artigoId = this.formCompra.get('artigoId')?.value;
-    const artigo = this.listaArtigos.find(a => a.id == artigoId);
-    if (artigo) {
-      const precoSugerido = artigo.ultimoPrecoCusto || artigo.preco;
-      this.formCompra.patchValue({ precoUnitario: precoSugerido });
-    }
+    this.formCompra.patchValue({ precoUnitario: null });
   }
 
   calcularTotal() {
@@ -138,11 +127,11 @@ export class ComprasComponent implements OnInit {
     this.formCompra.reset({ 
         dataCompra: this.getDataAtual(), 
         quantidade: 1, 
-        precoUnitario: 0,
-        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null,
-        contaBancariaId: null 
+        precoUnitario: null,
+        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null
     });
     this.totalCalculado = 0;
+    // ❌ Limpeza da array seccoesFiltradas removida
     const modal = new bootstrap.Modal(document.getElementById('modalCompra'));
     modal.show();
   }
@@ -152,17 +141,27 @@ export class ComprasComponent implements OnInit {
       this.formCompra.markAllAsTouched();
       return;
     }
+    
     this.compraService.registar(this.formCompra.value).subscribe({
       next: () => {
-        alert('Compra registada com sucesso!');
+        const Toast = Swal.mixin({
+          toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
+        });
+        Toast.fire({ icon: 'success', title: 'Compra registada com sucesso!' });
         
-        // Avisa a tesouraria que os saldos mudaram usando a função NOVA!
         this.tesourariaService.notificarNovaTransacao();
         
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalCompra'));
         modal?.hide();
       },
-      error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+      error: (e: any) => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Falha ao Registar',
+          text: e.error?.message || 'Verifica os dados inseridos e tenta novamente.',
+          confirmButtonColor: '#0d6efd'
+        });
+      }
     });
   }
 }

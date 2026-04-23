@@ -19,7 +19,6 @@ export class TesourariaService {
   public movimentos$ = this.movimentosSubject.asObservable();
 
   // --- A NOVA SUPER CACHE PARA TIRAR O DELAY DOS EXTRATOS ---
-  // Guarda um mapa na memória com os movimentos de cada conta (ex: { Conta 1: [movs], Conta 2: [movs] })
   private extratosCache = new Map<number, Movimento[]>();
   
   private contaAtivaId: number | null = null;
@@ -36,7 +35,6 @@ export class TesourariaService {
   obterExtrato(contaId: number): void {
     this.contaAtivaId = contaId;
 
-    // Se já temos o extrato na memória, mostra-o imediatamente!
     if (this.extratosCache.has(contaId)) {
       this.movimentosSubject.next(this.extratosCache.get(contaId)!);
       return;
@@ -47,7 +45,6 @@ export class TesourariaService {
     this.http.get<any>(`${this.API_URL}/contas/${contaId}/extrato`).subscribe({
       next: (dados) => {
         const lista = dados.content || dados;
-
         this.extratosCache.set(contaId, lista);
         if (this.contaAtivaId === contaId) {
           this.movimentosSubject.next(lista);
@@ -69,7 +66,6 @@ export class TesourariaService {
   registarMovimento(movimento: any): Observable<Movimento> {
     return this.http.post<Movimento>(`${this.API_URL}/movimentos`, movimento).pipe(
       tap((novoMovimento) => {
-        // A. Atualiza o saldo da conta matematicamente
         const contas = this.contasSubject.getValue();
         this.contasSubject.next(contas.map(c => {
           if (c.id === movimento.contaId) {
@@ -79,13 +75,11 @@ export class TesourariaService {
           return c;
         }));
 
-        // B. Injeta o movimento na Super Cache se essa conta já tiver sido carregada hoje
         if (this.extratosCache.has(movimento.contaId)) {
            const movsAtuais = this.extratosCache.get(movimento.contaId)!;
            const novaLista = [novoMovimento, ...movsAtuais];
            this.extratosCache.set(movimento.contaId, novaLista);
            
-           // Se a conta estiver aberta no momento, a linha aparece instantaneamente
            if (this.contaAtivaId === movimento.contaId) {
              this.movimentosSubject.next(novaLista);
            }
@@ -97,7 +91,6 @@ export class TesourariaService {
   realizarTransferencia(dados: any): Observable<any> {
     return this.http.post<any>(`${this.API_URL}/transferencias`, dados).pipe(
       tap(() => {
-        // A. Atualiza os saldos das duas contas matematicamente
         const contas = this.contasSubject.getValue();
         this.contasSubject.next(contas.map(c => {
           if (c.id === dados.contaOrigemId) return { ...c, saldo: c.saldo - dados.valor };
@@ -105,7 +98,6 @@ export class TesourariaService {
           return c;
         }));
 
-        // B. Apaga a cache destas duas contas para forçar o Angular a ir buscar a linha nova da transferência ao Java
         this.extratosCache.delete(dados.contaOrigemId);
         this.extratosCache.delete(dados.contaDestinoId);
 
@@ -117,16 +109,32 @@ export class TesourariaService {
   }
 
   // =========================================================================
-  // --- COMUNICAÇÃO COM OS OUTROS MÓDULOS (COMPRAS, VENDAS E ORÇAMENTOS) ---
+  // --- COMUNICAÇÃO E SEGREGAÇÃO DE FUNÇÕES (O NOVO FLUXO) ---
   // =========================================================================
 
-  // Quando fazes uma Fatura ou Pagamento noutro módulo, ele avisa a Tesouraria usando esta função:
+  // 1. Vai buscar a lista de tudo o que as Compras e Vendas geraram mas ainda não foi pago
+  listarPendentes(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API_URL}/pendentes`);
+  }
+
+  // 2. Confirma a transação, gera o movimento na conta escolhida e tira o documento de "Pendente"
+  confirmarTransacao(dados: any): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/confirmar-pagamento`, dados).pipe(
+      tap(() => {
+        // Como o dinheiro mexeu, temos de forçar a atualização dos saldos e limpar a cache
+        this.notificarNovaTransacao();
+      })
+    );
+  }
+
   notificarNovaTransacao(): void {
-    // 1. Vai buscar os novos saldos ao Java e atualiza o Cofre instantaneamente em todo o site
     this.carregarContasDaAPI(); 
-    
-    // 2. Limpa a "Super Cache" dos extratos para forçar a nova fatura a aparecer na linha do banco!
     this.extratosCache.clear(); 
+    
+    // Se estivéssemos a ver um extrato, atualiza-o de imediato
+    if(this.contaAtivaId) {
+        this.obterExtrato(this.contaAtivaId);
+    }
   }
 
 }

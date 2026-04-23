@@ -6,7 +6,7 @@ export interface Artigo {
     ultimoPrecoCusto?: number; 
     
     // --- NOVO: Campos do DTO Plano ---
-    tipo?: 'MERCADORIA' | 'SERVICO';
+    tipo?: string;
     stockAtual?: number;
     
     familiaId?: number;

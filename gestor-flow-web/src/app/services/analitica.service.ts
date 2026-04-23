@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, shareReplay, tap } from 'rxjs';
-import { CentroCusto, SeccaoHomo } from '../core/models/analitica.model';
+import { CentroCusto, SeccaoHomo, AnaliseDashboard } from '../core/models/analitica.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -9,9 +9,10 @@ import { environment } from '../../environments/environment';
 })
 export class AnaliticaService {
 
-  // Aponta para os teus novos controllers
+  // Aponta para os teus controllers
   private readonly API_CC = `${environment.apiUrl}/centros-custo`;
   private readonly API_SH = `${environment.apiUrl}/seccoes-homogeneas`;
+  private readonly API_ANALISE = `${environment.apiUrl}/analise`; // 🛡️ NOVO ENDPOINT
 
   private cacheCentros$: Observable<CentroCusto[]> | null = null;
   private cacheSeccoes$: Observable<SeccaoHomo[]> | null = null;
@@ -32,19 +33,19 @@ export class AnaliticaService {
 
   criarCentro(dto: CentroCusto): Observable<CentroCusto> {
     return this.http.post<CentroCusto>(this.API_CC, dto).pipe(
-      tap(() => this.cacheCentros$ = null) // Limpa o cache para forçar atualização na próxima listagem
+      tap(() => this.cacheCentros$ = null)
     );
   }
 
   atualizarCentro(id: number, dto: CentroCusto): Observable<CentroCusto> {
     return this.http.put<CentroCusto>(`${this.API_CC}/${id}`, dto).pipe(
-      tap(() => this.cacheCentros$ = null) // Limpa o cache para forçar atualização na próxima listagem
+      tap(() => this.cacheCentros$ = null)
     );
   }
 
   eliminarCentro(id: number): Observable<void> {
     return this.http.delete<void>(`${this.API_CC}/${id}`).pipe(
-      tap(() => this.cacheCentros$ = null) // Limpa o cache para forçar atualização na próxima listagem
+      tap(() => this.cacheCentros$ = null)
     );
   }
 
@@ -76,5 +77,12 @@ export class AnaliticaService {
     return this.http.delete<void>(`${this.API_SH}/${id}`).pipe(
       tap(() => this.cacheSeccoes$ = null)
     );
+  }
+
+  // ==========================================
+  // DASHBOARD ANALÍTICO (O NOSSO MOTOR)
+  // ==========================================
+  obterDashboardAnalitico(): Observable<AnaliseDashboard[]> {
+    return this.http.get<AnaliseDashboard[]>(`${this.API_ANALISE}/dashboard`);
   }
 }

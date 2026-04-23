@@ -1,9 +1,6 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,8 +8,8 @@ import lombok.Setter;
 @Table(name = "familias")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true)
-public class Familia extends Auditable{
+public class Familia extends Auditable {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,6 +19,19 @@ public class Familia extends Auditable{
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
+    // 🛡️ Jackson removido: A entidade agora é agnóstica em relação ao JSON.
     private Utilizador utilizador;
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Familia familia)) return false;
+        return id != null && id.equals(familia.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

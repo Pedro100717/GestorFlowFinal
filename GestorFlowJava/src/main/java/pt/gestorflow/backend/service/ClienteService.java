@@ -1,34 +1,32 @@
 package pt.gestorflow.backend.service;
 
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional; // <-- CRÍTICO
 import pt.gestorflow.backend.dto.ClienteDTO;
 import pt.gestorflow.backend.dto.ClienteResponseDTO;
 import pt.gestorflow.backend.model.Cliente;
 import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.ClienteRepository;
 
-import java.util.List;
-
 @Service
+@RequiredArgsConstructor // Padronizado com o resto do projeto (remove o construtor manual)
 public class ClienteService {
 
     private final ClienteRepository repository;
-
-    public ClienteService(ClienteRepository repository) {
-        this.repository = repository;
-    }
 
     // Método auxiliar para saber quem está a fazer o pedido
     private Utilizador getUtilizadorLogado() {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
+    @Transactional
     public ClienteResponseDTO criarCliente(ClienteDTO dto) {
         Utilizador user = getUtilizadorLogado();
 
@@ -50,9 +48,20 @@ public class ClienteService {
         return converterParaDTO(repository.save(cliente));
     }
 
+    @Transactional
     public ClienteResponseDTO atualizarCliente(Long id, ClienteDTO dto) {
-        Cliente cliente = repository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado ou sem permissão"));
+        Utilizador user = getUtilizadorLogado();
+
+        // 🛡️ CORREÇÃO: Usar a exceção correta para dar HTTP 404
+        Cliente cliente = repository.findByIdAndUtilizadorId(id, user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou sem permissão"));
+
+        // 🛡️ CORREÇÃO: Impedir duplicação de NIF no Update!
+        if (dto.getNif() != null && !dto.getNif().isBlank() && !dto.getNif().equals(cliente.getNif())) {
+            if (repository.existsByNifAndUtilizadorId(dto.getNif(), user.getId())) {
+                throw new RuntimeException("Já existe outro cliente com este NIF na sua conta.");
+            }
+        }
 
         cliente.setNome(dto.getNome());
         cliente.setNif(dto.getNif());
@@ -69,14 +78,31 @@ public class ClienteService {
         Utilizador user = getUtilizadorLogado();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("id").descending());
 
-        //.map() converte automaticamente a pagina de entidades
         return repository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
     }
 
+    @Transactional
     public void eliminarCliente(Long id) {
+        // 🛡️ CORREÇÃO: EntityNotFoundException
         Cliente cliente = repository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
+
+        // Nota Industrial: Se o cliente tiver Vendas associadas, o delete() vai estoirar
+        // com um erro de Foreign Key (DataIntegrityViolationException).
+        // O teu GlobalExceptionHandler apanha o erro genérico, mas deves testar isto no frontend.
         repository.delete(cliente);
+    }
+
+    // 🛡️ ADICIONADO: Método para buscar os detalhes de um único cliente
+    @Transactional(readOnly = true)
+    public ClienteResponseDTO buscarPorId(Long id) {
+        Utilizador user = getUtilizadorLogado();
+
+        // 🛡️ PROTEÇÃO IDOR CRÍTICA: Impedir que um utilizador veja clientes de outra conta
+        Cliente cliente = repository.findByIdAndUtilizadorId(id, user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
+
+        return converterParaDTO(cliente);
     }
 
     private ClienteResponseDTO converterParaDTO(Cliente c) {
@@ -90,5 +116,4 @@ public class ClienteService {
         dto.setAnotacoes(c.getAnotacoes());
         return dto;
     }
-
 }

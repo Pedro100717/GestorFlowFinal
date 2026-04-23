@@ -14,6 +14,9 @@ public class CompraResponseDTO {
     private BigDecimal precoUnitario;
     private BigDecimal total;
 
+    // 🛡️ Estado do Pagamento (PENDENTE ou PAGO)
+    private String estadoPagamento;
+
     // --- Flat Fields (Campos Planos) ---
     private Long fornecedorId;
     private String fornecedorNome;
@@ -30,6 +33,7 @@ public class CompraResponseDTO {
     private Long taxaIvaId;
     private BigDecimal taxaIvaValor;
 
+    // 🛡️ A CORREÇÃO: Faltavam os campos da Conta Bancária!
     private Long contaBancariaId;
     private String contaBancariaNome;
 }

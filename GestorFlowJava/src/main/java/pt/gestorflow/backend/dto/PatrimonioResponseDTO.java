@@ -11,6 +11,9 @@ public class PatrimonioResponseDTO {
     private LocalDate dataAquisicao;
     private BigDecimal valorAquisicao;
 
+    // 🛡️ O campo que faltava para o mapToDTO funcionar!
+    private boolean ativo;
+
     // O tipo para o Angular saber o que é (VIATURA, IMOVEL, FERRAMENTA)
     private String tipoPatrimonio;
 

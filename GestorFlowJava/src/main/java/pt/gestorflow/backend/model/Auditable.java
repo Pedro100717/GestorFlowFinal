@@ -27,11 +27,13 @@ public abstract class Auditable {
     @Column(name = "data_ultima_modificacao")
     private LocalDateTime dataUltimaModificacao;
 
+    // 🛡️ RECOMENDAÇÃO: Em sistemas Multi-Tenant, o 'CreatedBy' costuma ser o ID (Long)
+    // ou o Nome de Utilizador. Se o teu Utilizador usa ID Long, deves ser consistente.
     @CreatedBy
-    @Column(name = "criado_por_id", updatable = false)
+    @Column(name = "criado_por", updatable = false)
     private String criadoPor;
 
     @LastModifiedBy
-    @Column(name = "modificado_por_id")
+    @Column(name = "modificado_por")
     private String modificadoPor;
 }

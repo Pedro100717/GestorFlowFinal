@@ -7,15 +7,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import pt.gestorflow.backend.model.Artigo;
-import pt.gestorflow.backend.model.Mercadoria; // <--- FALTAVA ISTO PARA O EDITOR NÃO RECLAMAR
+import pt.gestorflow.backend.model.Mercadoria;
 
 import java.math.BigDecimal;
+import java.util.Optional; // <--- NÃO ESQUECER ESTE IMPORT
 
 public interface ArtigoRepository extends JpaRepository<Artigo, Long> {
 
     Page<Artigo> findAllByUtilizadorId(Long utilizadorId, Pageable pageable);
 
-    // O uso explícito de 'value =' costuma calar os falsos positivos do VS Code
+    // 🛡️ A TRANCA DE SEGURANÇA (Adicionar esta linha!)
+    Optional<Artigo> findByIdAndUtilizadorId(Long id, Long utilizadorId);
+
     @Query(value = "SELECT COALESCE(SUM(m.ultimoPrecoCusto * m.stockAtual), 0) FROM Mercadoria m WHERE m.utilizador.id = :userId")
     BigDecimal valorTotalStock(@Param("userId") Long userId);
 }

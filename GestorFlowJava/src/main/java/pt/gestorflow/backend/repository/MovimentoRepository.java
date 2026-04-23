@@ -1,5 +1,6 @@
 package pt.gestorflow.backend.repository;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,8 +11,8 @@ import java.util.List;
 
 public interface MovimentoRepository extends JpaRepository<Movimento, Long> {
 
+    @EntityGraph(attributePaths = {"compra", "venda", "fornecedor", "cliente"})
     List<Movimento> findAllByContaIdOrderByDataMovimentoDesc(Long contaId);
-
     // 1. Quanto pagámos a este Fornecedor a partir desta Conta específica?
     @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.fornecedor.id = :fornecedorId AND m.conta.id = :contaId AND m.tipo = 'DEBITO' AND m.utilizador.id = :userId")
     BigDecimal totalPagoAFornecedorPorConta(@Param("fornecedorId") Long fornecedorId, @Param("contaId") Long contaId, @Param("userId") Long userId);

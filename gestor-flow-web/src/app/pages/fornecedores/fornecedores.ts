@@ -4,6 +4,9 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { FornecedorService } from '../../services/fornecedor.service';
 import { Fornecedor } from '../../core/models/fornecedor.model';
 
+// 1. IMPORTAR O SWEETALERT2
+import Swal from 'sweetalert2';
+
 declare var bootstrap: any;
 
 @Component({
@@ -78,29 +81,65 @@ export class FornecedoresComponent implements OnInit {
     if (this.idEmEdicao) {
       this.fornecedorService.atualizar(this.idEmEdicao, dados).subscribe({
         next: () => this.finalizar('Fornecedor atualizado!'),
-        error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+        // 2. ERRO ELEGANTE AQUI
+        error: (e: any) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Verifica o NIF ou os dados inseridos.',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     } else {
       this.fornecedorService.criar(dados).subscribe({
         next: () => this.finalizar('Fornecedor criado!'),
-        error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+        // 2. ERRO ELEGANTE AQUI
+        error: (e: any) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Não foi possível criar. NIF duplicado ou inválido?',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     }
   }
 
   eliminarFornecedor(id: number) {
-    if (confirm('Tem a certeza?')) {
-      this.fornecedorService.apagar(id).subscribe({
-        // Adeus delays e recarregamentos da tabela!
-        next: () => alert('Eliminado com sucesso!'),
-        error: (e: any) => alert('Erro: Este fornecedor já tem compras associadas.')
-      });
-    }
+    // 3. O FIM DO "confirm()" FEIO
+    Swal.fire({
+      title: 'Tem a certeza?',
+      text: "Este fornecedor será apagado permanentemente!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545', // Vermelho
+      cancelButtonColor: '#6c757d',  // Cinzento
+      confirmButtonText: 'Sim, eliminar!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      
+      if (result.isConfirmed) {
+        this.fornecedorService.apagar(id).subscribe({
+          next: () => {
+            Swal.fire('Eliminado!', 'O fornecedor foi apagado com sucesso.', 'success');
+          },
+          error: (e: any) => {
+            Swal.fire('Erro!', 'Este fornecedor não pode ser apagado porque já tem compras associadas.', 'error');
+          }
+        });
+      }
+    });
   }
 
   finalizar(msg: string) {
-    alert(msg);
-    // REMOVIDO: this.carregarFornecedores(); -> Já não precisamos disto!
+    // 4. TOAST DE SUCESSO NO CANTO SUPERIOR
+    const Toast = Swal.mixin({
+      toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
+    });
+    Toast.fire({ icon: 'success', title: msg });
+
     const modalElement = document.getElementById('modalFornecedor');
     if (modalElement) {
       bootstrap.Modal.getInstance(modalElement)?.hide();

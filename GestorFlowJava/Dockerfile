@@ -8,10 +8,18 @@ RUN mvn dependency:go-offline
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# ESTÁGIO 2: Produção (O Servidor Leve)
+# ESTÁGIO 2: Produção (O Servidor Leve e Seguro)
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-# Copia APENAS o ficheiro .jar gerado no estágio anterior
-COPY --from=build /app/target/*.jar app.jar
+
+# 🛡️ FASE 4: Criar um utilizador e grupo sem privilégios de root
+RUN addgroup -S gestorflow_group && adduser -S gestorflow_user -G gestorflow_group
+
+# Copia APENAS o ficheiro .jar gerado no estágio anterior e dá a posse ao novo utilizador
+COPY --chown=gestorflow_user:gestorflow_group --from=build /app/target/*.jar app.jar
+
+# 🛡️ FASE 4: Mudar para o utilizador seguro antes de arrancar a app
+USER gestorflow_user
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

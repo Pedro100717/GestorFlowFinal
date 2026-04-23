@@ -13,10 +13,6 @@ public class SeccaoHomoDTO {
     @NotBlank(message = "O código é obrigatório")
     private String codigo;
 
-    // LÓGICA: Obrigatório indicar a que Centro pertence
-    @NotNull(message = "O Centro de Custo é obrigatório")
-    private Long centroCustoId;
-
     // Opcional: Para leitura (enviar o nome do centro para o frontend)
     private String centroCustoNome;
 }

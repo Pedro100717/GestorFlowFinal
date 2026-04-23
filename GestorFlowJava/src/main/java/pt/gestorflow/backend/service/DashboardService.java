@@ -4,14 +4,14 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import pt.gestorflow.backend.dto.DashboardDTO;
+import pt.gestorflow.backend.dto.VendaResponseDTO;
 import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.model.Venda;
 import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,32 +27,52 @@ public class DashboardService {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
-    public Map<String, Object> getResumo() {
+    // 🛡️ CORREÇÃO: O retorno agora é o DTO blindado, não um Map solto
+    public DashboardDTO getResumo() {
         Utilizador user = getUtilizadorLogado();
         Long userId = user.getId();
 
-        // 1. Total Vendas (Nome no teu VendaRepository: totalVendasReais)
+        // NOTA DE PERFORMANCE INDUSTRIAL:
+        // Somar a BD inteira (totalVendasReais) vai causar lentidão grave
+        // quando tiveres milhares de registos. No futuro, pondera passar datas (ex: Mês Atual).
         BigDecimal totalVendas = vendaRepository.totalVendasReais(userId);
-
-        // 2. Total Compras (Nome no teu CompraRepository: totalGastos)
         BigDecimal totalCompras = compraRepository.totalGastos(userId);
-
-        // 3. Valor Stock (Query Nativa do ArtigoRepository)
         BigDecimal valorStock = artigoRepository.valorTotalStock(userId);
-
-        // 4. Total Clientes (Contagem do ClienteRepository)
         long totalClientes = clienteRepository.countByUtilizadorId(userId);
 
-        // 5. Últimas Vendas (Nome no teu VendaRepository)
         List<Venda> ultimasVendas = vendaRepository.findTop5ByUtilizadorIdOrderByDataVendaDesc(userId);
 
-        Map<String, Object> dados = new HashMap<>();
-        dados.put("totalVendas", totalVendas);
-        dados.put("totalCompras", totalCompras);
-        dados.put("valorStock", valorStock);
-        dados.put("totalClientes", totalClientes);
-        dados.put("ultimasVendas", ultimasVendas);
+        // 🛡️ Mapeamento Limpo e Tipado
+        List<VendaResponseDTO> ultimasVendasDTO = ultimasVendas.stream()
+                .map(this::converterVendaParaDTO)
+                .toList();
 
-        return dados;
+        return DashboardDTO.builder()
+                .totalVendas(totalVendas)
+                .totalCompras(totalCompras)
+                .valorStock(valorStock)
+                .totalClientes(totalClientes)
+                .ultimasVendas(ultimasVendasDTO)
+                .build();
+    }
+
+    // Usamos um conversor simplificado só para o Dashboard (podes reutilizar o do VendaService se preferires partilhar lógica)
+    private VendaResponseDTO converterVendaParaDTO(Venda venda) {
+        VendaResponseDTO dto = new VendaResponseDTO();
+        dto.setId(venda.getId());
+        dto.setDataVenda(venda.getDataVenda());
+        dto.setTotalComIva(venda.getTotalComIva());
+
+        if (venda.getCliente() != null) {
+            dto.setClienteId(venda.getCliente().getId());
+            dto.setClienteNome(venda.getCliente().getNome());
+            // 🛡️ ADICIONADO: Criar uma designação virtual para o ecrã do Dashboard não ficar vazio
+            dto.setDesignacao("Faturação #" + venda.getId() + " - " + venda.getCliente().getNome());
+        } else {
+            dto.setClienteNome("Consumidor Final");
+            dto.setDesignacao("Faturação #" + venda.getId() + " - Consumidor Final");
+        }
+
+        return dto;
     }
 }

@@ -5,18 +5,25 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import pt.gestorflow.backend.model.EstadoPagamento;
 import pt.gestorflow.backend.model.Venda;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface VendaRepository extends JpaRepository<Venda, Long> {
 
-    // O EntityGraph resolve o problema N+1 para as Vendas!
-    @EntityGraph(attributePaths = {"cliente", "artigo", "contaBancaria", "centroCusto", "seccaoHomo", "taxaIva"})
+    // 🚀 OTIMIZADO: Traz o cliente, conta e as linhas todas de uma vez! (Zero N+1)
+    @EntityGraph(attributePaths = {"cliente", "contaBancaria", "linhas.artigo", "linhas.taxaIva"})
     Page<Venda> findAllByUtilizadorId(Long utilizadorId, Pageable pageable);
 
+    // 🛡️ Segurança IDOR para ver os detalhes de uma fatura específica
+    @EntityGraph(attributePaths = {"cliente", "contaBancaria", "linhas.artigo", "linhas.taxaIva"})
+    Optional<Venda> findByIdAndUtilizadorId(Long id, Long utilizadorId);
+
+    // -- DASHBOARDS --
     @Query("SELECT COALESCE(SUM(v.totalComIva), 0) FROM Venda v WHERE v.utilizador.id = :userId")
     BigDecimal totalVendasReais(Long userId);
 
@@ -24,4 +31,6 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
 
     @Query("SELECT COALESCE(SUM(v.totalComIva), 0) FROM Venda v WHERE v.utilizador.id = :userId AND v.dataVenda BETWEEN :inicio AND :fim")
     BigDecimal totalVendasPorPeriodo(Long userId, LocalDateTime inicio, LocalDateTime fim);
+
+    List<Venda> findAllByUtilizadorIdAndEstadoPagamento(Long utilizadorId, EstadoPagamento estadoPagamento);
 }

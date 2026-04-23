@@ -13,6 +13,8 @@ import { Cliente } from '../../core/models/cliente.model';
 import { CentroCusto, SeccaoHomo } from '../../core/models/analitica.model';
 import { forkJoin } from 'rxjs';
 
+import Swal from 'sweetalert2';
+
 declare var bootstrap: any;
 
 @Component({
@@ -29,7 +31,7 @@ export class VendasComponent implements OnInit {
   listaTaxasIva: any[] = [];
   listaCentros: CentroCusto[] = [];
   listaSeccoes: SeccaoHomo[] = [];
-  listaContas: any[] = []; 
+  // ❌ seccoesFiltradas removida - as secções agora são livres e independentes!
 
   formVenda!: FormGroup;
   totalCalculado: number = 0;
@@ -50,14 +52,10 @@ export class VendasComponent implements OnInit {
     this.carregarTudo();
     this.formVenda.valueChanges.subscribe(() => this.calcularTotal());
     
+    // ❌ Subscrição do centroCustoId removida! Já não há filtro de secções por centro.
+    
     this.vendaService.vendas$.subscribe((vendasAtualizadas) => {
       this.listaVendas = vendasAtualizadas;
-      this.cd.detectChanges();
-    });
-
-    // --- A MÁGICA REATIVA ---
-    this.tesourariaService.contas$.subscribe(contas => {
-      this.listaContas = contas;
       this.cd.detectChanges();
     });
   }
@@ -68,7 +66,6 @@ export class VendasComponent implements OnInit {
       clienteId: [null, [Validators.required]],
       artigoId: [null, [Validators.required]],
       taxaIvaId: [null, [Validators.required]],
-      contaBancariaId: [null, [Validators.required]], 
       quantidade: [1, [Validators.required, Validators.min(0.001)]],
       precoUnitario: [0, [Validators.required, Validators.min(0)]],
       designacaoPersonalizada: [''],
@@ -87,7 +84,6 @@ export class VendasComponent implements OnInit {
 
   carregarTudo() {
     this.vendaService.carregarVendasDaAPI();
-    this.tesourariaService.carregarContasDaAPI();
 
     forkJoin({
       artigos: this.artigoService.listar(),
@@ -108,6 +104,8 @@ export class VendasComponent implements OnInit {
     });
   }
 
+  // ❌ Função filtrarSeccoes() removida na íntegra!
+
   aoSelecionarArtigo() {
     const artigoId = this.formVenda.get('artigoId')?.value;
     const artigo = this.listaArtigos.find(a => a.id == artigoId);
@@ -115,8 +113,10 @@ export class VendasComponent implements OnInit {
     if (artigo) {
       this.formVenda.patchValue({ precoUnitario: artigo.preco });
       this.stockDisponivel = artigo.stockAtual || 0;
+      
       if (artigo.movimentaStock && this.stockDisponivel! <= 0) {
-          alert('Atenção: Este artigo não tem stock disponível!');
+          const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000 });
+          Toast.fire({ icon: 'warning', title: 'Atenção: Este artigo não tem stock disponível!' });
       }
     } else {
         this.stockDisponivel = null;
@@ -141,11 +141,11 @@ export class VendasComponent implements OnInit {
         dataVenda: this.getDataAtual(),
         quantidade: 1, 
         precoUnitario: 0,
-        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null,
-        contaBancariaId: null 
+        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null
     });
     this.stockDisponivel = null;
     this.totalCalculado = 0;
+    // ❌ Limpeza da array seccoesFiltradas removida
     const modal = new bootstrap.Modal(document.getElementById('modalVenda'));
     modal.show();
   }
@@ -153,6 +153,12 @@ export class VendasComponent implements OnInit {
   registarVenda() {
     if (this.formVenda.invalid) {
       this.formVenda.markAllAsTouched();
+      Swal.fire({
+        icon: 'warning',
+        title: 'Atenção',
+        text: 'Por favor, preencha todos os campos obrigatórios corretamente.',
+        confirmButtonColor: '#0d6efd'
+      });
       return;
     }
     
@@ -161,22 +167,61 @@ export class VendasComponent implements OnInit {
     const artigo = this.listaArtigos.find(a => a.id == artigoId);
 
     if (artigo && artigo.movimentaStock && (artigo.stockAtual || 0) < qtd) {
-        if(!confirm(`Tens apenas ${artigo.stockAtual} em stock. Queres vender ${qtd} mesmo assim (stock ficará negativo)?`)) {
-            return;
-        }
+        Swal.fire({
+          title: 'Stock Insuficiente',
+          text: `Tens apenas ${artigo.stockAtual} em stock. Queres vender ${qtd} mesmo assim (o stock ficará negativo)?`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#f39c12',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Sim, vender mesmo assim!',
+          cancelButtonText: 'Cancelar'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            this.executarRegistoVenda();
+          }
+        });
+    } else {
+        this.executarRegistoVenda();
     }
+  }
 
-    this.vendaService.registar(this.formVenda.value).subscribe({
+  private executarRegistoVenda() {
+    const formVal = this.formVenda.value;
+    const payloadVenda = {
+        dataVenda: formVal.dataVenda,
+        clienteId: formVal.clienteId,
+        centroCustoId: formVal.centroCustoId,
+        seccaoHomoId: formVal.seccaoHomoId,
+        linhas: [
+            {
+                artigoId: formVal.artigoId,
+                quantidade: formVal.quantidade,
+                precoUnitario: formVal.precoUnitario,
+                taxaIvaId: formVal.taxaIvaId,
+                designacaoPersonalizada: formVal.designacaoPersonalizada
+            }
+        ]
+    };
+
+    this.vendaService.registar(payloadVenda).subscribe({
       next: () => {
-        alert('Venda registada com sucesso!');
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: 'success', title: 'Venda registada com sucesso!' });
         
-        // Avisa a tesouraria
         this.tesourariaService.notificarNovaTransacao(); 
         
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalVenda'));
         modal?.hide();
       },
-      error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+      error: (e: any) => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro ao registar',
+          text: e.error?.message || 'Ocorreu um erro ao processar a venda.',
+          confirmButtonColor: '#0d6efd'
+        });
+      }
     });
   }
 }

@@ -4,6 +4,9 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { AnaliticaService } from '../../../services/analitica.service';
 import { CentroCusto } from '../../../core/models/analitica.model';
 
+// 1. IMPORTAR A NOSSA BIBLIOTECA DE ALERTAS
+import Swal from 'sweetalert2';
+
 declare var bootstrap: any;
 
 @Component({
@@ -78,30 +81,67 @@ export class CentrosCustoComponent implements OnInit {
     if (this.idEmEdicao) {
       this.analiticaService.atualizarCentro(this.idEmEdicao, dto).subscribe({
         next: () => this.finalizar('Centro de Custo atualizado!'),
-        error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+        // 2. ERRO ELEGANTE AQUI
+        error: (e: any) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Não foi possível atualizar o centro de custo.',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     } else {
       this.analiticaService.criarCentro(dto).subscribe({
         next: () => this.finalizar('Centro de Custo criado!'),
-        error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+        // 2. ERRO ELEGANTE AQUI
+        error: (e: any) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Não foi possível criar o centro de custo.',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     }
   }
 
   eliminarCentro(id: number) {
-    if (confirm('Tem a certeza? Se este centro tiver secções ou movimentos, não será apagado.')) {
-      this.analiticaService.eliminarCentro(id).subscribe({
-        next: () => {
-          alert('Eliminado com sucesso!');
-          this.carregarCentros();
-        },
-        error: (e: any) => alert('Erro: Provavelmente este centro já está em uso.')
-      });
-    }
+    // 3. O FIM DO "confirm()" FEIO
+    Swal.fire({
+      title: 'Tem a certeza?',
+      text: "Se este centro tiver secções ou movimentos, não será apagado.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545', // Vermelho
+      cancelButtonColor: '#6c757d',  // Cinzento
+      confirmButtonText: 'Sim, eliminar!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      
+      // Se o utilizador clicou no botão de eliminar
+      if (result.isConfirmed) {
+        this.analiticaService.eliminarCentro(id).subscribe({
+          next: () => {
+            Swal.fire('Eliminado!', 'O Centro de Custo foi apagado.', 'success');
+            this.carregarCentros();
+          },
+          error: (e: any) => {
+            Swal.fire('Erro!', 'Provavelmente este centro já está em uso noutros locais.', 'error');
+          }
+        });
+      }
+    });
   }
 
   finalizar(msg: string) {
-    alert(msg);
+    // 4. TOAST PEQUENINO PARA SUCESSO (Para não chatear o utilizador)
+    const Toast = Swal.mixin({
+      toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
+    });
+    Toast.fire({ icon: 'success', title: msg });
+
     this.carregarCentros();
     const modalElement = document.getElementById('modalCentro');
     if (modalElement) {

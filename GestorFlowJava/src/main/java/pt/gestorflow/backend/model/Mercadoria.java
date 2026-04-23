@@ -3,25 +3,25 @@ package pt.gestorflow.backend.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
 
 @Entity
-@DiscriminatorValue("MERCADORIA") // O valor que fica na coluna 'tipo_artigo'
+@DiscriminatorValue("MERCADORIA")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true)
 public class Mercadoria extends Artigo {
 
-    @Column(precision = 10, scale = 3)
+    @Column(precision = 10, scale = 3, nullable = false)
     private BigDecimal stockAtual = BigDecimal.ZERO;
 
-    @Column(precision = 10, scale = 3)
+    @Column(precision = 10, scale = 3, nullable = false)
     private BigDecimal stockMinimo = BigDecimal.ZERO;
 
-    // Podes adicionar mais coisas específicas aqui, ex: peso, localização no armazém...
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE
+    // Como Artigo já define equals/hashCode baseados no ID,
+    // não precisamos de repetir a lógica aqui.
+    // O Lombok @EqualsAndHashCode(callSuper = true) foi removido
+    // para evitar que o stock atual (que muda sempre) influencie o Hash.
 }

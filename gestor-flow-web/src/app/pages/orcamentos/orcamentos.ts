@@ -8,6 +8,9 @@ import { VendaService } from '../../services/venda.service';
 import { TesourariaService } from '../../services/tesouraria.service'; 
 import { Orcamento } from '../../core/models/orcamento.model';
 
+// 1. IMPORTAR O SWEETALERT2
+import Swal from 'sweetalert2';
+
 declare var bootstrap: any;
 
 @Component({
@@ -73,7 +76,7 @@ export class OrcamentosComponent implements OnInit {
 
   carregarDadosIniciais() {
     this.orcamentoService.carregarOrcamentosDaAPI();
-    this.tesourariaService.carregarContasDaAPI(); // Enche o Cofre!
+    this.tesourariaService.carregarContasDaAPI(); 
 
     this.clienteService.listar().subscribe(d => this.listaClientes = d.content || d);
     this.artigoService.listar().subscribe(d => this.listaArtigos = d.content || d);
@@ -165,17 +168,38 @@ export class OrcamentosComponent implements OnInit {
   guardar() {
     if (this.formOrcamento.invalid) {
       this.formOrcamento.markAllAsTouched();
-      alert('Preenche todos os campos obrigatórios.');
+      // 2. AVISO DE FORMULÁRIO INVÁLIDO
+      Swal.fire({
+        icon: 'warning',
+        title: 'Atenção',
+        text: 'Por favor, preenche todos os campos obrigatórios antes de guardar.',
+        confirmButtonColor: '#0d6efd'
+      });
       return;
     }
 
     const dto = this.formOrcamento.value;
 
-    if (this.idEmEdicao) {
-        this.orcamentoService.atualizar(this.idEmEdicao, dto).subscribe(() => this.fecharModal());
-    } else {
-        this.orcamentoService.criar(dto).subscribe(() => this.fecharModal());
-    }
+    // 3. TRATAMENTO DE ERROS INCLUÍDO
+    const request$ = this.idEmEdicao 
+      ? this.orcamentoService.atualizar(this.idEmEdicao, dto)
+      : this.orcamentoService.criar(dto);
+
+    request$.subscribe({
+      next: () => {
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: 'success', title: this.idEmEdicao ? 'Orçamento atualizado!' : 'Orçamento guardado!' });
+        this.fecharModal();
+      },
+      error: (e: any) => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro ao guardar',
+          text: e.error?.message || 'Ocorreu um erro ao processar o orçamento.',
+          confirmButtonColor: '#0d6efd'
+        });
+      }
+    });
   }
 
   prepararConversao(orcamento: any) {
@@ -183,9 +207,21 @@ export class OrcamentosComponent implements OnInit {
     const contaIdOriginal = orcamento.contaBancariaId || orcamento.contaBancaria?.id;
 
     if (contaIdOriginal) {
-        if(confirm('Este orçamento já tem uma conta associada. Pretende faturar agora?')) {
+        // 4. CONFIRMAÇÃO DE CONVERSÃO ELEGANTE
+        Swal.fire({
+          title: 'Faturar Orçamento?',
+          text: "Este orçamento já tem uma conta associada. Pretende faturar e abater stock agora?",
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: '#198754', // Verde (Sucesso)
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Sim, faturar!',
+          cancelButtonText: 'Cancelar'
+        }).then((result) => {
+          if (result.isConfirmed) {
             this.executarConversao(orcamento.id, contaIdOriginal);
-        }
+          }
+        });
     } else {
         this.contaSelecionadaParaConversao = null;
         new bootstrap.Modal(document.getElementById('modalEscolherConta')).show();
@@ -195,7 +231,8 @@ export class OrcamentosComponent implements OnInit {
   executarConversao(orcamentoId: number, contaId: number) {
     this.orcamentoService.converterEmVenda(orcamentoId, contaId).subscribe({
         next: () => {
-            alert('Sucesso! Vendas geradas, stock abatido e saldo atualizado.');
+            // 5. MENSAGEM DE SUCESSO DE GRANDE IMPACTO
+            Swal.fire('Faturado!', 'As vendas foram geradas, o stock abatido e o saldo atualizado.', 'success');
             
             // Avisa a Tesouraria!
             this.tesourariaService.notificarNovaTransacao(); 
@@ -203,13 +240,15 @@ export class OrcamentosComponent implements OnInit {
             const modalConta = bootstrap.Modal.getInstance(document.getElementById('modalEscolherConta'));
             if(modalConta) modalConta.hide();
         },
-        error: (e) => alert('Erro: ' + (e.error?.message || 'Falha ao converter.'))
+        error: (e) => {
+          Swal.fire('Erro na Conversão', e.error?.message || 'Falha ao converter o orçamento.', 'error');
+        }
     });
   }
 
   confirmarConversaoComNovaConta() {
     if (!this.contaSelecionadaParaConversao) {
-        alert('É OBRIGATÓRIO escolher uma conta bancária para faturar!');
+        Swal.fire('Atenção', 'É OBRIGATÓRIO escolher uma conta bancária para faturar!', 'warning');
         return;
     }
     this.executarConversao(this.orcamentoParaConverter.id, this.contaSelecionadaParaConversao);

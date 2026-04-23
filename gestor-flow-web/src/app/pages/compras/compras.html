@@ -15,6 +15,7 @@
               <th class="ps-4 py-3 border-0 text-muted small uppercase">Data</th>
               <th class="border-0 text-muted small uppercase">Fornecedor</th>
               <th class="border-0 text-muted small uppercase">Artigo</th>
+              <th class="border-0 text-muted small uppercase">Estado</th>
               <th class="border-0 text-muted small uppercase">Conta Movimentada</th>
               <th class="border-0 text-muted small uppercase">C. Custo</th>
               <th class="border-0 text-muted small uppercase">Secção</th>
@@ -35,6 +36,14 @@
                   <div class="small text-muted" *ngIf="c.designacao !== c.artigoNome">
                       {{ c.designacao }}
                   </div>
+              </td>
+
+              <td>
+                  <span class="badge" 
+                        [ngClass]="c.estadoPagamento === 'PAGO' ? 'bg-success' : 'bg-warning text-dark'">
+                      <i class="bi" [ngClass]="c.estadoPagamento === 'PAGO' ? 'bi-check-circle' : 'bi-hourglass-split'"></i>
+                      {{ c.estadoPagamento === 'PAGO' ? 'Pago' : 'Pendente' }}
+                  </span>
               </td>
               
               <td>
@@ -70,7 +79,7 @@
             </tr>
 
             <tr *ngIf="listaCompras.length === 0">
-              <td colspan="10" class="text-center py-5 text-muted">
+              <td colspan="11" class="text-center py-5 text-muted">
                 <i class="bi bi-cart-x fs-1 d-block mb-2 opacity-50"></i>
                 <span class="fw-bold">Ainda não tens compras registadas.</span>
               </td>
@@ -93,25 +102,11 @@
       <div class="modal-body p-4">
         <form [formGroup]="formCompra">
           
-          <div class="mb-3 bg-light p-3 rounded border">
+          <div class="mb-4 bg-light p-3 rounded border">
               <label class="form-label small fw-bold text-primary">
                   <i class="bi bi-calendar-check me-2"></i>Data da Compra
               </label>
               <input type="datetime-local" class="form-control border-primary" formControlName="dataCompra">
-          </div>
-
-          <div class="mb-4 p-3 bg-danger bg-opacity-10 rounded border border-danger border-opacity-25">
-              <label class="form-label small fw-bold text-danger">
-                  <i class="bi bi-wallet2 me-2"></i>Conta de Pagamento (De onde sai o dinheiro?) <span class="text-danger">*</span>
-              </label>
-              <select class="form-select border-danger border-opacity-50 fw-bold text-danger" formControlName="contaBancariaId"
-                      [ngClass]="{ 'is-invalid': f['contaBancariaId'].touched && f['contaBancariaId'].invalid }">
-                  <option [ngValue]="null" disabled>Selecione a conta a debitar...</option>
-                  <option *ngFor="let c of listaContas" [ngValue]="c.id">
-                      {{ c.nome }} (Saldo Atual: {{ c.saldo | currency:'EUR' }})
-                  </option>
-              </select>
-              <div class="invalid-feedback">A conta bancária é obrigatória.</div>
           </div>
 
           <div class="row">
@@ -133,7 +128,7 @@
               </div>
           </div>
 
-          <hr class="my-2 opacity-10">
+          <hr class="my-3 opacity-10">
           <div class="row">
               <div class="col-md-6 mb-3">
                   <label class="form-label small fw-bold">Centro de Custo <span class="text-danger">*</span></label>

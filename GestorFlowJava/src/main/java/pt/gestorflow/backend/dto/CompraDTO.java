@@ -11,8 +11,6 @@ import java.time.LocalDateTime;
 public class CompraDTO {
     @NotNull private Long fornecedorId;
     @NotNull private Long artigoId;
-    @NotNull(message = "A conta bancaria de pagamento é obrigatoria")
-    private Long contaBancariaId;
 
     @NotNull(message = "A taxa de IVA é obrigatória")
     private Long taxaIvaId; // <--- NOVO

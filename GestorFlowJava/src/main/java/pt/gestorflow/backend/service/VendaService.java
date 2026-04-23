@@ -16,7 +16,9 @@ import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,12 +28,10 @@ public class VendaService {
     private final ClienteRepository clienteRepository;
     private final ArtigoRepository artigoRepository;
     private final TxIvaRepository txIvaRepository;
+    private final MovimentoStockRepository movimentoStockRepository;
     private final CentroCustoRepository centroCustoRepository;
     private final SeccaoHomoRepository seccaoHomoRepository;
-
-    // --- INJEÇÕES DA TESOURARIA ---
-    private final ContaBancariaRepository contaRepository;
-    private final MovimentoRepository movimentoRepository;
+    // Removida a dependência de contaRepository e movimentoRepository para o registo inicial
 
     private Utilizador getUtilizadorLogado() {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -41,151 +41,174 @@ public class VendaService {
     public VendaResponseDTO registarVenda(VendaDTO dto) {
         Utilizador user = getUtilizadorLogado();
 
-        // 1. Buscar Entidades
+        // 🛡️ Validação Comercial
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
 
-        Artigo artigo = artigoRepository.findById(dto.getArtigoId())
-                .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado"));
-
-        TxIva taxaIva = txIvaRepository.findById(dto.getTaxaIvaId())
-                .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
-
-        // 2. Lógica de Stock (Apenas se for Mercadoria)
-        if (artigo instanceof Mercadoria mercadoria) {
-            // Deduzir stock
-            mercadoria.setStockAtual(mercadoria.getStockAtual().subtract(dto.getQuantidade()));
-            artigoRepository.save(mercadoria);
-        }
-
-        // 3. Criar Objeto Venda
         Venda venda = new Venda();
-        if (dto.getDataVenda() != null) {
-            venda.setDataVenda(dto.getDataVenda().atStartOfDay());
-        } else {
-            venda.setDataVenda(LocalDateTime.now());
-        }
         venda.setCliente(cliente);
-        venda.setArtigo(artigo);
         venda.setUtilizador(user);
-        venda.setTaxaIva(taxaIva);
 
-        // Designação
-        if (dto.getDesignacaoPersonalizada() != null && !dto.getDesignacaoPersonalizada().isBlank()) {
-            venda.setDesignacao(dto.getDesignacaoPersonalizada());
-        } else {
-            venda.setDesignacao(artigo.getNome());
-        }
+        // 🛡️ AQUI: A venda nasce sem conta bancária e com estado PENDENTE
+        venda.setContaBancaria(null);
+        venda.setEstadoPagamento(EstadoPagamento.PENDENTE);
 
-        // 4. Cálculos Financeiros
-        venda.setQuantidade(dto.getQuantidade());
-        venda.setPrecoUnitario(dto.getPrecoUnitario());
+        venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda().atStartOfDay() : LocalDateTime.now());
 
-        BigDecimal totalSemIva = dto.getPrecoUnitario().multiply(dto.getQuantidade());
-        BigDecimal percentagemIva = taxaIva.getValor().divide(BigDecimal.valueOf(100));
-        BigDecimal valorIva = totalSemIva.multiply(percentagemIva);
-        BigDecimal totalComIva = totalSemIva.add(valorIva);
-
-        venda.setTotalSemIva(totalSemIva);
-        venda.setTotalComIva(totalComIva);
-
-        // 5. Analítica
         if (dto.getCentroCustoId() != null) {
-            centroCustoRepository.findById(dto.getCentroCustoId()).ifPresent(venda::setCentroCusto);
-        }
-        if (dto.getSeccaoHomoId() != null) {
-            seccaoHomoRepository.findById(dto.getSeccaoHomoId()).ifPresent(venda::setSeccaoHomo);
+            CentroCusto centro = centroCustoRepository.findById(dto.getCentroCustoId())
+                    .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado."));
+            venda.setCentroCusto(centro);
         }
 
-        // 6. Guardar a venda primeiro para gerar o ID
+        if (dto.getSeccaoHomoId() != null) {
+            SeccaoHomo seccao = seccaoHomoRepository.findById(dto.getSeccaoHomoId())
+                    .orElseThrow(() -> new EntityNotFoundException("Secção Homogénea não encontrada."));
+            venda.setSeccaoHomo(seccao);
+        }
+
+        BigDecimal totalGeralSemIva = BigDecimal.ZERO;
+        BigDecimal totalGeralComIva = BigDecimal.ZERO;
+
+        if(venda.getLinhas() == null) venda.setLinhas(new ArrayList<>());
+
+        // 🛡️ PROCESSAR AS MÚLTIPLAS LINHAS (Logística de Stock e Faturação)
+        for (VendaDTO.LinhaVendaDTO linhaDto : dto.getLinhas()) {
+            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), user.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId()));
+
+            TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
+
+            // Desconta Stock (Logística)
+            if (artigo instanceof Mercadoria mercadoria) {
+                mercadoria.setStockAtual(mercadoria.getStockAtual().subtract(linhaDto.getQuantidade()));
+                artigoRepository.save(mercadoria);
+
+                MovimentoStock mov = new MovimentoStock();
+                mov.setMercadoria(mercadoria);
+                mov.setUtilizador(user);
+                mov.setTipo(MovimentoStock.TipoMovimentoStock.SAIDA);
+                mov.setQuantidade(linhaDto.getQuantidade());
+                mov.setStockAposMovimento(mercadoria.getStockAtual());
+                mov.setMotivo("Venda a Cliente: " + cliente.getNome());
+                movimentoStockRepository.save(mov);
+            }
+
+            // Calcula Totais da Linha
+            BigDecimal totalLinhaSemIva = linhaDto.getPrecoUnitario().multiply(linhaDto.getQuantidade());
+            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP).add(BigDecimal.ONE);
+            BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva);
+
+            LinhaVenda linha = new LinhaVenda();
+            linha.setVenda(venda);
+            linha.setArtigo(artigo);
+            linha.setTaxaIva(taxaIva);
+            linha.setQuantidade(linhaDto.getQuantidade());
+            linha.setPrecoUnitario(linhaDto.getPrecoUnitario());
+            linha.setTotalLinhaSemIva(totalLinhaSemIva);
+            linha.setTotalLinhaComIva(totalLinhaComIva);
+
+            venda.getLinhas().add(linha);
+
+            totalGeralSemIva = totalGeralSemIva.add(totalLinhaSemIva);
+            totalGeralComIva = totalGeralComIva.add(totalLinhaComIva);
+        }
+
+        venda.setTotalSemIva(totalGeralSemIva);
+        venda.setTotalComIva(totalGeralComIva);
+
         Venda vendaGuardada = vendaRepository.save(venda);
 
-        // ==========================================
-        // 7. LIGAÇÃO À TESOURARIA: RECEBIMENTO AUTOMÁTICO
-        // ==========================================
-        ContaBancaria conta = contaRepository.findById(dto.getContaBancariaId())
-                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada"));
+        // ❌ Removida a criação de Movimento e alteração de saldo bancário.
+        // O dinheiro só entra no sistema quando a Tesouraria confirmar o documento.
 
-        vendaGuardada.setContaBancaria(conta);
-        vendaRepository.save(vendaGuardada);
-
-        // Segurança
-        if (!conta.getUtilizador().getId().equals(user.getId())) {
-            throw new RuntimeException("Sem permissão para movimentar esta conta.");
-        }
-
-        // Adicionar o dinheiro à conta (Crédito)
-        conta.setSaldo(conta.getSaldo().add(totalComIva));
-        contaRepository.save(conta);
-
-        // Registar o rasto no extrato bancário
-        Movimento mov = new Movimento();
-        mov.setConta(conta);
-        mov.setUtilizador(user);
-        mov.setTipo(Movimento.TipoMovimento.CREDITO);
-        mov.setValor(totalComIva);
-        mov.setSaldoApos(conta.getSaldo());
-
-        mov.setDescricao("Recebimento de Venda - " + cliente.getNome());
-
-        // Ligações vitais ao Cliente e à Venda
-        mov.setVenda(vendaGuardada);
-        mov.setCliente(cliente);
-
-        movimentoRepository.save(mov);
-
-        // Devolver o DTO Plano limpo e sem ciclos infinitos!
         return converterParaDTO(vendaGuardada);
+    }
+
+    @Transactional(readOnly = true)
+    public VendaResponseDTO buscarPorId(Long id) {
+        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
+        return converterParaDTO(venda);
+    }
+
+    public List<TxIva> listarTaxasIva() {
+        return txIvaRepository.findAll();
     }
 
     @Transactional(readOnly = true)
     public Page<VendaResponseDTO> listarMinhasVendas(int pagina, int tamanho) {
         Utilizador user = getUtilizadorLogado();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataVenda").descending());
-        // A magia acontece aqui: converte cada Entidade do repositório no DTO de Saída
         return vendaRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
     }
 
-    public List<TxIva> listarTaxasIva(){
-        return txIvaRepository.findAll();
+    @Transactional
+    public void anularVenda(Long id) {
+        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
+
+        // 🛡️ Segurança: Não permite apagar se já houver dinheiro envolvido (PAGO)
+        if (venda.getEstadoPagamento() == EstadoPagamento.PAGO) {
+            throw new IllegalStateException("Não é possível anular uma venda que já foi recebida na tesouraria.");
+        }
+
+        vendaRepository.delete(venda);
     }
 
-    // ==========================================
-    // CONVERSOR: Entidade -> Flat DTO
-    // ==========================================
     private VendaResponseDTO converterParaDTO(Venda v) {
         VendaResponseDTO dto = new VendaResponseDTO();
         dto.setId(v.getId());
         dto.setDataVenda(v.getDataVenda());
-        dto.setDesignacao(v.getDesignacao());
-        dto.setQuantidade(v.getQuantidade());
-        dto.setPrecoUnitario(v.getPrecoUnitario());
         dto.setTotalSemIva(v.getTotalSemIva());
         dto.setTotalComIva(v.getTotalComIva());
+        dto.setEstadoPagamento(v.getEstadoPagamento().name());
 
         if (v.getCliente() != null) {
             dto.setClienteId(v.getCliente().getId());
             dto.setClienteNome(v.getCliente().getNome());
         }
-        if (v.getArtigo() != null) {
-            dto.setArtigoId(v.getArtigo().getId());
-            dto.setArtigoNome(v.getArtigo().getNome());
+
+        // 🛡️ A CORREÇÃO 1: Mapear a Conta Bancária
+        if (v.getContaBancaria() != null) {
+            dto.setContaBancariaNome(v.getContaBancaria().getNome());
+            // (Nota: Se na tua entidade Venda a variável não for 'contaBancaria' ou o método for 'getDescricao()', ajusta aqui)
         }
+
+        // 🛡️ A CORREÇÃO 2: Mapear o Centro de Custo
         if (v.getCentroCusto() != null) {
             dto.setCentroCustoId(v.getCentroCusto().getId());
             dto.setCentroCustoCodigo(v.getCentroCusto().getCodigo());
         }
+
+        // 🛡️ A CORREÇÃO 3: Mapear a Secção Homogénea
         if (v.getSeccaoHomo() != null) {
             dto.setSeccaoHomoId(v.getSeccaoHomo().getId());
             dto.setSeccaoHomoCodigo(v.getSeccaoHomo().getCodigo());
         }
-        if (v.getTaxaIva() != null) {
-            dto.setTaxaIvaId(v.getTaxaIva().getId());
-            dto.setTaxaIvaValor(v.getTaxaIva().getValor());
-        }
-        if (v.getContaBancaria() != null) {
-            dto.setContaBancariaId(v.getContaBancaria().getId());
-            dto.setContaBancariaNome(v.getContaBancaria().getNome());
+
+        if (v.getLinhas() != null) {
+            dto.setLinhas(v.getLinhas().stream().map(linha -> {
+                VendaResponseDTO.LinhaVendaResponseDTO lDto = new VendaResponseDTO.LinhaVendaResponseDTO();
+                lDto.setId(linha.getId());
+                lDto.setQuantidade(linha.getQuantidade());
+                lDto.setPrecoUnitario(linha.getPrecoUnitario());
+                lDto.setTotalLinhaSemIva(linha.getTotalLinhaSemIva());
+                lDto.setTotalLinhaComIva(linha.getTotalLinhaComIva());
+
+                // 🛡️ Não esquecer a designação personalizada
+                lDto.setDesignacaoPersonalizada(linha.getDesignacaoPersonalizada());
+
+                if (linha.getArtigo() != null) {
+                    lDto.setArtigoId(linha.getArtigo().getId());
+                    lDto.setArtigoNome(linha.getArtigo().getNome());
+                }
+                if (linha.getTaxaIva() != null) {
+                    lDto.setTaxaIvaValor(linha.getTaxaIva().getValor());
+                }
+                return lDto;
+            }).collect(Collectors.toList()));
         }
         return dto;
     }

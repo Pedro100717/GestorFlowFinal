@@ -1,10 +1,8 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "clientes")
@@ -12,8 +10,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
-public class Cliente extends Auditable{
+public class Cliente extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,7 +19,10 @@ public class Cliente extends Auditable{
     @Column(nullable = false)
     private String nome;
 
-    private String nif; // Não pus 'unique' aqui no Java para controlar via código se necessário
+    // 🛡️ Dica Industrial: Mesmo validando no Service, ter um índice no NIF
+    // ajuda muito na performance de procura quando a base de dados crescer.
+    @Column(length = 20)
+    private String nif;
 
     private String email;
 
@@ -34,11 +34,23 @@ public class Cliente extends Auditable{
     @Column(columnDefinition = "TEXT")
     private String anotacoes;
 
-    // A Chave Estrangeira!
-    // @JsonIgnore: Impede que, ao pedires um cliente, ele traga o utilizador inteiro (com password e tudo)
+    // 🚀 Performance: FetchType.LAZY é obrigatório para evitar o problema N+1
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
+    // 🛡️ Jackson removido: @JsonIgnore já não é necessário porque a entidade não sai para o controller.
     private Utilizador utilizador;
 
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    // Substitui o @EqualsAndHashCode(callSuper = true) para evitar queries recursivas
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Cliente cliente)) return false;
+        return id != null && id.equals(cliente.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

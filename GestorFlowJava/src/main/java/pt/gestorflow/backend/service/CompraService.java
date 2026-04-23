@@ -1,7 +1,6 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -9,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.CompraDTO;
 import pt.gestorflow.backend.dto.CompraResponseDTO;
 import pt.gestorflow.backend.model.*;
@@ -28,10 +28,8 @@ public class CompraService {
     private final CentroCustoRepository centroCustoRepository;
     private final SeccaoHomoRepository seccaoHomoRepository;
     private final TxIvaRepository txIvaRepository;
-
-    // --- INJEÇÕES DA TESOURARIA ---
-    private final ContaBancariaRepository contaRepository;
-    private final MovimentoRepository movimentoRepository;
+    private final MovimentoStockRepository movimentoStockRepository;
+    // Removido o uso de contaRepository e movimentoRepository aqui dentro do registo
 
     private Utilizador getUtilizadorLogado() {
         return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -41,114 +39,121 @@ public class CompraService {
     public CompraResponseDTO registarCompra(CompraDTO dto) {
         Utilizador user = getUtilizadorLogado();
 
-        Fornecedor fornecedor = fornecedorRepository.findById(dto.getFornecedorId())
-                .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado"));
+        // 🛡️ Validação Comercial
+        Fornecedor fornecedor = fornecedorRepository.findByIdAndUtilizadorId(dto.getFornecedorId(), user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
-        Artigo artigo = artigoRepository.findById(dto.getArtigoId())
-                .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado"));
+        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(dto.getArtigoId(), user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
 
-        // 1. Buscar Taxa de IVA (Obrigatória na compra)
         TxIva taxaIva = txIvaRepository.findById(dto.getTaxaIvaId())
-                .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
+                .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada."));
 
-        // 2. Lógica de Stock e Custo
-        // Verifica se é Mercadoria antes de mexer no stock!
         if (artigo instanceof Mercadoria mercadoria) {
-            mercadoria.setStockAtual(mercadoria.getStockAtual().add(dto.getQuantidade()));
-            // O save no final atualiza tudo
-        }
+            BigDecimal stockAtual = mercadoria.getStockAtual() != null ? mercadoria.getStockAtual() : BigDecimal.ZERO;
+            BigDecimal custoAtual = artigo.getUltimoPrecoCusto() != null ? artigo.getUltimoPrecoCusto() : BigDecimal.ZERO;
+            BigDecimal qtdComprada = dto.getQuantidade();
+            BigDecimal precoCompra = dto.getPrecoUnitario();
 
-        // Atualiza o preço de custo no Pai (Artigo), seja Mercadoria ou Serviço
-        artigo.setUltimoPrecoCusto(dto.getPrecoUnitario());
-        artigoRepository.save(artigo);
+            // 🛡️ CÁLCULO DO PREÇO DE CUSTO MÉDIO PONDERADO (PCMP)
+            BigDecimal valorStockExistente = stockAtual.multiply(custoAtual);
+            BigDecimal valorNovaCompra = qtdComprada.multiply(precoCompra);
+            BigDecimal novoStockTotal = stockAtual.add(qtdComprada);
 
-        // 3. Criar Registo da Compra
-        Compra compra = new Compra();
-        if (dto.getDataCompra() != null) {
-            compra.setDataCompra(dto.getDataCompra().atStartOfDay());
+            if (novoStockTotal.compareTo(BigDecimal.ZERO) > 0) {
+                // Divide o valor total pelo stock total (com 4 casas decimais para não perder precisão nos cêntimos)
+                BigDecimal precoMedioPonderado = valorStockExistente.add(valorNovaCompra)
+                        .divide(novoStockTotal, 4, java.math.RoundingMode.HALF_UP);
+
+                artigo.setUltimoPrecoCusto(precoMedioPonderado);
+            } else {
+                artigo.setUltimoPrecoCusto(precoCompra);
+            }
+
+            // Atualiza a quantidade do artigo
+            mercadoria.setStockAtual(novoStockTotal);
+            artigoRepository.save(artigo);
+
+            // Regista o movimento histórico
+            MovimentoStock mov = new MovimentoStock();
+            mov.setMercadoria(mercadoria);
+            mov.setUtilizador(user);
+            mov.setTipo(MovimentoStock.TipoMovimentoStock.ENTRADA);
+            mov.setQuantidade(qtdComprada);
+            mov.setStockAposMovimento(mercadoria.getStockAtual());
+            mov.setMotivo("Compra a Fornecedor: " + fornecedor.getNome());
+            movimentoStockRepository.save(mov);
         } else {
-            compra.setDataCompra(LocalDateTime.now());
+            // Se for um serviço, apenas atualiza o preço de custo (não há stock para ponderar)
+            artigo.setUltimoPrecoCusto(dto.getPrecoUnitario());
+            artigoRepository.save(artigo);
         }
-        compra.setFornecedor(fornecedor);
-        compra.setArtigo(artigo);
-        compra.setUtilizador(user);
-        compra.setTaxaIva(taxaIva);
 
-        compra.setQuantidade(dto.getQuantidade());
-        compra.setPrecoUnitario(dto.getPrecoUnitario());
-
-        // Cálculo do Total (Base * Qtd * (1 + Taxa))
+        // 2. Calcular Totais
         BigDecimal totalSemIva = dto.getQuantidade().multiply(dto.getPrecoUnitario());
         BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
         BigDecimal totalComIva = totalSemIva.multiply(fatorIva);
 
+        // 3. Criar a Compra (Estado PENDENTE)
+        Compra compra = new Compra();
+        compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra().atStartOfDay() : LocalDateTime.now());
+        compra.setFornecedor(fornecedor);
+        compra.setArtigo(artigo);
+        compra.setUtilizador(user);
+        compra.setTaxaIva(taxaIva);
+        compra.setQuantidade(dto.getQuantidade());
+        compra.setPrecoUnitario(dto.getPrecoUnitario());
         compra.setTotal(totalComIva);
         compra.setNumeroFaturaFornecedor(dto.getNumeroFaturaFornecedor());
+        compra.setDesignacao(dto.getDesignacaoPersonalizada() != null && !dto.getDesignacaoPersonalizada().isBlank()
+                ? dto.getDesignacaoPersonalizada() : artigo.getNome());
 
-        if (dto.getDesignacaoPersonalizada() != null && !dto.getDesignacaoPersonalizada().isBlank()) {
-            compra.setDesignacao(dto.getDesignacaoPersonalizada());
-        } else {
-            compra.setDesignacao(artigo.getNome());
-        }
+        // 🛡️ AQUI: Definimos como Pendente e sem conta bancária associada ainda
+        compra.setEstadoPagamento(EstadoPagamento.PENDENTE);
+        compra.setContaBancaria(null);
 
         // Analítica
         if (dto.getCentroCustoId() != null) {
-            centroCustoRepository.findById(dto.getCentroCustoId()).ifPresent(compra::setCentroCusto);
+            centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), user.getId()).ifPresent(compra::setCentroCusto);
         }
         if (dto.getSeccaoHomoId() != null) {
-            seccaoHomoRepository.findById(dto.getSeccaoHomoId()).ifPresent(compra::setSeccaoHomo);
+            seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), user.getId()).ifPresent(compra::setSeccaoHomo);
         }
 
-        // Guardar a compra primeiro para gerar o ID na base de dados
         Compra compraGuardada = compraRepository.save(compra);
 
-        // ==========================================
-        // 4. LIGAÇÃO À TESOURARIA: PAGAMENTO AUTOMÁTICO
-        // ==========================================
-        ContaBancaria conta = contaRepository.findById(dto.getContaBancariaId())
-                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada"));
+        // ❌ Removida a lógica de atualização de saldo e criação de Movimento de Tesouraria.
+        // Isso agora será feito exclusivamente no TesourariaService através da confirmação.
 
-        compraGuardada.setContaBancaria(conta);
-        compraRepository.save(compraGuardada);
+        return converterParaDTO(compraGuardada);
+    }
 
-        // Segurança: Garantir que a conta é do utilizador logado
-        if (!conta.getUtilizador().getId().equals(user.getId())) {
-            throw new RuntimeException("Sem permissão para movimentar esta conta.");
+    @Transactional(readOnly = true)
+    public CompraResponseDTO buscarPorId(Long id) {
+        Utilizador user = getUtilizadorLogado();
+        Compra compra = compraRepository.findByIdAndUtilizadorId(id, user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
+        return converterParaDTO(compra);
+    }
+
+    @Transactional
+    public void eliminar(Long id) {
+        Utilizador user = getUtilizadorLogado();
+        Compra compra = compraRepository.findByIdAndUtilizadorId(id, user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
+
+        // Se a compra já estiver PAGA, convém não deixar eliminar ou reverter o financeiro primeiro
+        if (compra.getEstadoPagamento() == EstadoPagamento.PAGO) {
+            throw new IllegalStateException("Não é possível eliminar uma compra que já foi paga na tesouraria.");
         }
 
-        // Tirar o dinheiro da conta (Débito)
-        conta.setSaldo(conta.getSaldo().subtract(totalComIva));
-        contaRepository.save(conta);
-
-        // Registar o rasto no extrato bancário
-        Movimento mov = new Movimento();
-        mov.setConta(conta);
-        mov.setUtilizador(user);
-        mov.setTipo(Movimento.TipoMovimento.DEBITO);
-        mov.setValor(totalComIva);
-        mov.setSaldoApos(conta.getSaldo());
-
-        // Construir a descrição do movimento
-        String refFatura = dto.getNumeroFaturaFornecedor() != null && !dto.getNumeroFaturaFornecedor().isBlank()
-                ? " | Fatura: " + dto.getNumeroFaturaFornecedor()
-                : "";
-        mov.setDescricao("Pagamento de Compra a " + fornecedor.getNome() + refFatura);
-
-        // Ligações vitais ao Fornecedor e à Compra
-        mov.setCompra(compraGuardada);
-        mov.setFornecedor(fornecedor);
-
-        movimentoRepository.save(mov);
-
-        // Devolver o DTO Plano limpo e sem ciclos infinitos!
-        return converterParaDTO(compraGuardada);
+        compraRepository.delete(compra);
     }
 
     @Transactional(readOnly = true)
     public Page<CompraResponseDTO> listarMinhasCompras(int pagina, int tamanho) {
         Utilizador user = getUtilizadorLogado();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataCompra").descending());
-        // A magia acontece aqui: converte cada Entidade do repositório no DTO de Saída
         return compraRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
     }
 
@@ -156,9 +161,6 @@ public class CompraService {
         return txIvaRepository.findAll();
     }
 
-    // ==========================================
-    // CONVERSOR: Entidade -> Flat DTO
-    // ==========================================
     private CompraResponseDTO converterParaDTO(Compra c) {
         CompraResponseDTO dto = new CompraResponseDTO();
         dto.setId(c.getId());
@@ -168,31 +170,40 @@ public class CompraService {
         dto.setQuantidade(c.getQuantidade());
         dto.setPrecoUnitario(c.getPrecoUnitario());
         dto.setTotal(c.getTotal());
+        dto.setEstadoPagamento(c.getEstadoPagamento().name());
 
         if (c.getFornecedor() != null) {
             dto.setFornecedorId(c.getFornecedor().getId());
             dto.setFornecedorNome(c.getFornecedor().getNome());
         }
+
         if (c.getArtigo() != null) {
             dto.setArtigoId(c.getArtigo().getId());
             dto.setArtigoNome(c.getArtigo().getNome());
         }
-        if (c.getCentroCusto() != null) {
-            dto.setCentroCustoId(c.getCentroCusto().getId());
-            dto.setCentroCustoCodigo(c.getCentroCusto().getCodigo());
-        }
-        if (c.getSeccaoHomo() != null) {
-            dto.setSeccaoHomoId(c.getSeccaoHomo().getId());
-            dto.setSeccaoHomoCodigo(c.getSeccaoHomo().getCodigo());
-        }
+
         if (c.getTaxaIva() != null) {
             dto.setTaxaIvaId(c.getTaxaIva().getId());
             dto.setTaxaIvaValor(c.getTaxaIva().getValor());
         }
+
+        // 🛡️ A CORREÇÃO: Mapear a Conta Bancária (Aparece quando for PAGO)
         if (c.getContaBancaria() != null) {
             dto.setContaBancariaId(c.getContaBancaria().getId());
             dto.setContaBancariaNome(c.getContaBancaria().getNome());
         }
+
+        // 🛡️ A CORREÇÃO: Mapear a Contabilidade Analítica
+        if (c.getCentroCusto() != null) {
+            dto.setCentroCustoId(c.getCentroCusto().getId());
+            dto.setCentroCustoCodigo(c.getCentroCusto().getCodigo());
+        }
+
+        if (c.getSeccaoHomo() != null) {
+            dto.setSeccaoHomoId(c.getSeccaoHomo().getId());
+            dto.setSeccaoHomoCodigo(c.getSeccaoHomo().getCodigo());
+        }
+
         return dto;
     }
 }

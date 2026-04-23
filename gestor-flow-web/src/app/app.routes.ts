@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth.guard';
 import { LoginComponent } from './pages/login/login';
 import { LayoutComponent } from './components/layout/layout';
 import { DashboardComponent } from './pages/dashboard/dashboard';
@@ -6,6 +7,8 @@ import { RegisterComponent } from './pages/register/register';
 import { ArtigosComponent } from "./pages/artigos/artigos";
 import { CentrosCustoComponent } from "./pages/analitica/centros-custo/centros-custo";
 import { SeccoesHomoComponent } from "./pages/analitica/seccoes-homogeneas/seccoes-homogeneas";
+// 🛡️ IMPORT DO NOVO ECRÃ DE ANÁLISE
+import { AnaliseComponent } from "./pages/analitica/analise/analise.component";
 import { ClientesComponent }  from './pages/clientes/clientes';
 import { FornecedoresComponent } from './pages/fornecedores/fornecedores';
 import { ComprasComponent } from './pages/compras/compras';
@@ -28,13 +31,18 @@ export const routes: Routes = [
   {
     path: 'app',
     component: LayoutComponent, // O Layout tem o Menu Lateral
+    canActivate: [authGuard], // Protege TODAS as rotas-filhas
     children: [
       { path: 'dashboard', component: DashboardComponent },
       { path: 'artigos', component: ArtigosComponent },
       { path: 'clientes', component: ClientesComponent, title: 'Gestão de Clientes'},
       { path: 'fornecedores', component: FornecedoresComponent, title: 'Gestão de Fornecedores'},
+      
+      // --- CONTABILIDADE ANALÍTICA ---
       { path: 'analitica/centros-custo', component: CentrosCustoComponent, title: 'Centros de Custo'},
       { path: 'analitica/seccoes-homogeneas', component: SeccoesHomoComponent, title:'Secções Homogéneas'},
+      { path: 'analitica/dashboard', component: AnaliseComponent, title:'Dashboard Analítico'}, // 🛡️ NOVA ROTA AQUI!
+      
       { path: 'compras', component: ComprasComponent, title: 'Gestão de Compras'},
       { path: 'vendas', component: VendasComponent, title: 'Gestão de Vendas'},
       { path: 'tesouraria', component: TesourariaComponent, title:'Tesouraria'},

@@ -1,8 +1,8 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -13,18 +13,16 @@ import java.util.List;
 @Table(name = "orcamentos")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório por causa da herança
-public class Orcamento extends Auditable { // <--- Escudo de Auditoria Ativado
+public class Orcamento extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🛡️ Tempo de Negócio: O dia que vai impresso no PDF do Orçamento
     @Column(nullable = false)
     private LocalDate dataEmissao;
 
-    private LocalDate dataValidade; // Até quando o preço é garantido
+    private LocalDate dataValidade;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -33,7 +31,6 @@ public class Orcamento extends Auditable { // <--- Escudo de Auditoria Ativado
     @Column(columnDefinition = "TEXT")
     private String notas;
 
-    // Totais do Cabeçalho
     @Column(precision = 12, scale = 2)
     private BigDecimal totalCusto = BigDecimal.ZERO;
 
@@ -43,30 +40,40 @@ public class Orcamento extends Auditable { // <--- Escudo de Auditoria Ativado
     @Column(precision = 12, scale = 2)
     private BigDecimal totalComIva = BigDecimal.ZERO;
 
-    // Relações
-    @ManyToOne(optional = false)
+    // 🚀 Performance: Otimizado com LAZY para evitar o problema N+1 ao listar orçamentos
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
+    // 🛡️ Jackson removido
     private Utilizador utilizador;
 
-    // Cascade: Se apagares o orçamento, apaga as linhas.
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
+    // 🛡️ As exclusões do Lombok (@ToString.Exclude, etc.) saíram, pois já não usamos o @Data
     @OneToMany(mappedBy = "orcamento", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LinhaOrcamento> linhas = new ArrayList<>();
 
-    // Rede de segurança para os dados de negócio
     @PrePersist
     protected void onPrePersist() {
         if (dataEmissao == null) dataEmissao = LocalDate.now();
-        if (dataValidade == null) dataValidade = dataEmissao.plusDays(30); // 30 dias a partir da data de emissão
+        if (dataValidade == null) dataValidade = dataEmissao.plusDays(30);
     }
 
     public enum EstadoOrcamento {
         RASCUNHO, ENVIADO, APROVADO, REJEITADO, CONVERTIDO_VENDA
+    }
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Orcamento that)) return false;
+        return id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

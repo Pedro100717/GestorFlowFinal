@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms'; 
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service'; // <-- Importar o serviço
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-login',
@@ -34,7 +35,12 @@ export class LoginComponent {
         },
         error: (erro) => {
           console.error('Erro no login:', erro);
-          alert('Credenciais inválidas. Tente novamente.');
+          Swal.fire({
+            icon: 'error',
+            title: 'Erro no Login',
+            text: 'Email ou senha incorretos. Por favor, tente novamente.',
+            confirmButtonColor: '#0d6efd'
+          });
         }
     });
   }

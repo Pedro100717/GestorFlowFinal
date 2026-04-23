@@ -1,9 +1,8 @@
 package pt.gestorflow.backend.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,10 +10,17 @@ import lombok.Setter;
 @Table(name = "patrimonio_imoveis")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true)
 public class PatrimonioImovel extends Patrimonio {
 
+    @Column(columnDefinition = "TEXT")
     private String morada;
-    private String artigoMatricial; // Finanças
+
+    @Column(length = 50)
+    private String artigoMatricial; // 🛡️ Finanças (Limitado para indexação)
+
+    @Column(length = 50)
     private String tipo; // "Urbano", "Rústico"
+
+    // 🛡️ REMOVIDO: @EqualsAndHashCode(callSuper = true) e @Data
+    // A identidade (equals/hashCode) é garantida pelo ID na classe mãe (Patrimonio).
 }

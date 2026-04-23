@@ -1,107 +1,83 @@
 <div class="container-fluid">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div>
-          <h3 class="fw-bold text-secondary mb-0">Secções Homogéneas</h3>
-          <small class="text-muted">Subdivisões dos Centros de Custo</small>
-      </div>
-      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
-        <i class="bi bi-plus-lg me-2"></i>Nova Secção
-      </button>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold text-secondary mb-0">Secções Homogéneas</h3>
+        <small class="text-muted">Dimensões analíticas independentes</small>
     </div>
-  
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-              <tr>
-                <th class="ps-4 py-3 border-0 text-muted small uppercase">Código</th>
-                <th class="border-0 text-muted small uppercase">Nome da Secção</th>
-                <th class="border-0 text-muted small uppercase">Centro de Custo (Pai)</th>
-                <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let seccao of listaSeccoes">
-                <td class="ps-4 fw-bold text-primary">{{ seccao.codigo }}</td>
-                <td class="fw-bold text-dark">{{ seccao.nome }}</td>
-                
-                <td>
-                  <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
-                      {{ seccao.centroCustoId || 'Sem Centro' }}
-                  </span>
-                </td>
-  
-                <td class="text-end pe-4">
-                  <button class="btn btn-sm btn-light text-primary me-2" (click)="editarSeccao(seccao)">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-light text-danger" (click)="eliminarSeccao(seccao.id!)">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="listaSeccoes.length === 0">
-                <td colspan="4" class="text-center py-5 text-muted">
-                  <i class="bi bi-layers fs-1 d-block mb-2 opacity-50"></i>
-                  <span class="fw-bold">Nenhuma secção definida.</span><br>
-                  <small>Crie primeiro os Centros de Custo.</small>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+    <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+      <i class="bi bi-plus-lg me-2"></i>Nova Secção
+    </button>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4 py-3 border-0 text-muted small uppercase">Código</th>
+              <th class="border-0 text-muted small uppercase">Nome da Secção</th>
+              <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let seccao of listaSeccoes">
+              <td class="ps-4 fw-bold text-primary">{{ seccao.codigo }}</td>
+              <td class="fw-bold text-dark">{{ seccao.nome }}</td>
+
+              <td class="text-end pe-4">
+                <button class="btn btn-sm btn-light text-primary me-2" (click)="editarSeccao(seccao)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-light text-danger" (click)="eliminarSeccao(seccao.id!)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="listaSeccoes.length === 0">
+              <td colspan="3" class="text-center py-5 text-muted">
+                <i class="bi bi-layers fs-1 d-block mb-2 opacity-50"></i>
+                <span class="fw-bold">Nenhuma secção definida.</span><br>
+                <small>Crie a sua primeira secção para começar.</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
-  
-  <div class="modal fade" id="modalSeccao" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Nova' }} Secção</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body p-4">
-          <form [formGroup]="formSeccao">
-            
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Pertence ao Centro <span class="text-danger">*</span></label>
-              <select class="form-select" formControlName="centroCustoId" 
-                      [ngClass]="{ 'is-invalid': f['centroCustoId'].touched && f['centroCustoId'].invalid }">
-                  <option [ngValue]="null" disabled>Selecione um Centro...</option>
-                  <option *ngFor="let cc of listaCentros" [ngValue]="cc.id">
-                      {{ cc.nome }} ({{ cc.codigo }})
-                  </option>
-              </select>
-              <div *ngIf="f['centroCustoId'].errors?.['required']" class="invalid-feedback">
-                  É obrigatório associar a um Centro de Custo.
+</div>
+
+<div class="modal fade" id="modalSeccao" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Nova' }} Secção</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form [formGroup]="formSeccao">
+          
+          <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label small fw-bold">Código <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" formControlName="codigo" placeholder="Ex: MAN01">
               </div>
-              <div *ngIf="listaCentros.length === 0" class="form-text text-warning">
-                  <i class="bi bi-exclamation-triangle"></i> Precisas de criar Centros de Custo primeiro!
+              <div class="col-md-8 mb-3">
+                <label class="form-label small fw-bold">Nome da Secção <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" formControlName="nome" placeholder="Ex: Manutenção">
               </div>
-            </div>
-  
-            <div class="row">
-                <div class="col-md-4 mb-3">
-                  <label class="form-label small fw-bold">Código <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" formControlName="codigo" placeholder="Ex: MAN01">
-                </div>
-                <div class="col-md-8 mb-3">
-                  <label class="form-label small fw-bold">Nome da Secção <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" formControlName="nome" placeholder="Ex: Manutenção Elétrica">
-                </div>
-            </div>
-  
-          </form>
-        </div>
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" [disabled]="formSeccao.invalid" (click)="guardarSeccao()">
-            <i class="bi bi-save me-2"></i>Guardar
-          </button>
-        </div>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="formSeccao.invalid" (click)="guardarSeccao()">
+          <i class="bi bi-save me-2"></i>Guardar
+        </button>
       </div>
     </div>
   </div>
+</div>

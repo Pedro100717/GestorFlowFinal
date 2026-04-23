@@ -2,7 +2,9 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AnaliticaService } from '../../../services/analitica.service';
-import { CentroCusto, SeccaoHomo } from '../../../core/models/analitica.model';
+import { SeccaoHomo } from '../../../core/models/analitica.model'; 
+
+import Swal from 'sweetalert2';
 
 declare var bootstrap: any;
 
@@ -15,7 +17,6 @@ declare var bootstrap: any;
 export class SeccoesHomoComponent implements OnInit {
 
   listaSeccoes: SeccaoHomo[] = [];
-  listaCentros: CentroCusto[] = []; 
   
   formSeccao!: FormGroup;
   idEmEdicao: number | null = null;
@@ -34,40 +35,27 @@ export class SeccoesHomoComponent implements OnInit {
   inicializarFormulario() {
     this.formSeccao = this.fb.group({
       nome: ['', [Validators.required, Validators.minLength(3)]],
-      codigo: ['', [Validators.required]],
-      centroCustoId: [null, [Validators.required]] // Obrigatório escolher o Pai
+      codigo: ['', [Validators.required]]
     });
   }
 
   get f() { return this.formSeccao.controls; }
 
   carregarDados() {
-    // 1. Carregar a lista principal (Secções)
     this.analiticaService.listarSeccoes().subscribe({
-      next: (dados) => {
-        this.listaSeccoes = dados;
+      // 🛡️ A CORREÇÃO: Colocámos 'any' para o TypeScript nos deixar inspecionar a resposta
+      next: (dados: any) => {
+        // 🛡️ A REDE DE SEGURANÇA: Se vier com a capa 'content', tira de lá. Se não, usa direto.
+        this.listaSeccoes = dados.content ? dados.content : dados;
         this.cd.detectChanges();
       },
-      error: (e) => console.error(e)
-    });
-
-    // 2. Carregar os Centros para o Dropdown (Pai)
-    this.analiticaService.listarCentros().subscribe({
-      next: (dados) => this.listaCentros = dados
+      error: (e) => console.error('Erro ao carregar secções:', e)
     });
   }
-
-  // --- MODAL & AÇÕES ---
 
   abrirModalNovo() {
     this.idEmEdicao = null;
     this.formSeccao.reset();
-    
-    // Define o primeiro centro como padrão para facilitar
-    if (this.listaCentros.length > 0) {
-      this.formSeccao.patchValue({ centroCustoId: this.listaCentros[0].id });
-    }
-
     const modal = new bootstrap.Modal(document.getElementById('modalSeccao'));
     modal.show();
   }
@@ -76,9 +64,7 @@ export class SeccoesHomoComponent implements OnInit {
     this.idEmEdicao = seccao.id!;
     this.formSeccao.patchValue({
       nome: seccao.nome,
-      codigo: seccao.codigo,
-      // O backend envia o objeto 'centroCusto' completo, extraímos o ID
-      centroCustoId: seccao.centroCustoId
+      codigo: seccao.codigo
     });
     const modal = new bootstrap.Modal(document.getElementById('modalSeccao'));
     modal.show();
@@ -95,30 +81,61 @@ export class SeccoesHomoComponent implements OnInit {
     if (this.idEmEdicao) {
       this.analiticaService.atualizarSeccao(this.idEmEdicao, dto).subscribe({
         next: () => this.finalizar('Secção atualizada!'),
-        error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+        error: (e: any) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Não foi possível atualizar a secção.',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     } else {
       this.analiticaService.criarSeccao(dto).subscribe({
         next: () => this.finalizar('Secção criada com sucesso!'),
-        error: (e: any) => alert('Erro: ' + (e.error?.message || e.message))
+        error: (e: any) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Não foi possível criar a secção.',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     }
   }
 
   eliminarSeccao(id: number) {
-    if (confirm('Tem a certeza que quer eliminar esta secção?')) {
-      this.analiticaService.eliminarSeccao(id).subscribe({
-        next: () => {
-          alert('Eliminada com sucesso!');
-          this.carregarDados();
-        },
-        error: (e: any) => alert('Erro ao eliminar.')
-      });
-    }
+    Swal.fire({
+      title: 'Tem a certeza?',
+      text: "Esta secção será eliminada permanentemente!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545', 
+      cancelButtonColor: '#6c757d',  
+      confirmButtonText: 'Sim, eliminar!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.analiticaService.eliminarSeccao(id).subscribe({
+          next: () => {
+            Swal.fire('Eliminada!', 'A Secção foi apagada.', 'success');
+            this.carregarDados();
+          },
+          error: (e: any) => {
+            Swal.fire('Erro!', 'Não foi possível eliminar esta secção. Pode estar em uso.', 'error');
+          }
+        });
+      }
+    });
   }
 
   finalizar(msg: string) {
-    alert(msg);
+    const Toast = Swal.mixin({
+      toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
+    });
+    Toast.fire({ icon: 'success', title: msg });
+
     this.carregarDados();
     const modalElement = document.getElementById('modalSeccao');
     if (modalElement) {

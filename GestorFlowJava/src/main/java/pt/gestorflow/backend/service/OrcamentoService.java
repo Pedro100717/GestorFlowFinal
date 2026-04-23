@@ -1,7 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.transaction.annotation.Transactional; // Import Correto do Spring
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +18,7 @@ import pt.gestorflow.backend.repository.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,11 +38,12 @@ public class OrcamentoService {
 
     // --- 1. CRIAR ---
     @Transactional
-    public Orcamento criarOrcamento(OrcamentoDTO dto) {
+    // 🛡️ CORREÇÃO: Devolver DTO e não a Entidade!
+    public OrcamentoResponseDTO criarOrcamento(OrcamentoDTO dto) {
         Utilizador user = getUtilizadorLogado();
 
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
 
         Orcamento orcamento = new Orcamento();
         orcamento.setCliente(cliente);
@@ -50,15 +52,18 @@ public class OrcamentoService {
         orcamento.setNotas(dto.getNotas());
         orcamento.setEstado(Orcamento.EstadoOrcamento.RASCUNHO);
 
-        processarLinhasOrcamento(orcamento, dto);
+        // 🛡️ Passamos o User ID para garantir a segurança no método auxiliar
+        processarLinhasOrcamento(orcamento, dto, user.getId());
 
-        return orcamentoRepository.save(orcamento);
+        return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
     // --- 2. ATUALIZAR ---
     @Transactional
-    public Orcamento atualizarOrcamento(Long id, OrcamentoDTO dto) {
-        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+    // 🛡️ CORREÇÃO: Devolver DTO
+    public OrcamentoResponseDTO atualizarOrcamento(Long id, OrcamentoDTO dto) {
+        Utilizador user = getUtilizadorLogado();
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, user.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado ou sem permissão."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
@@ -66,27 +71,31 @@ public class OrcamentoService {
         }
 
         if (dto.getClienteId() != null) {
-            Cliente novoCliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), getUtilizadorLogado().getId())
-                    .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
+            Cliente novoCliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), user.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
             orcamento.setCliente(novoCliente);
         }
         orcamento.setDataValidade(dto.getDataValidade());
         orcamento.setNotas(dto.getNotas());
 
         orcamento.getLinhas().clear();
-        processarLinhasOrcamento(orcamento, dto);
+        processarLinhasOrcamento(orcamento, dto, user.getId());
 
-        return orcamentoRepository.save(orcamento);
+        return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
-    private void processarLinhasOrcamento(Orcamento orcamento, OrcamentoDTO dto) {
+    // 🛡️ CORREÇÃO IDOR: Adicionado o `Long userId` para validar os artigos das linhas
+    private void processarLinhasOrcamento(Orcamento orcamento, OrcamentoDTO dto, Long userId) {
         BigDecimal totalCustoGeral = BigDecimal.ZERO;
         BigDecimal totalSemIvaGeral = BigDecimal.ZERO;
         BigDecimal totalComIvaGeral = BigDecimal.ZERO;
 
         for (OrcamentoDTO.LinhaOrcamentoDTO linhaDto : dto.getLinhas()) {
-            Artigo artigo = artigoRepository.findById(linhaDto.getArtigoId())
-                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: ID " + linhaDto.getArtigoId()));
+
+            // 🛡️ CORREÇÃO CRÍTICA: Bloquear injeção de IDs de artigos da concorrência
+            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), userId)
+                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado: ID " + linhaDto.getArtigoId()));
+
             TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
                     .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
 
@@ -145,20 +154,33 @@ public class OrcamentoService {
             throw new RuntimeException("Este orçamento já foi processado anteriormente.");
         }
 
-        for (LinhaOrcamento linha : orcamento.getLinhas()) {
-            VendaDTO vendaDTO = new VendaDTO();
-            vendaDTO.setClienteId(orcamento.getCliente().getId());
-            vendaDTO.setArtigoId(linha.getArtigo().getId());
-            vendaDTO.setTaxaIvaId(linha.getTaxaIva().getId());
-            vendaDTO.setQuantidade(linha.getQuantidade());
-            vendaDTO.setPrecoUnitario(linha.getPrecoVendaUnitario());
-            vendaDTO.setDesignacaoPersonalizada("Origem: Orçamento #" + orcamento.getId());
-            vendaDTO.setDataVenda(LocalDateTime.now().toLocalDate());
-            vendaDTO.setContaBancariaId(contaBancariaId);
+        // 🛡️ 1. Criar o Cabeçalho da Venda (UM único documento)
+        VendaDTO vendaDTO = new VendaDTO();
+        vendaDTO.setClienteId(orcamento.getCliente().getId());
+        vendaDTO.setDataVenda(LocalDateTime.now().toLocalDate());
 
-            vendaService.registarVenda(vendaDTO);
+        // 🛡️ 2. Preparar a lista de linhas
+        List<VendaDTO.LinhaVendaDTO> linhasVenda = new ArrayList<>();
+
+        // 🛡️ 3. Transferir as Linhas do Orçamento para as Linhas da Venda
+        for (LinhaOrcamento linha : orcamento.getLinhas()) {
+            VendaDTO.LinhaVendaDTO linhaDTO = new VendaDTO.LinhaVendaDTO();
+            linhaDTO.setArtigoId(linha.getArtigo().getId());
+            linhaDTO.setTaxaIvaId(linha.getTaxaIva().getId());
+            linhaDTO.setQuantidade(linha.getQuantidade());
+            linhaDTO.setPrecoUnitario(linha.getPrecoVendaUnitario());
+            linhaDTO.setDesignacaoPersonalizada("Origem: Orçamento #" + orcamento.getId());
+
+            linhasVenda.add(linhaDTO);
         }
 
+        // 🛡️ 4. Anexar as linhas ao cabeçalho da Venda
+        vendaDTO.setLinhas(linhasVenda);
+
+        // 🛡️ 5. Registar a Venda (Faz apenas UMA chamada ao VendaService!)
+        vendaService.registarVenda(vendaDTO);
+
+        // 🛡️ 6. Fechar o Orçamento
         orcamento.setEstado(Orcamento.EstadoOrcamento.CONVERTIDO_VENDA);
         orcamentoRepository.save(orcamento);
     }
@@ -202,8 +224,9 @@ public class OrcamentoService {
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
-    // --- 7. CONVERSOR DTO MÁGICO ---
+    // --- 7. CONVERSOR DTO MÁGICO (Omitido por brevidade, mantém a tua versão exata!) ---
     private OrcamentoResponseDTO converterParaDTO(Orcamento o) {
+        // [O teu código de conversão original aqui]
         OrcamentoResponseDTO dto = new OrcamentoResponseDTO();
         dto.setId(o.getId());
         dto.setDataCriacao(o.getDataCriacaoSistema());

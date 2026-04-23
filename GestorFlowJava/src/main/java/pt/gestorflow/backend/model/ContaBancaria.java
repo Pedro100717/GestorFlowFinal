@@ -1,34 +1,46 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "contas_bancarias")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true)
-public class ContaBancaria extends Auditable{
+public class ContaBancaria extends Auditable {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version // 🛡️ Proteção contra concorrência (Pessimistic/Optimistic Locking)
+    private Long version;
+
     @Column(nullable = false)
-    private String nome; // Ex: "Santander", "Caixa Física"
+    private String nome;
 
     private String iban;
 
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal saldo = BigDecimal.ZERO; // Saldo atual
+    private BigDecimal saldo = BigDecimal.ZERO;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
+    // 🛡️ Jackson removido: @JsonIgnore eliminado.
     private Utilizador utilizador;
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ContaBancaria that)) return false;
+        return id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

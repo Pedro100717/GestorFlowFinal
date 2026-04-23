@@ -12,10 +12,10 @@ public class ArtigoResponseDTO {
     private BigDecimal ultimoPrecoCusto;
     private String tipo; // "MERCADORIA" ou "SERVICO"
 
-    // Campos específicos de Mercadoria (virão null para Serviços)
-    private BigDecimal stockAtual;
+    // 🛡️ O CAMPO QUE FALTAVA:
+    private boolean movimentaStock;
 
-    // Flat Fields
+    private BigDecimal stockAtual;
     private Long familiaId;
     private String familiaNome;
 }

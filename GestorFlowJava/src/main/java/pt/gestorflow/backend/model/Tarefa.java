@@ -1,9 +1,6 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // <--- Importatório obrigatório
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,41 +11,40 @@ import java.time.LocalDateTime;
 @Table(name = "tarefas")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para fundir com o Auditable
-public class Tarefa extends Auditable { // <--- Escudo de Auditoria Ativado
+public class Tarefa extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    // 🛡️ Dica Industrial: Títulos devem ter um limite razoável para a UI não quebrar
+    @Column(nullable = false, length = 150)
     private String titulo;
 
     @Column(columnDefinition = "TEXT")
     private String descricao;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private EstadoTarefa estado = EstadoTarefa.PENDENTE;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private PrioridadeTarefa prioridade = PrioridadeTarefa.NORMAL;
 
-    private LocalDate dataLimite; // Deadline
+    private LocalDate dataLimite;
 
-    // 🛡️ Tempo de Negócio: Quando o trabalho foi efetivamente terminado
     @Column(name = "data_conclusao")
     private LocalDateTime dataConclusao;
 
-    // --- Relações ---
-    @ManyToOne
+    // 🚀 Performance: Otimizado com LAZY. Essencial para quadros Kanban rápidos.
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
+    // 🛡️ Jackson removido
     private Utilizador utilizador;
 
     public enum EstadoTarefa {
@@ -57,5 +53,18 @@ public class Tarefa extends Auditable { // <--- Escudo de Auditoria Ativado
 
     public enum PrioridadeTarefa {
         BAIXA, NORMAL, ALTA, URGENTE
+    }
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Tarefa tarefa)) return false;
+        return id != null && id.equals(tarefa.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

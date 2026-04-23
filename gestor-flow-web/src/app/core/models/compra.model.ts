@@ -1,15 +1,14 @@
-import { Artigo } from "./artigo.model";
-import { Fornecedor } from "./fornecedor.model";
-import { CentroCusto, SeccaoHomo } from "./analitica.model";
-
 export interface Compra {
     id?: number;
     dataCompra?: string;
     numeroFaturaFornecedor?: string;
     designacao?: string;
-    quantidade: number;
-    precoUnitario: number;
+    quantidade?: number; // ⚠️ Passou a opcional para evitar chatices
+    precoUnitario?: number; // ⚠️ Passou a opcional
     total?: number;
+
+    // 🛡️ NOVO: Estado para a tabela de Compras não quebrar!
+    estadoPagamento?: string;
 
     // Flat Fields (Substitui os objetos antigos)
     fornecedorId?: number;

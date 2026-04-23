@@ -1,36 +1,26 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // <--- Importatório
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "vendas")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para fundir com a auditoria
-public class Venda extends Auditable { // <--- Escudo de Auditoria Ativado
+public class Venda extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🛡️ Tempo de Negócio: O momento em que a venda efetivamente ocorreu
     @Column(nullable = false)
     private LocalDateTime dataVenda;
-
-    @Column(precision = 10, scale = 3, nullable = false)
-    private BigDecimal quantidade;
-
-    @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal precoUnitario; // Excelente decisão de arquitetura guardar a "fotografia" do preço aqui!
 
     @Column(precision = 10, scale = 2)
     private BigDecimal totalSemIva;
@@ -38,44 +28,59 @@ public class Venda extends Auditable { // <--- Escudo de Auditoria Ativado
     @Column(precision = 10, scale = 2)
     private BigDecimal totalComIva;
 
-    // --- Relações ---
-    @ManyToOne
+    // 🛡️ CORREÇÃO: O Estado de Pagamento adicionado para não dar NullPointerException
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, name = "estado_pagamento")
+    private EstadoPagamento estadoPagamento = EstadoPagamento.PENDENTE;
+
+    // ==========================================
+    // 🚀 O CORAÇÃO DO NOVO ERP: MÚLTIPLAS LINHAS
+    // ==========================================
+    @OneToMany(mappedBy = "venda", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LinhaVenda> linhas = new ArrayList<>();
+
+    // ==========================================
+    // 🚀 OTIMIZAÇÃO EXTREMA: RELAÇÕES LAZY
+    // ==========================================
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
 
-    @ManyToOne
-    @JoinColumn(name = "artigo_id", nullable = false)
-    private Artigo artigo;
-
-    @ManyToOne
-    @JoinColumn(name = "tx_iva_id", nullable = false)
-    private TxIva taxaIva;
-
-    // Analítica (Opcional por venda)
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "centro_custo_id")
     private CentroCusto centroCusto;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seccao_homo_id")
     private SeccaoHomo seccaoHomo;
 
-    @Column(nullable = false)
-    private String designacao;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conta_bancaria_id")
+    private ContaBancaria contaBancaria;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
     private Utilizador utilizador;
 
-    @ManyToOne
-    @JoinColumn(name = "conta_bancaria_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    private ContaBancaria contaBancaria;
-
-    // Renomeado para onPrePersist para evitar conflitos de ciclo de vida
     @PrePersist
     protected void onPrePersist() {
         if (dataVenda == null) dataVenda = LocalDateTime.now();
+    }
+
+    // ==========================================
+    // 🛡️ IDENTIDADE BLINDADA PARA O HIBERNATE
+    // ==========================================
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Venda venda)) return false;
+        return id != null && id.equals(venda.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

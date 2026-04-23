@@ -4,6 +4,9 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { ArtigoService } from '../../services/artigo.service';
 import { Artigo } from '../../core/models/artigo.model';
 
+// 1. IMPORTAR O SWEETALERT2
+import Swal from 'sweetalert2';
+
 declare var bootstrap: any;
 
 @Component({
@@ -84,29 +87,65 @@ export class ArtigosComponent implements OnInit {
     if (this.idEmEdicao) {
       this.artigoService.atualizar(this.idEmEdicao, dados).subscribe({
         next: () => this.finalizarAcao('Artigo atualizado!'),
-        error: (e) => alert('Erro: ' + (e.error?.message || e.message))
+        // 2. ERRO ELEGANTE AQUI
+        error: (e) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Não foi possível atualizar o artigo.',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     } else {
       this.artigoService.criar(dados).subscribe({
         next: () => this.finalizarAcao('Artigo criado! O stock começa a 0.'),
-        error: (e) => alert('Erro: ' + (e.error?.message || e.message))
+        // 2. ERRO ELEGANTE AQUI
+        error: (e) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: e.error?.message || 'Não foi possível criar o artigo.',
+            confirmButtonColor: '#0d6efd'
+          });
+        }
       });
     }
   }
 
   eliminarArtigo(id: number) {
-    if (confirm('Tens a certeza que queres eliminar este artigo?')) {
-      this.artigoService.apagar(id).subscribe({
-        // Já não precisamos de mandar recarregar a lista do Java! O cofre trata disso.
-        next: () => alert('Artigo eliminado!'),
-        error: (e) => alert('Erro ao eliminar.')
-      });
-    }
+    // 3. O FIM DO "confirm()" FEIO
+    Swal.fire({
+      title: 'Tem a certeza?',
+      text: "Este artigo será apagado permanentemente!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545', // Vermelho
+      cancelButtonColor: '#6c757d',  // Cinzento
+      confirmButtonText: 'Sim, eliminar!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      
+      if (result.isConfirmed) {
+        this.artigoService.apagar(id).subscribe({
+          next: () => {
+            Swal.fire('Eliminado!', 'O artigo foi apagado.', 'success');
+          },
+          error: (e) => {
+            Swal.fire('Erro!', 'Não foi possível apagar. Pode estar associado a orçamentos, compras ou vendas.', 'error');
+          }
+        });
+      }
+    });
   }
 
   finalizarAcao(msg: string) {
-    alert(msg);
-    // REMOVIDO: this.carregarArtigos(); -> O delay foi eliminado!
+    // 4. TOAST DE SUCESSO NO CANTO SUPERIOR
+    const Toast = Swal.mixin({
+      toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
+    });
+    Toast.fire({ icon: 'success', title: msg });
+
     const modalElement = document.getElementById('modalArtigo');
     if (modalElement) {
        const modal = bootstrap.Modal.getInstance(modalElement);

@@ -1,56 +1,62 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // <--- Não esquecer!
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "orcamentos_linhas")
+@Table(name = "orcamento_linhas")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para fundir com a classe mãe
-public class LinhaOrcamento extends Auditable { // <--- Controlo anti-fraude ativado
+public class LinhaOrcamento {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    // 🛡️ Relação Forte com o "Mestre"
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "orcamento_id", nullable = false)
-    @JsonIgnore // Evita loop infinito no JSON
     private Orcamento orcamento;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "artigo_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "artigo_id", nullable = false)
     private Artigo artigo;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "tx_iva_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tx_iva_id", nullable = false)
     private TxIva taxaIva;
 
-    @Column(precision = 10, scale = 3, nullable = false)
+    @Column(nullable = false, precision = 10, scale = 3)
     private BigDecimal quantidade;
 
-    // CRÍTICO: Tirar uma "fotografia" ao preço de custo no momento em que se faz o orçamento
-    @Column(precision = 10, scale = 2, nullable = false)
+    // 🛡️ Snapshot de Preços: Guardamos os valores no momento da criação
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal precoCustoUnitario;
 
-    // Margem aplicada nesta linha específica (em percentagem)
-    @Column(precision = 5, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal precoVendaUnitario;
+
+    @Column(precision = 10, scale = 2)
     private BigDecimal margemLucroPercentual;
 
-    @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal precoVendaUnitario; // Calculado: Custo + Margem
-
-    // Totais da Linha
-    @Column(precision = 12, scale = 2)
+    @Column(precision = 10, scale = 2)
     private BigDecimal totalLinhaSemIva;
 
-    @Column(precision = 12, scale = 2)
+    @Column(precision = 10, scale = 2)
     private BigDecimal totalLinhaComIva;
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof LinhaOrcamento that)) return false;
+        return id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

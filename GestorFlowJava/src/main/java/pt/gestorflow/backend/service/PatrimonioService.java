@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
-import org.springframework.transaction.annotation.Transactional; // Import Correto
+import jakarta.persistence.EntityNotFoundException; // 🛡️ Import correto para 404
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,10 +32,7 @@ public class PatrimonioService {
     @Transactional
     public PatrimonioResponseDTO criarViatura(PatrimonioViaturaDTO dto) {
         PatrimonioViatura p = new PatrimonioViatura();
-        p.setNome(dto.getNome());
-        p.setDataAquisicao(dto.getDataAquisicao());
-        p.setValorAquisicao(dto.getValorAquisicao());
-        p.setUtilizador(getUtilizadorLogado());
+        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao());
 
         p.setMatricula(dto.getMatricula());
         p.setMarca(dto.getMarca());
@@ -49,10 +47,7 @@ public class PatrimonioService {
     @Transactional
     public PatrimonioResponseDTO criarImovel(PatrimonioImovelDTO dto) {
         PatrimonioImovel p = new PatrimonioImovel();
-        p.setNome(dto.getNome());
-        p.setDataAquisicao(dto.getDataAquisicao());
-        p.setValorAquisicao(dto.getValorAquisicao());
-        p.setUtilizador(getUtilizadorLogado());
+        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao());
 
         p.setMorada(dto.getMorada());
         p.setArtigoMatricial(dto.getArtigoMatricial());
@@ -65,10 +60,7 @@ public class PatrimonioService {
     @Transactional
     public PatrimonioResponseDTO criarFerramenta(PatrimonioFerramentaDTO dto) {
         PatrimonioFerramenta p = new PatrimonioFerramenta();
-        p.setNome(dto.getNome());
-        p.setDataAquisicao(dto.getDataAquisicao());
-        p.setValorAquisicao(dto.getValorAquisicao());
-        p.setUtilizador(getUtilizadorLogado());
+        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao());
 
         p.setNumeroSerie(dto.getNumeroSerie());
         p.setEstadoConservacao(dto.getEstadoConservacao());
@@ -76,25 +68,48 @@ public class PatrimonioService {
         return mapToDTO(repository.save(p));
     }
 
+    @Transactional(readOnly = true)
+    public PatrimonioResponseDTO buscarPorId(Long id) {
+        Utilizador user = getUtilizadorLogado();
+
+        // 🛡️ Usamos "repository" em vez de "patrimonioRepository"
+        Patrimonio patrimonio = repository.findByIdAndUtilizadorId(id, user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Património não encontrado ou acesso negado."));
+
+        // 🛡️ Usamos o teu "mapToDTO" em vez do "converterParaDTO"
+        return mapToDTO(patrimonio);
+    }
+
     // --- ELIMINAR (SOFT DELETE) ---
     @Transactional
     public void eliminar(Long id) {
-        Patrimonio p = repository.findById(id).orElseThrow(() -> new RuntimeException("Património não encontrado"));
-        if(!p.getUtilizador().getId().equals(getUtilizadorLogado().getId())) {
-            throw new RuntimeException("Acesso negado");
-        }
+        Utilizador user = getUtilizadorLogado();
+
+        // 🛡️ CORREÇÃO IDOR: Validação direta na base de dados
+        Patrimonio p = repository.findByIdAndUtilizadorId(id, user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Património não encontrado ou acesso negado."));
 
         p.setAtivo(false);
         repository.save(p);
     }
 
-    // --- CONVERSOR (MAPPER) MÁGICO PARA DTO ---
+    // --- AUXILIAR PARA EVITAR DUPLICAÇÃO ---
+    private void configurarBasePatrimonio(Patrimonio p, String nome, java.time.LocalDate data, java.math.BigDecimal valor) {
+        p.setNome(nome);
+        p.setDataAquisicao(data);
+        p.setValorAquisicao(valor);
+        p.setUtilizador(getUtilizadorLogado());
+        p.setAtivo(true);
+    }
+
+    // --- CONVERSOR (MAPPER) ---
     private PatrimonioResponseDTO mapToDTO(Patrimonio p) {
         PatrimonioResponseDTO dto = new PatrimonioResponseDTO();
         dto.setId(p.getId());
         dto.setNome(p.getNome());
         dto.setDataAquisicao(p.getDataAquisicao());
         dto.setValorAquisicao(p.getValorAquisicao());
+        dto.setAtivo(p.isAtivo());
 
         if (p instanceof PatrimonioViatura v) {
             dto.setTipoPatrimonio("VIATURA");

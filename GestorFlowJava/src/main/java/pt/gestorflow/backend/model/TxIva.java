@@ -1,26 +1,39 @@
 package pt.gestorflow.backend.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // <--- Import obrigatório
-import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "tx_iva")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para a herança funcionar com o Lombok
-public class TxIva extends Auditable { // <--- Escudo de Auditoria Ativado
+@Getter
+@Setter
+public class TxIva extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String descricao; // Ex: "Taxa Normal"
+    // 🛡️ Dica Industrial: Descrições devem ser únicas para evitar duplicação no dropdown
+    @Column(nullable = false, unique = true, length = 50)
+    private String descricao;
 
-    private BigDecimal valor; // Ex: 23.00
+    // 🛡️ Precisão essencial para percentagens (ex: 23.00)
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal valor;
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof TxIva that)) return false;
+        return id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

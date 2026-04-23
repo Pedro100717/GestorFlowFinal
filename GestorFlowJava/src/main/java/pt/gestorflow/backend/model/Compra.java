@@ -1,13 +1,8 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // <--- Não esquecer o import!
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -15,14 +10,12 @@ import java.time.LocalDateTime;
 @Table(name = "compras")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para cruzar com o Auditable
-public class Compra extends Auditable { // <--- Herda o Carimbo de Auditoria
+public class Compra extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🛡️ INTOCÁVEL: Tempo de Negócio (O utilizador pode retrodatar isto!)
     @Column(nullable = false)
     private LocalDateTime dataCompra;
 
@@ -35,47 +28,62 @@ public class Compra extends Auditable { // <--- Herda o Carimbo de Auditoria
     private BigDecimal quantidade;
 
     @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal precoUnitario; // Preço Base (Sem IVA)
+    private BigDecimal precoUnitario;
 
-    @ManyToOne
+    @Column(precision = 10, scale = 2)
+    private BigDecimal total;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, name = "estado_pagamento")
+    private EstadoPagamento estadoPagamento = EstadoPagamento.PENDENTE;
+
+    // --- Relações (Otimizadas com FetchType.LAZY) ---
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tx_iva_id", nullable = false)
     private TxIva taxaIva;
 
-    @Column(precision = 10, scale = 2)
-    private BigDecimal total; // Total Final (Com IVA)
-
-    // --- Relações ---
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fornecedor_id", nullable = false)
     private Fornecedor fornecedor;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artigo_id", nullable = false)
     private Artigo artigo;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "centro_custo_id")
     private CentroCusto centroCusto;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seccao_homo_id")
     private SeccaoHomo seccaoHomo;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
     private Utilizador utilizador;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conta_bancaria_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private ContaBancaria contaBancaria;
 
-    // Mantemos isto como "Rede de Segurança" caso a data de negócio venha vazia do frontend
     @PrePersist
     protected void onPrePersist() {
         if (dataCompra == null) {
             dataCompra = LocalDateTime.now();
         }
+    }
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Compra compra)) return false;
+        return id != null && id.equals(compra.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

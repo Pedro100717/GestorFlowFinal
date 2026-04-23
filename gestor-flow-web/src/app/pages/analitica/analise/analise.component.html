@@ -1,0 +1,98 @@
+<div class="container-fluid">
+  
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h3 class="fw-bold text-secondary mb-0">Dashboard Analítico</h3>
+        <small class="text-muted">Análise de Margens por Centro de Custo e Secção</small>
+      </div>
+      
+      <div class="d-flex gap-2">
+        <select class="form-select form-select-sm border-secondary text-secondary fw-bold" 
+                style="width: auto; min-width: 200px;" 
+                [(ngModel)]="centroSelecionado" 
+                (change)="aplicarFiltro()" 
+                [disabled]="carregando">
+          <option value="">-- Todos os Centros --</option>
+          <option *ngFor="let c of listaCentros" [value]="c">{{ c }}</option>
+        </select>
+  
+        <button class="btn btn-primary btn-sm d-flex align-items-center" (click)="carregarDados()" [disabled]="carregando">
+          <i class="bi bi-arrow-clockwise me-2" [class.fa-spin]="carregando"></i>Atualizar
+        </button>
+      </div>
+    </div>
+  
+    <div *ngIf="carregando" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <div class="mt-2 text-muted small">A calcular rentabilidade...</div>
+    </div>
+  
+    <div class="card shadow-sm border-0" *ngIf="!carregando">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle mb-0">
+            
+            <thead class="bg-light">
+              <tr>
+                <th class="py-3 border-0 text-muted small uppercase">Dimensão Analítica</th>
+                <th class="border-0 text-muted small uppercase text-end">Total Compras</th>
+                <th class="border-0 text-muted small uppercase text-end">Total Vendas</th>
+                <th class="border-0 text-muted small uppercase text-end pe-4">Margem Bruta</th>
+              </tr>
+            </thead>
+            
+            <tbody>
+              <ng-container *ngFor="let grupo of gruposExibidos">
+                
+                <tr *ngFor="let sec of grupo.seccoes">
+                  <td class="ps-4">
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-2">
+                      {{ grupo.centroCusto }}
+                    </span>
+                    <span class="fw-bold text-secondary">{{ sec.seccaoHomo }}</span>
+                  </td>
+                  <td class="text-end font-monospace text-danger">{{ sec.totalCompras | currency:'EUR' }}</td>
+                  <td class="text-end font-monospace text-success">{{ sec.totalVendas | currency:'EUR' }}</td>
+                  <td class="text-end font-monospace fw-bold pe-4" 
+                      [ngClass]="sec.margem >= 0 ? 'text-success' : 'text-danger'">
+                    {{ sec.margem | currency:'EUR' }}
+                  </td>
+                </tr>
+  
+                <tr class="table-secondary">
+                  <td class="text-end fw-bold text-uppercase small pt-3 pb-3">Subtotal {{ grupo.centroCusto }}</td>
+                  <td class="text-end fw-bold text-danger">{{ grupo.subtotalCompras | currency:'EUR' }}</td>
+                  <td class="text-end fw-bold text-success">{{ grupo.subtotalVendas | currency:'EUR' }}</td>
+                  <td class="text-end fw-bold pe-4" [ngClass]="grupo.subtotalMargem >= 0 ? 'text-success' : 'text-danger'">
+                    {{ grupo.subtotalMargem | currency:'EUR' }}
+                  </td>
+                </tr>
+  
+              </ng-container>
+  
+              <tr *ngIf="gruposExibidos.length === 0">
+                <td colspan="4" class="text-center py-5 text-muted">
+                  <i class="bi bi-bar-chart fs-1 d-block mb-2 opacity-50"></i>
+                  <span class="fw-bold">Nenhum dado encontrado.</span><br>
+                  <small>Registe faturas ou limpe o filtro selecionado.</small>
+                </td>
+              </tr>
+            </tbody>
+  
+            <tfoot class="bg-dark text-white" *ngIf="gruposExibidos.length > 0">
+              <tr>
+                <td class="text-end fw-bold text-uppercase pt-3 pb-3">Total Geral (Filtrado)</td>
+                <td class="text-end fw-bold text-warning">{{ totalGeralCompras | currency:'EUR' }}</td>
+                <td class="text-end fw-bold text-success">{{ totalGeralVendas | currency:'EUR' }}</td>
+                <td class="text-end fw-bold fs-5 pe-4" [ngClass]="totalGeralMargem >= 0 ? 'text-info' : 'text-danger'">
+                  {{ totalGeralMargem | currency:'EUR' }}
+                </td>
+              </tr>
+            </tfoot>
+  
+          </table>
+        </div>
+      </div>
+    </div>
+  
+  </div>

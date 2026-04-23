@@ -1,9 +1,6 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // <--- Não esquecer o import!
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,25 +8,34 @@ import lombok.Setter;
 @Table(name = "seccao_homo")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório para a herança funcionar corretamente
-public class SeccaoHomo extends Auditable { // <--- Motor de Auditoria ligado
+public class SeccaoHomo extends Auditable {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
     private String nome;
 
-    @Column(nullable = false)
+    // 🛡️ Dica Industrial: Códigos analíticos devem ser únicos e curtos para indexação
+    @Column(nullable = false, unique = true, length = 50)
     private String codigo;
-
-    // --- RELAÇÃO NOVA: Uma secção pertence a um Centro de Custo ---
-    @ManyToOne
-    @JoinColumn(name = "centro_custo_id", nullable = false)
-    private CentroCusto centroCusto;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
+    // 🛡️ Jackson removido
     private Utilizador utilizador;
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof SeccaoHomo that)) return false;
+        return id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

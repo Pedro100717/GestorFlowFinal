@@ -1,12 +1,8 @@
 package pt.gestorflow.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // <--- Importatório obrigatório
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -14,14 +10,12 @@ import java.time.LocalDateTime;
 @Table(name = "movimentos_stock")
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true) // <--- Obrigatório por causa da herança
-public class MovimentoStock extends Auditable { // <--- Escudo de Auditoria Ativado
+public class MovimentoStock extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🛡️ Tempo de Negócio: Quando o stock efetivamente mexeu
     @Column(nullable = false)
     private LocalDateTime dataMovimento;
 
@@ -33,20 +27,18 @@ public class MovimentoStock extends Auditable { // <--- Escudo de Auditoria Ativ
     private BigDecimal quantidade;
 
     @Column(nullable = false)
-    private String motivo; // Ex: "Quebra", "Acerto de Inventário", "Oferta Comercial"
+    private String motivo;
 
-    // O saldo do artigo no exato momento após este movimento (ótimo para rastreabilidade)
     @Column(precision = 10, scale = 3)
     private BigDecimal stockAposMovimento;
 
-    // Relacionamos DIRETAMENTE com Mercadoria (pois Servicos não têm stock)
-    @ManyToOne
+    // 🛡️ Otimização LAZY: Essencial para relatórios de histórico de stock
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mercadoria_id", nullable = false)
     private Mercadoria mercadoria;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
-    @JsonIgnore
     private Utilizador utilizador;
 
     public enum TipoMovimentoStock {
@@ -54,11 +46,23 @@ public class MovimentoStock extends Auditable { // <--- Escudo de Auditoria Ativ
         SAIDA
     }
 
-    // A nossa rede de segurança de negócio, renomeada para não causar conflitos
     @PrePersist
     protected void onPrePersist() {
         if (dataMovimento == null) {
             dataMovimento = LocalDateTime.now();
         }
+    }
+
+    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MovimentoStock that)) return false;
+        return id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

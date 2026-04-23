@@ -8,10 +8,13 @@ export interface SeccaoHomo {
     id?: number;
     nome: string;
     codigo: string;
-    
-    // Para escrita (enviar para o Backend)
-    centroCustoId: number;
-    
-    // Para leitura (Agora achatado/flat, igual ao DTO do Java!)
-    centroCustoNome?: string; 
+}
+
+// 🛡️ A NOSSA NOVA INTERFACE PARA O DASHBOARD ANALÍTICO
+export interface AnaliseDashboard {
+    centroCusto: string;
+    seccaoHomo: string;
+    totalVendas: number;
+    totalCompras: number;
+    margem: number;
 }
