@@ -2,11 +2,9 @@ package pt.gestorflow.backend.service;
 
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.DashboardDTO;
 import pt.gestorflow.backend.dto.VendaResponseDTO;
-import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.model.Venda;
 import pt.gestorflow.backend.repository.*;
 
@@ -22,19 +20,13 @@ public class DashboardService {
     private final CompraRepository compraRepository;
     private final ArtigoRepository artigoRepository;
     private final ClienteRepository clienteRepository;
+    private final AuthService authService; // 🚀 A nossa Chave Mestra de Segurança
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
-    // 🛡️ CORREÇÃO: O retorno agora é o DTO blindado, não um Map solto
     public DashboardDTO getResumo() {
-        Utilizador user = getUtilizadorLogado();
-        Long userId = user.getId();
+        // 🚀 Obtém o ID blindado a partir do Token JWT
+        Long userId = authService.getUtilizadorAutenticadoId();
 
-        // NOTA DE PERFORMANCE INDUSTRIAL:
-        // Somar a BD inteira (totalVendasReais) vai causar lentidão grave
-        // quando tiveres milhares de registos. No futuro, pondera passar datas (ex: Mês Atual).
+        // Executa as queries de agregação filtradas pelo Utilizador
         BigDecimal totalVendas = vendaRepository.totalVendasReais(userId);
         BigDecimal totalCompras = compraRepository.totalGastos(userId);
         BigDecimal valorStock = artigoRepository.valorTotalStock(userId);
@@ -42,7 +34,7 @@ public class DashboardService {
 
         List<Venda> ultimasVendas = vendaRepository.findTop5ByUtilizadorIdOrderByDataVendaDesc(userId);
 
-        // 🛡️ Mapeamento Limpo e Tipado
+        // Mapeamento para DTO para transporte seguro de dados
         List<VendaResponseDTO> ultimasVendasDTO = ultimasVendas.stream()
                 .map(this::converterVendaParaDTO)
                 .toList();
@@ -56,7 +48,6 @@ public class DashboardService {
                 .build();
     }
 
-    // Usamos um conversor simplificado só para o Dashboard (podes reutilizar o do VendaService se preferires partilhar lógica)
     private VendaResponseDTO converterVendaParaDTO(Venda venda) {
         VendaResponseDTO dto = new VendaResponseDTO();
         dto.setId(venda.getId());
@@ -66,7 +57,6 @@ public class DashboardService {
         if (venda.getCliente() != null) {
             dto.setClienteId(venda.getCliente().getId());
             dto.setClienteNome(venda.getCliente().getNome());
-            // 🛡️ ADICIONADO: Criar uma designação virtual para o ecrã do Dashboard não ficar vazio
             dto.setDesignacao("Faturação #" + venda.getId() + " - " + venda.getCliente().getNome());
         } else {
             dto.setClienteNome("Consumidor Final");

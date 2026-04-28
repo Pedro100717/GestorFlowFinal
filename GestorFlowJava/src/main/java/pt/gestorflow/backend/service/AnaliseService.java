@@ -1,11 +1,9 @@
 package pt.gestorflow.backend.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.AnaliseAnaliticaProjection;
-import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.AnaliseRepository;
 
 import java.util.List;
@@ -15,16 +13,14 @@ import java.util.List;
 public class AnaliseService {
 
     private final AnaliseRepository analiseRepository;
-
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
+    private final AuthService authService; // 🚀 Injeta o nosso segurança
 
     @Transactional(readOnly = true)
     public List<AnaliseAnaliticaProjection> obterDashboard() {
-        Utilizador user = getUtilizadorLogado();
+        // 🚀 Vai buscar o ID blindado
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
         // A magia acontece aqui: vai buscar os dados já somados da base de dados
-        return analiseRepository.obterAnaliseVendasCompras(user.getId());
+        return analiseRepository.obterAnaliseVendasCompras(utilizadorId);
     }
 }

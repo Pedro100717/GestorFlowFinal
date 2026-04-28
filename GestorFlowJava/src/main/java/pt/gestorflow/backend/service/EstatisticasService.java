@@ -2,7 +2,6 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.estatisticas.EstatisticaClienteDTO;
@@ -11,7 +10,6 @@ import pt.gestorflow.backend.dto.estatisticas.EstatisticaFornecedorDTO;
 import pt.gestorflow.backend.model.Cliente;
 import pt.gestorflow.backend.model.ContaBancaria;
 import pt.gestorflow.backend.model.Fornecedor;
-import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.ClienteRepository;
 import pt.gestorflow.backend.repository.ContaBancariaRepository;
 import pt.gestorflow.backend.repository.FornecedorRepository;
@@ -28,13 +26,11 @@ public class EstatisticasService {
     private final ContaBancariaRepository contaRepository;
     private final FornecedorRepository fornecedorRepository;
     private final ClienteRepository clienteRepository;
-
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
+    private final AuthService authService; // 🚀 Injeção do Segurança Central
 
     public EstatisticaContaDTO getLucroDaConta(Long contaId) {
-        Long userId = getUtilizadorLogado().getId();
+        // 🚀 Busca o ID de forma estrita
+        Long userId = authService.getUtilizadorAutenticadoId();
 
         // 1. Busca a conta e garante que é do utilizador
         ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(contaId, userId)
@@ -53,7 +49,7 @@ public class EstatisticasService {
     }
 
     public EstatisticaFornecedorDTO getTotalGastoComFornecedor(Long fornecedorId) {
-        Long userId = getUtilizadorLogado().getId();
+        Long userId = authService.getUtilizadorAutenticadoId();
 
         Fornecedor fornecedor = fornecedorRepository.findByIdAndUtilizadorId(fornecedorId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
@@ -69,7 +65,7 @@ public class EstatisticasService {
     }
 
     public EstatisticaClienteDTO getTotalRecebidoDeCliente(Long clienteId) {
-        Long userId = getUtilizadorLogado().getId();
+        Long userId = authService.getUtilizadorAutenticadoId();
 
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(clienteId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));

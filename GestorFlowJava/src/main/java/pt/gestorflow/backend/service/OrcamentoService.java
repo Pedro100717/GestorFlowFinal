@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.OrcamentoDTO;
 import pt.gestorflow.backend.dto.OrcamentoResponseDTO;
@@ -32,17 +31,22 @@ public class OrcamentoService {
     private final TxIvaRepository txIvaRepository;
     private final VendaService vendaService;
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
+    // 🚀 Injeções de Segurança
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     // --- 1. CRIAR ---
     @Transactional
-    // 🛡️ CORREÇÃO: Devolver DTO e não a Entidade!
     public OrcamentoResponseDTO criarOrcamento(OrcamentoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        // 🚀 1. ID Blindado
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), user.getId())
+        // 🚀 2. Entidade do Utilizador para associar ao Orçamento
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        // 🛡️ PROTEÇÃO IDOR: Garante que o cliente é da própria empresa
+        Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
 
         Orcamento orcamento = new Orcamento();
@@ -52,18 +56,18 @@ public class OrcamentoService {
         orcamento.setNotas(dto.getNotas());
         orcamento.setEstado(Orcamento.EstadoOrcamento.RASCUNHO);
 
-        // 🛡️ Passamos o User ID para garantir a segurança no método auxiliar
-        processarLinhasOrcamento(orcamento, dto, user.getId());
+        // 🛡️ Passamos o User ID para garantir a segurança nas linhas
+        processarLinhasOrcamento(orcamento, dto, utilizadorId);
 
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
     // --- 2. ATUALIZAR ---
     @Transactional
-    // 🛡️ CORREÇÃO: Devolver DTO
     public OrcamentoResponseDTO atualizarOrcamento(Long id, OrcamentoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
-        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, user.getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado ou sem permissão."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
@@ -71,7 +75,7 @@ public class OrcamentoService {
         }
 
         if (dto.getClienteId() != null) {
-            Cliente novoCliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), user.getId())
+            Cliente novoCliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
             orcamento.setCliente(novoCliente);
         }
@@ -79,7 +83,7 @@ public class OrcamentoService {
         orcamento.setNotas(dto.getNotas());
 
         orcamento.getLinhas().clear();
-        processarLinhasOrcamento(orcamento, dto, user.getId());
+        processarLinhasOrcamento(orcamento, dto, utilizadorId);
 
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
@@ -147,7 +151,9 @@ public class OrcamentoService {
     // --- 3. CONVERTER EM VENDA ---
     @Transactional
     public void converterEmVenda(Long orcamentoId, Long contaBancariaId) {
-        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(orcamentoId, getUtilizadorLogado().getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(orcamentoId, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
@@ -177,7 +183,7 @@ public class OrcamentoService {
         // 🛡️ 4. Anexar as linhas ao cabeçalho da Venda
         vendaDTO.setLinhas(linhasVenda);
 
-        // 🛡️ 5. Registar a Venda (Faz apenas UMA chamada ao VendaService!)
+        // 🛡️ 5. Registar a Venda
         vendaService.registarVenda(vendaDTO);
 
         // 🛡️ 6. Fechar o Orçamento
@@ -188,14 +194,15 @@ public class OrcamentoService {
     // --- 4. LISTAR E BUSCAR ---
     @Transactional(readOnly = true)
     public Page<OrcamentoResponseDTO> listarMeusOrcamentos(int pagina, int tamanho) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataCriacaoSistema").descending());
-        return orcamentoRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
+        return orcamentoRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
     }
 
     @Transactional(readOnly = true)
     public OrcamentoResponseDTO buscarPorId(Long id) {
-        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado ou sem permissão."));
         return converterParaDTO(orcamento);
     }
@@ -203,8 +210,10 @@ public class OrcamentoService {
     // --- 5. ELIMINAR ---
     @Transactional
     public void eliminarOrcamento(Long id) {
-        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
+
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
             throw new RuntimeException("Não é possível eliminar um orçamento que já gerou vendas. Arquive-o ou anule a venda primeiro.");
         }
@@ -214,7 +223,8 @@ public class OrcamentoService {
     // --- 6. ALTERAR ESTADO ---
     @Transactional
     public OrcamentoResponseDTO alterarEstado(Long id, Orcamento.EstadoOrcamento novoEstado) {
-        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
@@ -224,9 +234,8 @@ public class OrcamentoService {
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
-    // --- 7. CONVERSOR DTO MÁGICO (Omitido por brevidade, mantém a tua versão exata!) ---
+    // --- 7. CONVERSOR DTO ---
     private OrcamentoResponseDTO converterParaDTO(Orcamento o) {
-        // [O teu código de conversão original aqui]
         OrcamentoResponseDTO dto = new OrcamentoResponseDTO();
         dto.setId(o.getId());
         dto.setDataCriacao(o.getDataCriacaoSistema());

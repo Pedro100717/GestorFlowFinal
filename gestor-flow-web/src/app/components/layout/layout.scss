@@ -1,3 +1,7 @@
+/* ==========================================
+   1. ESTÉTICA DO MENU (O teu código)
+   ========================================== */
+
 /* Quando o link está ativo (página selecionada) */
 .active-link {
     color: #4F46E5 !important; /* A nossa cor Indigo */
@@ -21,8 +25,143 @@
     transform: translateX(5px); /* Pequeno movimento para a direita */
 }
 
-/* Sidebar fixa */
 .sidebar-heading {
     letter-spacing: 1px;
     font-family: 'Inter', sans-serif;
+}
+
+/* ==========================================
+   2. ESTRUTURA E ANIMAÇÕES (O novo código)
+   ========================================== */
+#wrapper {
+  display: flex;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+#sidebar {
+  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1000;
+  background-color: #212529; /* bg-dark */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  overflow-x: hidden;
+  white-space: nowrap; /* Impede o texto de quebrar de linha */
+}
+
+/* Oculta o texto e as setinhas quando o menu está encolhido */
+.sidebar-text {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Garante que os ícones ficam sempre centrados */
+#sidebar .list-group-item i:first-child {
+  font-size: 1.2rem;
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
+}
+
+/* ==========================================
+   COMPORTAMENTO DESKTOP (Ecrãs Grandes)
+   ========================================== */
+@media (min-width: 768px) {
+  /* Estado normal: Só ícones */
+  #sidebar { width: 80px; }
+  
+  /* Ajusta o padding quando está fechado para o ícone não ficar esmagado */
+  #sidebar:not(:hover) .list-group-item {
+    padding: 15px 10px;
+  }
+
+  /* Estado Hover: Menu expandido */
+  #sidebar:hover {
+    width: 260px;
+    box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+  }
+
+  /* Mostra o texto quando passas o rato */
+  #sidebar:hover .sidebar-text { opacity: 1; }
+
+  /* A página empurra 80px para a direita para dar espaço aos ícones */
+  #page-content-wrapper {
+    margin-left: 80px;
+    width: calc(100% - 80px);
+    transition: all 0.3s ease;
+  }
+}
+
+/* ==========================================
+   COMPORTAMENTO MOBILE (Telemóvel/Tablet)
+   ========================================== */
+@media (max-width: 767.98px) {
+  /* Menu completamente escondido à esquerda */
+  #sidebar {
+    margin-left: -260px;
+    width: 260px; 
+  }
+  
+  /* Classe adicionada pelo botão Hamburguer do Angular */
+  #sidebar.toggled {
+    margin-left: 0;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+  }
+
+  /* Em mobile, o texto aparece sempre que o menu está aberto */
+  #sidebar.toggled .sidebar-text { opacity: 1; }
+
+  /* A página ocupa os 100% do ecrã */
+  #page-content-wrapper {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  /* ==========================================
+   3. CORREÇÃO DOS SUBMENUS (O Edge Case)
+   ========================================== */
+
+/* Recuo normal quando a sidebar está expandida */
+.submenu-link {
+    padding-left: 3rem !important;
+}
+
+@media (min-width: 768px) {
+    /* Quando o menu encolhe (tiras o rato), os ícones do submenu perdem o recuo e alinham com o resto */
+    #sidebar:not(:hover) .submenu-link {
+        padding-left: 10px !important; 
+    }
+    
+    /* Esconde a setinha direcional (chevron) quando o menu está encolhido */
+    #sidebar:not(:hover) .bi-chevron-down {
+        display: none;
+    }
+}
+
+/* ==========================================
+   4. BACKDROP PARA MOBILE (A sombra de fechar)
+   ========================================== */
+   .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.4); /* Fundo preto meio transparente */
+    z-index: 999; /* Fica logo atrás do menu, que tem z-index: 1000 */
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  /* Quando o Angular adiciona a classe .show, a sombra aparece */
+  .sidebar-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+  }
 }

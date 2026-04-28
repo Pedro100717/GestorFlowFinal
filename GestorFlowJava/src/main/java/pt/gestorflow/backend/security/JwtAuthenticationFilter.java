@@ -21,30 +21,28 @@ import java.util.Optional;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final UtilizadorRepository repository;
+    // Podes até remover o UtilizadorRepository daqui, já não é preciso para nada!
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // 1. Tenta apanhar o token do cabeçalho "Authorization"
-        String header = request.getHeader("Authorization"); // Ex: "Bearer eyJhbGci..."
+        String header = request.getHeader("Authorization");
 
         if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7); // Remove o "Bearer " inicial
+            String token = header.substring(7);
 
             try {
-                // 2. Valida o token e extrai o ID do utilizador
+                // Extrai o ID que vem cravado no Token
                 String userId = tokenService.validarToken(token);
 
                 if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                    Utilizador userAutenticado = new Utilizador();
-                    userAutenticado.setId(Long.parseLong(userId));
+                    // 🚀 A FORMA CORRETA: O Principal é apenas o ID primitivo!
+                    Long idDoUtilizador = Long.parseLong(userId);
 
-                    //Ficha de entrada
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userAutenticado,
+                            idDoUtilizador, // <-- O ID passa a ser o dono do bilhete
                             null,
                             new ArrayList<>()
                     );
@@ -52,12 +50,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {
-                // Token inválido ou expirado - Não fazemos nada, o Spring vai bloquear a seguir
                 System.out.println("Erro de Token: " + e.getMessage());
             }
         }
 
-        // 6. Continua para o próximo passo (ir para o Controller ou bloquear)
         filterChain.doFilter(request, response);
     }
 }

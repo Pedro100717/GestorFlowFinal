@@ -2,14 +2,15 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 🛡️ CRÍTICO
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.SeccaoHomoDTO;
 import pt.gestorflow.backend.dto.SeccaoHomoResponseDTO;
 import pt.gestorflow.backend.model.SeccaoHomo;
 import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.SeccaoHomoRepository;
+import pt.gestorflow.backend.repository.UtilizadorRepository;
+
 import java.util.List;
 
 @Service
@@ -17,14 +18,17 @@ import java.util.List;
 public class SeccaoHomoService {
 
     private final SeccaoHomoRepository seccaoRepository;
+    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para associar na criação
+    private final AuthService authService; // 🚀 A nossa Chave Mestra
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
-    @Transactional // 🛡️ Adicionado para garantir atomicidade
+    @Transactional
     public SeccaoHomoResponseDTO criar(SeccaoHomoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        // 🚀 1. ID Blindado do Token
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        // 🚀 2. Busca a entidade física do Utilizador
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
         SeccaoHomo sh = new SeccaoHomo();
         sh.setNome(dto.getNome());
@@ -36,16 +40,20 @@ public class SeccaoHomoService {
 
     @Transactional(readOnly = true)
     public List<SeccaoHomoResponseDTO> listar() {
-        return seccaoRepository.findAllByUtilizadorId(getUtilizadorLogado().getId())
-                .stream().map(this::converterParaDTO).toList();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        return seccaoRepository.findAllByUtilizadorId(utilizadorId)
+                .stream()
+                .map(this::converterParaDTO)
+                .toList();
     }
 
-    @Transactional // 🛡️ Adicionado
+    @Transactional
     public SeccaoHomoResponseDTO atualizar(Long id, SeccaoHomoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ CORREÇÃO IDOR: Impede editar secções de terceiros
-        SeccaoHomo sh = seccaoRepository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ PROTEÇÃO IDOR: Impede editar secções de terceiros
+        SeccaoHomo sh = seccaoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Secção não encontrada ou acesso negado."));
 
         sh.setNome(dto.getNome());
@@ -56,20 +64,22 @@ public class SeccaoHomoService {
 
     @Transactional(readOnly = true)
     public SeccaoHomoResponseDTO buscarPorId(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        SeccaoHomo sh = seccaoRepository.findByIdAndUtilizadorId(id, user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Secção Homogenea não encontrado ou acesso negado"));
+        // 🛡️ PROTEÇÃO IDOR: Garante a privacidade dos dados baseada no dono
+        SeccaoHomo sh = seccaoRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Secção Homogénea não encontrada ou acesso negado."));
 
         return converterParaDTO(sh);
     }
 
     @Transactional
     public void eliminar(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        SeccaoHomo sh = seccaoRepository.findByIdAndUtilizadorId(id, user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Secção Homogenea não encontrada ou acesso negado"));
+        // 🛡️ PROTEÇÃO IDOR: Impede eliminações maliciosas
+        SeccaoHomo sh = seccaoRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Secção Homogénea não encontrada ou acesso negado."));
 
         seccaoRepository.delete(sh);
     }

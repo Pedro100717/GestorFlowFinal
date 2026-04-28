@@ -2,14 +2,14 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 🛡️ CRÍTICO
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.FornecedorDTO;
+import pt.gestorflow.backend.dto.FornecedorResponseDTO;
 import pt.gestorflow.backend.model.Fornecedor;
 import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.FornecedorRepository;
-import pt.gestorflow.backend.dto.FornecedorResponseDTO;
+import pt.gestorflow.backend.repository.UtilizadorRepository;
 
 import java.util.List;
 
@@ -18,39 +18,43 @@ import java.util.List;
 public class FornecedorService {
 
     private final FornecedorRepository repository;
+    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para associar a entidade
+    private final AuthService authService; // 🚀 A nossa Chave Mestra de Segurança
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
-    // 🛡️ ADICIONADO: Proteção de transação
     @Transactional
     public FornecedorResponseDTO criar(FornecedorDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        // 🚀 1. Obtém o ID blindado do Token
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
+        // 🛡️ Validação de NIF duplicado restrita ao contexto deste utilizador
         if (dto.getNif() != null && !dto.getNif().isBlank()) {
-            if (repository.existsByNifAndUtilizadorId(dto.getNif(), user.getId())) {
-                throw new RuntimeException("Já existe um fornecedor com este NIF.");
+            if (repository.existsByNifAndUtilizadorId(dto.getNif(), utilizadorId)) {
+                throw new RuntimeException("Já existe um fornecedor com este NIF na sua conta.");
             }
         }
+
+        // 🚀 2. Busca a entidade física do Utilizador
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
         Fornecedor f = new Fornecedor();
         mapearDtoParaEntidade(dto, f);
         f.setUtilizador(user);
+
         return converterParaDTO(repository.save(f));
     }
 
-    // 🛡️ ADICIONADO: Proteção de transação
     @Transactional
     public FornecedorResponseDTO atualizar(Long id, FornecedorDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        Fornecedor f = repository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ PROTEÇÃO IDOR: Garante que só edita fornecedores da própria conta
+        Fornecedor f = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
-        // 🛡️ CORREÇÃO CRÍTICA: Impedir duplicação de NIF no Update!
+        // 🛡️ Validação de NIF para evitar duplicação em registos diferentes
         if (dto.getNif() != null && !dto.getNif().isBlank() && !dto.getNif().equals(f.getNif())) {
-            if (repository.existsByNifAndUtilizadorId(dto.getNif(), user.getId())) {
+            if (repository.existsByNifAndUtilizadorId(dto.getNif(), utilizadorId)) {
                 throw new RuntimeException("Já existe outro fornecedor com este NIF na sua conta.");
             }
         }
@@ -61,32 +65,33 @@ public class FornecedorService {
 
     @Transactional(readOnly = true)
     public List<FornecedorResponseDTO> listar() {
-        return repository.findAllByUtilizadorId(getUtilizadorLogado().getId())
-                .stream().map(this::converterParaDTO).toList();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        return repository.findAllByUtilizadorId(utilizadorId)
+                .stream()
+                .map(this::converterParaDTO)
+                .toList();
     }
 
-    // 🛡️ ADICIONADO: Proteção de transação
     @Transactional
     public void eliminar(Long id) {
-        Fornecedor f = repository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        // 🛡️ PROTEÇÃO IDOR: Impede que um utilizador apague dados de terceiros manipulando o ID
+        Fornecedor f = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
-        // Nota Industrial: Como bem escreveste no teu comentário original, se houver compras,
-        // o Hibernate atira um DataIntegrityViolationException. O teu GlobalExceptionHandler
-        // vai apanhar isso pelo Exception genérico e atirar 500. Idealmente, no futuro,
-        // capturas o DataIntegrityViolationException lá e atiras um 400 amigável para o Angular.
         repository.delete(f);
     }
 
     @Transactional(readOnly = true)
     public FornecedorResponseDTO buscarPorId(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Garante que não tentam ler fornecedores de outra empresa
-        Fornecedor fornecedor = repository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ PROTEÇÃO IDOR: Detalhes do fornecedor só visíveis para o dono
+        Fornecedor fornecedor = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
-        // Assumo que já tens um método converterParaDTO no teu FornecedorService!
         return converterParaDTO(fornecedor);
     }
 
@@ -102,7 +107,6 @@ public class FornecedorService {
         return dto;
     }
 
-    // Método auxiliar mantido, mas agora seguro porque a validação é feita antes de o chamar
     private void mapearDtoParaEntidade(FornecedorDTO dto, Fornecedor f) {
         f.setNome(dto.getNome());
         f.setNif(dto.getNif());

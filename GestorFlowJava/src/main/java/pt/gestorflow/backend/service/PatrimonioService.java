@@ -1,39 +1,55 @@
 package pt.gestorflow.backend.service;
 
-import jakarta.persistence.EntityNotFoundException; // 🛡️ Import correto para 404
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.*;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.PatrimonioRepository;
+import pt.gestorflow.backend.repository.UtilizadorRepository;
 
 @Service
 @RequiredArgsConstructor
 public class PatrimonioService {
 
     private final PatrimonioRepository repository;
+    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para associar às novas entidades
+    private final AuthService authService; // 🚀 A nossa Chave Mestra
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
+    // --- MÉTODOS DE BUSCA E LISTAGEM ---
 
-    // LISTAR TUDO
     @Transactional(readOnly = true)
     public Page<PatrimonioResponseDTO> listarPatrimonio(Pageable pageable) {
-        return repository.findAllByUtilizadorIdAndAtivoTrue(getUtilizadorLogado().getId(), pageable)
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        return repository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId, pageable)
                 .map(this::mapToDTO);
     }
 
-    // --- CRIAR VIATURA ---
+    @Transactional(readOnly = true)
+    public PatrimonioResponseDTO buscarPorId(Long id) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Patrimonio patrimonio = repository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Património não encontrado ou acesso negado."));
+
+        return mapToDTO(patrimonio);
+    }
+
+    // --- MÉTODOS DE CRIAÇÃO ---
+
     @Transactional
     public PatrimonioResponseDTO criarViatura(PatrimonioViaturaDTO dto) {
+        Utilizador user = getUtilizadorSeguro();
         PatrimonioViatura p = new PatrimonioViatura();
-        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao());
 
+        // Passamos o user diretamente para não ir buscá-lo 2 vezes
+        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao(), user);
+
+        // ⚠️ CRÍTICA CONSTRUTIVA: No futuro, deves validar aqui se a matrícula já existe,
+        // porque a tua base de dados tem um "UNIQUE" constraint nesta coluna.
         p.setMatricula(dto.getMatricula());
         p.setMarca(dto.getMarca());
         p.setModelo(dto.getModelo());
@@ -43,11 +59,11 @@ public class PatrimonioService {
         return mapToDTO(repository.save(p));
     }
 
-    // --- CRIAR IMÓVEL ---
     @Transactional
     public PatrimonioResponseDTO criarImovel(PatrimonioImovelDTO dto) {
+        Utilizador user = getUtilizadorSeguro();
         PatrimonioImovel p = new PatrimonioImovel();
-        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao());
+        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao(), user);
 
         p.setMorada(dto.getMorada());
         p.setArtigoMatricial(dto.getArtigoMatricial());
@@ -56,11 +72,11 @@ public class PatrimonioService {
         return mapToDTO(repository.save(p));
     }
 
-    // --- CRIAR FERRAMENTA ---
     @Transactional
     public PatrimonioResponseDTO criarFerramenta(PatrimonioFerramentaDTO dto) {
+        Utilizador user = getUtilizadorSeguro();
         PatrimonioFerramenta p = new PatrimonioFerramenta();
-        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao());
+        configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao(), user);
 
         p.setNumeroSerie(dto.getNumeroSerie());
         p.setEstadoConservacao(dto.getEstadoConservacao());
@@ -68,41 +84,38 @@ public class PatrimonioService {
         return mapToDTO(repository.save(p));
     }
 
-    @Transactional(readOnly = true)
-    public PatrimonioResponseDTO buscarPorId(Long id) {
-        Utilizador user = getUtilizadorLogado();
-
-        // 🛡️ Usamos "repository" em vez de "patrimonioRepository"
-        Patrimonio patrimonio = repository.findByIdAndUtilizadorId(id, user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Património não encontrado ou acesso negado."));
-
-        // 🛡️ Usamos o teu "mapToDTO" em vez do "converterParaDTO"
-        return mapToDTO(patrimonio);
-    }
-
     // --- ELIMINAR (SOFT DELETE) ---
+
     @Transactional
     public void eliminar(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ CORREÇÃO IDOR: Validação direta na base de dados
-        Patrimonio p = repository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ PROTEÇÃO IDOR: Validação de dono antes do soft delete
+        Patrimonio p = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Património não encontrado ou acesso negado."));
 
         p.setAtivo(false);
         repository.save(p);
     }
 
-    // --- AUXILIAR PARA EVITAR DUPLICAÇÃO ---
-    private void configurarBasePatrimonio(Patrimonio p, String nome, java.time.LocalDate data, java.math.BigDecimal valor) {
+    // --- MÉTODOS AUXILIARES E MAPPER ---
+
+    // 🚀 Extrai o utilizador da BD garantindo a identidade através do Token
+    private Utilizador getUtilizadorSeguro() {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        return utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado no sistema."));
+    }
+
+    // Agora recebe o Utilizador por parâmetro em vez de o tentar ir adivinhar
+    private void configurarBasePatrimonio(Patrimonio p, String nome, java.time.LocalDate data, java.math.BigDecimal valor, Utilizador user) {
         p.setNome(nome);
         p.setDataAquisicao(data);
         p.setValorAquisicao(valor);
-        p.setUtilizador(getUtilizadorLogado());
+        p.setUtilizador(user);
         p.setAtivo(true);
     }
 
-    // --- CONVERSOR (MAPPER) ---
     private PatrimonioResponseDTO mapToDTO(Patrimonio p) {
         PatrimonioResponseDTO dto = new PatrimonioResponseDTO();
         dto.setId(p.getId());

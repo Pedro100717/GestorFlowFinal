@@ -2,7 +2,6 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,18 +16,20 @@ public class UtilizadorService {
 
     private final UtilizadorRepository repository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService; // 🚀 A nossa Chave Mestra
 
     // --- 1. REGISTO ---
     @Transactional
     public PerfilResponseDTO registarNovoUtilizador(RegistoDTO dados) {
+        // Validação "barata" primeiro (evita gastos desnecessários de CPU com hashing)
         if (repository.existsByEmail(dados.getEmail()) || repository.existsByNomeUtilizador(dados.getNomeUtilizador())) {
-            // Em produção, uma mensagem genérica previne ataques de "enumeração de contas"
             throw new IllegalArgumentException("Os dados introduzidos são inválidos ou já estão em uso.");
         }
 
         Utilizador novoUser = new Utilizador();
         novoUser.setNomeUtilizador(dados.getNomeUtilizador());
         novoUser.setEmail(dados.getEmail());
+        // Operação "cara" de CPU só depois das validações
         novoUser.setSenha(passwordEncoder.encode(dados.getSenha()));
 
         Utilizador guardado = repository.save(novoUser);
@@ -37,16 +38,14 @@ public class UtilizadorService {
     }
 
     // --- 2. PERFIL ---
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
     @Transactional(readOnly = true)
     public PerfilResponseDTO obterPerfil() {
-        Utilizador userAutenticado = getUtilizadorLogado();
+        // 🚀 Obtém o ID blindado do Token JWT
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        Utilizador user = repository.findById(userAutenticado.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado"));
+        // Vai à base de dados buscar o perfil real garantido pela autenticação
+        Utilizador user = repository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado no sistema."));
 
         return converterParaDTO(user);
     }

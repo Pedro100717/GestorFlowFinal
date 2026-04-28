@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.VendaDTO;
 import pt.gestorflow.backend.dto.VendaResponseDTO;
@@ -31,50 +30,51 @@ public class VendaService {
     private final MovimentoStockRepository movimentoStockRepository;
     private final CentroCustoRepository centroCustoRepository;
     private final SeccaoHomoRepository seccaoHomoRepository;
-    // Removida a dependência de contaRepository e movimentoRepository para o registo inicial
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
+    // 🚀 Injeções de Segurança
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     @Transactional
     public VendaResponseDTO registarVenda(VendaDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        // 🚀 1. Identidade Blindada
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
-        // 🛡️ Validação Comercial
-        Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), user.getId())
+        // 🛡️ Validação Comercial Segura
+        Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
 
         Venda venda = new Venda();
         venda.setCliente(cliente);
         venda.setUtilizador(user);
 
-        // 🛡️ AQUI: A venda nasce sem conta bancária e com estado PENDENTE
         venda.setContaBancaria(null);
         venda.setEstadoPagamento(EstadoPagamento.PENDENTE);
-
         venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda().atStartOfDay() : LocalDateTime.now());
 
+        // 🛡️ CORREÇÃO CRÍTICA IDOR: Validação do dono do Centro de Custo e Secção Homogénea
         if (dto.getCentroCustoId() != null) {
-            CentroCusto centro = centroCustoRepository.findById(dto.getCentroCustoId())
-                    .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado."));
+            CentroCusto centro = centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
             venda.setCentroCusto(centro);
         }
 
         if (dto.getSeccaoHomoId() != null) {
-            SeccaoHomo seccao = seccaoHomoRepository.findById(dto.getSeccaoHomoId())
-                    .orElseThrow(() -> new EntityNotFoundException("Secção Homogénea não encontrada."));
+            SeccaoHomo seccao = seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Secção Homogénea não encontrada ou acesso negado."));
             venda.setSeccaoHomo(seccao);
         }
 
         BigDecimal totalGeralSemIva = BigDecimal.ZERO;
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
-        if(venda.getLinhas() == null) venda.setLinhas(new ArrayList<>());
+        if (venda.getLinhas() == null) venda.setLinhas(new ArrayList<>());
 
-        // 🛡️ PROCESSAR AS MÚLTIPLAS LINHAS (Logística de Stock e Faturação)
+        // PROCESSAR LINHAS E STOCK
         for (VendaDTO.LinhaVendaDTO linhaDto : dto.getLinhas()) {
-            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), user.getId())
+            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId()));
 
             TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
@@ -95,7 +95,6 @@ public class VendaService {
                 movimentoStockRepository.save(mov);
             }
 
-            // Calcula Totais da Linha
             BigDecimal totalLinhaSemIva = linhaDto.getPrecoUnitario().multiply(linhaDto.getQuantidade());
             BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP).add(BigDecimal.ONE);
             BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva);
@@ -108,6 +107,7 @@ public class VendaService {
             linha.setPrecoUnitario(linhaDto.getPrecoUnitario());
             linha.setTotalLinhaSemIva(totalLinhaSemIva);
             linha.setTotalLinhaComIva(totalLinhaComIva);
+            linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada()); // Preservar designação customizada
 
             venda.getLinhas().add(linha);
 
@@ -120,16 +120,14 @@ public class VendaService {
 
         Venda vendaGuardada = vendaRepository.save(venda);
 
-        // ❌ Removida a criação de Movimento e alteração de saldo bancário.
-        // O dinheiro só entra no sistema quando a Tesouraria confirmar o documento.
-
         return converterParaDTO(vendaGuardada);
     }
 
     @Transactional(readOnly = true)
     public VendaResponseDTO buscarPorId(Long id) {
-        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
-                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
         return converterParaDTO(venda);
     }
 
@@ -139,19 +137,43 @@ public class VendaService {
 
     @Transactional(readOnly = true)
     public Page<VendaResponseDTO> listarMinhasVendas(int pagina, int tamanho) {
-        Utilizador user = getUtilizadorLogado();
-        Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataVenda").descending());
-        return vendaRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        // Ordenação estável
+        Pageable pageable = PageRequest.of(pagina, tamanho,
+                Sort.by("dataVenda").descending().and(Sort.by("id").descending()));
+        return vendaRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
     }
 
     @Transactional
     public void anularVenda(Long id) {
-        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
-                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
-        // 🛡️ Segurança: Não permite apagar se já houver dinheiro envolvido (PAGO)
+        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
+
         if (venda.getEstadoPagamento() == EstadoPagamento.PAGO) {
             throw new IllegalStateException("Não é possível anular uma venda que já foi recebida na tesouraria.");
+        }
+
+        // 🛡️ CORREÇÃO CRÍTICA LOGÍSTICA: Repor o stock antes de apagar a venda!
+        for (LinhaVenda linha : venda.getLinhas()) {
+            if (linha.getArtigo() instanceof Mercadoria mercadoria) {
+                // Devolve a quantidade ao armazém
+                mercadoria.setStockAtual(mercadoria.getStockAtual().add(linha.getQuantidade()));
+                artigoRepository.save(mercadoria);
+
+                // Regista o movimento de reposição na auditoria
+                MovimentoStock mov = new MovimentoStock();
+                mov.setMercadoria(mercadoria);
+                mov.setUtilizador(user);
+                mov.setTipo(MovimentoStock.TipoMovimentoStock.ENTRADA); // Entrada por anulação
+                mov.setQuantidade(linha.getQuantidade());
+                mov.setStockAposMovimento(mercadoria.getStockAtual());
+                mov.setMotivo("Reposição por Anulação de Venda #" + venda.getId());
+                movimentoStockRepository.save(mov);
+            }
         }
 
         vendaRepository.delete(venda);
@@ -170,19 +192,15 @@ public class VendaService {
             dto.setClienteNome(v.getCliente().getNome());
         }
 
-        // 🛡️ A CORREÇÃO 1: Mapear a Conta Bancária
         if (v.getContaBancaria() != null) {
             dto.setContaBancariaNome(v.getContaBancaria().getNome());
-            // (Nota: Se na tua entidade Venda a variável não for 'contaBancaria' ou o método for 'getDescricao()', ajusta aqui)
         }
 
-        // 🛡️ A CORREÇÃO 2: Mapear o Centro de Custo
         if (v.getCentroCusto() != null) {
             dto.setCentroCustoId(v.getCentroCusto().getId());
             dto.setCentroCustoCodigo(v.getCentroCusto().getCodigo());
         }
 
-        // 🛡️ A CORREÇÃO 3: Mapear a Secção Homogénea
         if (v.getSeccaoHomo() != null) {
             dto.setSeccaoHomoId(v.getSeccaoHomo().getId());
             dto.setSeccaoHomoCodigo(v.getSeccaoHomo().getCodigo());
@@ -196,8 +214,6 @@ public class VendaService {
                 lDto.setPrecoUnitario(linha.getPrecoUnitario());
                 lDto.setTotalLinhaSemIva(linha.getTotalLinhaSemIva());
                 lDto.setTotalLinhaComIva(linha.getTotalLinhaComIva());
-
-                // 🛡️ Não esquecer a designação personalizada
                 lDto.setDesignacaoPersonalizada(linha.getDesignacaoPersonalizada());
 
                 if (linha.getArtigo() != null) {

@@ -6,7 +6,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.CompraDTO;
@@ -29,21 +28,25 @@ public class CompraService {
     private final SeccaoHomoRepository seccaoHomoRepository;
     private final TxIvaRepository txIvaRepository;
     private final MovimentoStockRepository movimentoStockRepository;
-    // Removido o uso de contaRepository e movimentoRepository aqui dentro do registo
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
+    // 🚀 Injeções de Segurança e Base de Dados
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     @Transactional
     public CompraResponseDTO registarCompra(CompraDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        // 🚀 1. Buscar a ID blindada
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ Validação Comercial
-        Fornecedor fornecedor = fornecedorRepository.findByIdAndUtilizadorId(dto.getFornecedorId(), user.getId())
+        // 🚀 2. Buscar a entidade real do Utilizador para associar à compra e ao stock
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        // 🛡️ Validação Comercial (IDOR Protegido)
+        Fornecedor fornecedor = fornecedorRepository.findByIdAndUtilizadorId(dto.getFornecedorId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
-        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(dto.getArtigoId(), user.getId())
+        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(dto.getArtigoId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
 
         TxIva taxaIva = txIvaRepository.findById(dto.getTaxaIvaId())
@@ -114,32 +117,32 @@ public class CompraService {
 
         // Analítica
         if (dto.getCentroCustoId() != null) {
-            centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), user.getId()).ifPresent(compra::setCentroCusto);
+            centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId).ifPresent(compra::setCentroCusto);
         }
         if (dto.getSeccaoHomoId() != null) {
-            seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), user.getId()).ifPresent(compra::setSeccaoHomo);
+            seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId).ifPresent(compra::setSeccaoHomo);
         }
 
         Compra compraGuardada = compraRepository.save(compra);
-
-        // ❌ Removida a lógica de atualização de saldo e criação de Movimento de Tesouraria.
-        // Isso agora será feito exclusivamente no TesourariaService através da confirmação.
 
         return converterParaDTO(compraGuardada);
     }
 
     @Transactional(readOnly = true)
     public CompraResponseDTO buscarPorId(Long id) {
-        Utilizador user = getUtilizadorLogado();
-        Compra compra = compraRepository.findByIdAndUtilizadorId(id, user.getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Compra compra = compraRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
+
         return converterParaDTO(compra);
     }
 
     @Transactional
     public void eliminar(Long id) {
-        Utilizador user = getUtilizadorLogado();
-        Compra compra = compraRepository.findByIdAndUtilizadorId(id, user.getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Compra compra = compraRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
 
         // Se a compra já estiver PAGA, convém não deixar eliminar ou reverter o financeiro primeiro
@@ -152,9 +155,10 @@ public class CompraService {
 
     @Transactional(readOnly = true)
     public Page<CompraResponseDTO> listarMinhasCompras(int pagina, int tamanho) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataCompra").descending());
-        return compraRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
+
+        return compraRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
     }
 
     public List<TxIva> listarTaxasIva() {
@@ -187,13 +191,11 @@ public class CompraService {
             dto.setTaxaIvaValor(c.getTaxaIva().getValor());
         }
 
-        // 🛡️ A CORREÇÃO: Mapear a Conta Bancária (Aparece quando for PAGO)
         if (c.getContaBancaria() != null) {
             dto.setContaBancariaId(c.getContaBancaria().getId());
             dto.setContaBancariaNome(c.getContaBancaria().getNome());
         }
 
-        // 🛡️ A CORREÇÃO: Mapear a Contabilidade Analítica
         if (c.getCentroCusto() != null) {
             dto.setCentroCustoId(c.getCentroCusto().getId());
             dto.setCentroCustoCodigo(c.getCentroCusto().getCodigo());

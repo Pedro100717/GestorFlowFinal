@@ -2,14 +2,14 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // <-- CRÍTICO
+import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.CentroCustoDTO;
 import pt.gestorflow.backend.dto.CentroCustoResponseDTO;
 import pt.gestorflow.backend.model.CentroCusto;
 import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.CentroCustoRepository;
+import pt.gestorflow.backend.repository.UtilizadorRepository;
 
 import java.util.List;
 
@@ -18,33 +18,41 @@ import java.util.List;
 public class CentroCustoService {
 
     private final CentroCustoRepository repository;
+    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para associar a entidade no 'criar'
+    private final AuthService authService; // 🚀 A nossa nova fonte de verdade para segurança
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
-    // 🛡️ ADICIONADO: @Transactional para garantir integridade na gravação
     @Transactional
     public CentroCustoResponseDTO criar(CentroCustoDTO dto) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        // 🛡️ Garante que o utilizador existe antes de tentar associar
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
         CentroCusto cc = new CentroCusto();
         cc.setNome(dto.getNome());
         cc.setCodigo(dto.getCodigo());
-        cc.setUtilizador(getUtilizadorLogado());
+        cc.setUtilizador(user);
+
         return converterParaDTO(repository.save(cc));
     }
 
     @Transactional(readOnly = true)
     public List<CentroCustoResponseDTO> listar() {
-        return repository.findAllByUtilizadorId(getUtilizadorLogado().getId())
-                .stream().map(this::converterParaDTO).toList();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        return repository.findAllByUtilizadorId(utilizadorId)
+                .stream()
+                .map(this::converterParaDTO)
+                .toList();
     }
 
-    // 🛡️ CORREÇÃO: @Transactional adicionado e IDOR eliminado com query segura
     @Transactional
     public CentroCustoResponseDTO atualizar(Long id, CentroCustoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        CentroCusto cc = repository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ Proteção IDOR: Só permite atualizar se o ID pertencer ao utilizador logado
+        CentroCusto cc = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
 
         cc.setNome(dto.getNome());
@@ -53,25 +61,23 @@ public class CentroCustoService {
         return converterParaDTO(repository.save(cc));
     }
 
-    // 🛡️ ADICIONADO: Método para buscar 1 Centro de Custo específico (usado na edição do Angular)
     @Transactional(readOnly = true)
     public CentroCustoResponseDTO buscarPorId(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Impede que espreitem centros de custo de outros utilizadores
-        CentroCusto cc = repository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ Proteção IDOR: Garante que um utilizador não lê dados de outro através do ID
+        CentroCusto cc = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
 
         return converterParaDTO(cc);
     }
 
-    // 🛡️ ADICIONADO: Método para eliminar de forma segura
     @Transactional
     public void eliminar(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Garante que só o dono apaga o seu centro de custo
-        CentroCusto cc = repository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ Proteção IDOR: Bloqueia tentativas de eliminação maliciosas via ID
+        CentroCusto cc = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
 
         repository.delete(cc);

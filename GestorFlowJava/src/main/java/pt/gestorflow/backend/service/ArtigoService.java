@@ -6,7 +6,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // <-- CRÍTICO
 import pt.gestorflow.backend.dto.ArtigoDTO;
@@ -22,15 +21,17 @@ public class ArtigoService {
 
     private final ArtigoRepository artigoRepository;
     private final FamiliaRepository familiaRepository;
+    private final UtilizadorRepository utilizadorRepository; // 🚀 Injetado para ir buscar o objeto Utilizador
+    private final AuthService authService; // 🚀 A nossa Chave Mestra
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
-    // 🛡️ ADICIONADO: @Transactional garante que ou tudo grava, ou nada grava (Rollback)
     @Transactional
     public ArtigoResponseDTO criarArtigo(ArtigoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        // 🚀 Vai buscar a entidade do Utilizador em segurança
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
         Artigo artigo;
 
         if (Boolean.TRUE.equals(dto.getMovimentaStock())) {
@@ -48,8 +49,8 @@ public class ArtigoService {
         artigo.setUtilizador(user);
 
         if (dto.getFamiliaId() != null) {
-            // 🛡️ CORREÇÃO IDOR: Garantir que a Família também pertence ao Utilizador!
-            Familia familia = familiaRepository.findByIdAndUtilizadorId(dto.getFamiliaId(), user.getId())
+            // 🛡️ Mantida a tua excelente proteção IDOR!
+            Familia familia = familiaRepository.findByIdAndUtilizadorId(dto.getFamiliaId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Família não encontrada ou acesso negado."));
             artigo.setFamilia(familia);
         }
@@ -59,25 +60,24 @@ public class ArtigoService {
 
     @Transactional(readOnly = true)
     public Page<ArtigoResponseDTO> listarMeusArtigos(int pagina, int tamanho) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("nome").ascending());
-        return artigoRepository.findAllByUtilizadorId(user.getId(), pageable).map(this::converterParaDTO);
+        return artigoRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
     }
 
     @Transactional
     public ArtigoResponseDTO atualizar(Long id, ArtigoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ CORREÇÃO IDOR CRÍTICA: Impedir que alguém edite artigos de outra empresa!
-        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ CORREÇÃO IDOR CRÍTICA MANTIDA
+        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
 
         artigo.setNome(dto.getNome());
         artigo.setCodigoBarras(dto.getCodigoBarras());
 
         if (dto.getFamiliaId() != null) {
-            // 🛡️ CORREÇÃO IDOR
-            Familia familia = familiaRepository.findByIdAndUtilizadorId(dto.getFamiliaId(), user.getId())
+            Familia familia = familiaRepository.findByIdAndUtilizadorId(dto.getFamiliaId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Família não encontrada ou acesso negado."));
             artigo.setFamilia(familia);
         } else {
@@ -89,10 +89,10 @@ public class ArtigoService {
 
     @Transactional
     public void eliminar(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ CORREÇÃO IDOR CRÍTICA: O existsById() antigo permitia apagar os artigos dos outros!
-        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ CORREÇÃO IDOR CRÍTICA MANTIDA
+        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
 
         artigoRepository.delete(artigo);
@@ -100,10 +100,10 @@ public class ArtigoService {
 
     @Transactional(readOnly = true)
     public ArtigoResponseDTO buscarPorId(Long id) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR CRÍTICA: Garantir que não tentam ler o artigo do "vizinho"
-        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(id, user.getId())
+        // 🛡️ PROTEÇÃO IDOR CRÍTICA MANTIDA
+        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
 
         return converterParaDTO(artigo);

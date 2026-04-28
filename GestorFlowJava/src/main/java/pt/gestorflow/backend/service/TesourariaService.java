@@ -3,7 +3,6 @@ package pt.gestorflow.backend.service;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.*;
 import pt.gestorflow.backend.model.*;
@@ -24,9 +23,9 @@ public class TesourariaService {
     private final CompraRepository compraRepository;
     private final VendaRepository vendaRepository;
 
-    private Utilizador getUtilizadorLogado() {
-        return (Utilizador) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
+    // 🚀 Injeções de Segurança
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     // =========================================================================
     // --- 1. GESTÃO DE PENDENTES E LIQUIDAÇÕES (O NOVO FLUXO) ---
@@ -34,28 +33,33 @@ public class TesourariaService {
 
     @Transactional(readOnly = true)
     public List<DocumentoPendenteDTO> listarPendentes() {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
         List<DocumentoPendenteDTO> pendentes = new ArrayList<>();
 
-        List<Venda> vendas = vendaRepository.findAllByUtilizadorIdAndEstadoPagamento(user.getId(), EstadoPagamento.PENDENTE);
+        List<Venda> vendas = vendaRepository.findAllByUtilizadorIdAndEstadoPagamento(utilizadorId, EstadoPagamento.PENDENTE);
         for (Venda v : vendas) {
             pendentes.add(new DocumentoPendenteDTO(v.getId(), "VENDA", v.getDataVenda(), v.getCliente().getNome(), v.getTotalComIva()));
         }
 
-        List<Compra> compras = compraRepository.findAllByUtilizadorIdAndEstadoPagamento(user.getId(), EstadoPagamento.PENDENTE);
+        List<Compra> compras = compraRepository.findAllByUtilizadorIdAndEstadoPagamento(utilizadorId, EstadoPagamento.PENDENTE);
         for (Compra c : compras) {
             pendentes.add(new DocumentoPendenteDTO(c.getId(), "COMPRA", c.getDataCompra(), c.getFornecedor().getNome(), c.getTotal()));
         }
 
+        // ⚠️ Ponto crítico de performance em escala (ordenar em memória). Ponderar refatorar para Query paginada no futuro.
         pendentes.sort((a, b) -> a.getData().compareTo(b.getData()));
         return pendentes;
     }
 
     @Transactional
     public void confirmarTransacao(ConfirmarPagamentoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
-        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaBancariaId(), user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada."));
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaBancariaId(), utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada ou acesso negado."));
 
         Movimento mov = new Movimento();
         mov.setConta(conta);
@@ -63,8 +67,8 @@ public class TesourariaService {
         mov.setDataMovimento(dto.getDataPagamento() != null ? dto.getDataPagamento() : LocalDateTime.now());
 
         if ("VENDA".equalsIgnoreCase(dto.getTipoDocumento())) {
-            Venda venda = vendaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), user.getId())
-                    .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
+            Venda venda = vendaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
 
             venda.setEstadoPagamento(EstadoPagamento.PAGO);
             venda.setContaBancaria(conta);
@@ -75,11 +79,13 @@ public class TesourariaService {
             mov.setDescricao("Recebimento Venda #" + venda.getId() + " - " + venda.getCliente().getNome());
             mov.setVenda(venda);
             mov.setCliente(venda.getCliente());
+
+            // O @Version na entidade irá proteger contra Lost Updates aqui
             conta.setSaldo(conta.getSaldo().add(venda.getTotalComIva()));
 
         } else if ("COMPRA".equalsIgnoreCase(dto.getTipoDocumento())) {
-            Compra compra = compraRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), user.getId())
-                    .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada."));
+            Compra compra = compraRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
 
             compra.setEstadoPagamento(EstadoPagamento.PAGO);
             compra.setContaBancaria(conta);
@@ -90,7 +96,10 @@ public class TesourariaService {
             mov.setDescricao("Pagamento Compra #" + compra.getId() + " - " + compra.getFornecedor().getNome());
             mov.setCompra(compra);
             mov.setFornecedor(compra.getFornecedor());
+
             conta.setSaldo(conta.getSaldo().subtract(compra.getTotal()));
+        } else {
+            throw new IllegalArgumentException("Tipo de documento inválido. Use VENDA ou COMPRA.");
         }
 
         mov.setSaldoApos(conta.getSaldo());
@@ -104,24 +113,30 @@ public class TesourariaService {
 
     @Transactional
     public ContaBancariaResponseDTO criarConta(ContaBancariaDTO dto) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
         ContaBancaria c = new ContaBancaria();
         c.setNome(dto.getNome());
         c.setIban(dto.getIban());
         c.setSaldo(dto.getSaldoInicial() != null ? dto.getSaldoInicial() : BigDecimal.ZERO);
-        c.setUtilizador(getUtilizadorLogado());
+        c.setUtilizador(user);
+
         return converterContaParaDTO(contaRepository.save(c));
     }
 
     @Transactional(readOnly = true)
     public List<ContaBancariaResponseDTO> listarContas() {
-        return contaRepository.findAllByUtilizadorId(getUtilizadorLogado().getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        return contaRepository.findAllByUtilizadorId(utilizadorId)
                 .stream().map(this::converterContaParaDTO).collect(Collectors.toList());
     }
 
-    // 🛡️ O MÉTODO QUE O CONTROLLER ESTAVA A PEDIR!
     @Transactional(readOnly = true)
     public ContaBancariaResponseDTO buscarContaPorId(Long id) {
-        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(id, getUtilizadorLogado().getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada ou acesso negado."));
         return converterContaParaDTO(conta);
     }
@@ -130,11 +145,13 @@ public class TesourariaService {
     // --- 3. MOVIMENTOS E TRANSFERÊNCIAS (ANTIGO E ESSENCIAL) ---
     // =========================================================================
 
-    // 🛡️ O MÉTODO QUE O CONTROLLER ESTAVA A PEDIR!
     @Transactional
     public MovimentoResponseDTO registarMovimento(MovimentoDTO dto) {
-        Utilizador user = getUtilizadorLogado();
-        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaId(), user.getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada ou acesso negado."));
 
         if (dto.getTipo() == Movimento.TipoMovimento.CREDITO) {
@@ -156,11 +173,12 @@ public class TesourariaService {
         return converterParaDTO(movimentoRepository.save(mov));
     }
 
-    // 🛡️ O MÉTODO QUE O CONTROLLER ESTAVA A PEDIR!
     @Transactional(readOnly = true)
     public List<MovimentoResponseDTO> obterExtrato(Long contaId) {
-        Utilizador user = getUtilizadorLogado();
-        contaRepository.findByIdAndUtilizadorId(contaId, user.getId())
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        // 🛡️ Proteção IDOR antes de ir buscar o extrato
+        contaRepository.findByIdAndUtilizadorId(contaId, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Conta não encontrada ou acesso negado."));
 
         return movimentoRepository.findAllByContaIdOrderByDataMovimentoDesc(contaId)
@@ -169,21 +187,23 @@ public class TesourariaService {
 
     @Transactional
     public void transferirEntreContas(TransferenciaDTO dto) {
-        Utilizador user = getUtilizadorLogado();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
         if (dto.getContaOrigemId().equals(dto.getContaDestinoId())) {
             throw new IllegalArgumentException("A conta de origem e destino não podem ser a mesma.");
         }
 
-        ContaBancaria origem = contaRepository.findByIdAndUtilizadorId(dto.getContaOrigemId(), user.getId())
+        ContaBancaria origem = contaRepository.findByIdAndUtilizadorId(dto.getContaOrigemId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Conta de origem não encontrada ou acesso negado."));
 
-        ContaBancaria destino = contaRepository.findByIdAndUtilizadorId(dto.getContaDestinoId(), user.getId())
+        ContaBancaria destino = contaRepository.findByIdAndUtilizadorId(dto.getContaDestinoId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Conta de destino não encontrada ou acesso negado."));
 
         LocalDateTime agora = LocalDateTime.now();
 
-        // Débito
+        // Débito (Saída)
         origem.setSaldo(origem.getSaldo().subtract(dto.getValor()));
         contaRepository.save(origem);
 
@@ -199,7 +219,7 @@ public class TesourariaService {
         movSaida.setSaldoApos(origem.getSaldo());
         movimentoRepository.save(movSaida);
 
-        // Crédito
+        // Crédito (Entrada)
         destino.setSaldo(destino.getSaldo().add(dto.getValor()));
         contaRepository.save(destino);
 

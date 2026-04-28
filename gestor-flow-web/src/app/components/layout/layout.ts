@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core'; 
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+// 🚀 Não te esqueças de adicionar o NavigationEnd aqui nos imports!
+import { Router, NavigationEnd, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-layout',
@@ -11,33 +12,41 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 export class LayoutComponent implements OnInit {
 
   nomeUtilizador: string = 'Utilizador';
-  emailUtilizador: string = ''; // <--- Adicionada a variável do email
+  emailUtilizador: string = ''; 
+  isMobileMenuOpen: boolean = false;
 
-  constructor(private router: Router) {}
+  constructor(private router: Router) {
+    // 🚀 A MAGIA DE UX: Fica "à escuta" da navegação
+    this.router.events.subscribe((event) => {
+      // Sempre que a navegação para um ecrã novo terminar com sucesso...
+      if (event instanceof NavigationEnd) {
+        this.isMobileMenuOpen = false; // ...força o menu de telemóvel a fechar!
+      }
+    });
+  }
 
   ngOnInit() {
-    // 1. Vai buscar os dados que foram guardados no momento do Login
     const nomeCompleto = localStorage.getItem('userName'); 
-    const email = localStorage.getItem('userEmail'); // <--- Vai buscar o email
+    const email = localStorage.getItem('userEmail'); 
     
     if (nomeCompleto) {
-      // 2. Corta o nome pelos espaços e fica só com a primeira palavra
       this.nomeUtilizador = nomeCompleto.split(' ')[0];
     }
 
     if (email) {
-      // 3. Guarda o email para mostrar no HTML
       this.emailUtilizador = email;
     }
   }
 
   logout() {
-    // 1. Limpar os dados da sessão todos
     localStorage.removeItem('token');
     localStorage.removeItem('userName'); 
-    localStorage.removeItem('userEmail'); // <--- Limpa também o email
+    localStorage.removeItem('userEmail'); 
     
-    // 2. Redirecionar para o login
     this.router.navigate(['/login']);
+  }
+
+  toggleMenu() {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
   }
 }
