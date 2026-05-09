@@ -17,6 +17,11 @@ public class TesourariaController {
 
     private final TesourariaService service;
 
+    @GetMapping("/simulador")
+    public ResponseEntity<SimuladorTesourariaDTO> obterSimulacao() {
+        return ResponseEntity.ok(service.obterSimulacao());
+    }
+
     // 🛡️ 201 CREATED: Standard para quando nasce uma nova conta
     @PostMapping("/contas")
     public ResponseEntity<ContaBancariaResponseDTO> criarConta(@Valid @RequestBody ContaBancariaDTO dto) {
@@ -49,19 +54,32 @@ public class TesourariaController {
     }
 
     // ==========================================
+    // --- 🚀 A ROTA QUE TE FALTAVA AQUI! ---
+    // ==========================================
+    @PostMapping("/movimentos")
+    public ResponseEntity<MovimentoResponseDTO> registarMovimento(@Valid @RequestBody MovimentoDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.registarMovimento(dto));
+    }
+
+    // ==========================================
     // --- OS NOVOS ENDPOINTS DA TESOURARIA ---
     // ==========================================
 
     @GetMapping("/pendentes")
     public ResponseEntity<List<DocumentoPendenteDTO>> listarPendentes() {
-        // 🛡️ Corrigido de tesourariaService para service
         return ResponseEntity.ok(service.listarPendentes());
     }
 
     @PostMapping("/confirmar-pagamento")
-    public ResponseEntity<Void> confirmarPagamento(@RequestBody ConfirmarPagamentoDTO dto) {
-        // 🛡️ Corrigido de tesourariaService para service
+    public ResponseEntity<Void> confirmarPagamento(@Valid @RequestBody ConfirmarPagamentoDTO dto) {
         service.confirmarTransacao(dto);
         return ResponseEntity.ok().build();
+    }
+
+    // 🚀 ROTA CORRIGIDA!
+    @DeleteMapping("/movimentos/{id}")
+    public ResponseEntity<Void> anularMovimento(@PathVariable Long id) {
+        service.anularMovimento(id); // Agora sim, chama apenas "service"
+        return ResponseEntity.noContent().build();
     }
 }

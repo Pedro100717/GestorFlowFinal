@@ -4,6 +4,17 @@ import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { ContaBancaria, Movimento } from '../core/models/tesouraria.model';
 import { environment } from '../../environments/environment';
 
+// 🚀 CONTRATO DO SIMULADOR (Fonte da Verdade)
+export interface PontoSimulacao {
+  label: string;
+  saldoProjetado: number;
+}
+
+export interface SimuladorTesourariaDTO {
+  saldoAtual: number;
+  pontos: PontoSimulacao[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -24,6 +35,19 @@ export class TesourariaService {
   private contaAtivaId: number | null = null;
 
   constructor(private http: HttpClient) { }
+
+  // =========================================================================
+  // --- 🚀 MÁQUINA DO TEMPO (SIMULADOR DE TESOURARIA) ---
+  // =========================================================================
+
+  obterSimulacao(): Observable<SimuladorTesourariaDTO> {
+    // Liga-se diretamente ao novo endpoint do Spring Boot
+    return this.http.get<SimuladorTesourariaDTO>(`${this.API_URL}/simulador`);
+  }
+
+  // =========================================================================
+  // --- FUNÇÕES CORE DA TESOURARIA ---
+  // =========================================================================
 
   carregarContasDaAPI(): void {
     this.http.get<ContaBancaria[]>(`${this.API_URL}/contas`).subscribe({
@@ -112,16 +136,21 @@ export class TesourariaService {
   // --- COMUNICAÇÃO E SEGREGAÇÃO DE FUNÇÕES (O NOVO FLUXO) ---
   // =========================================================================
 
-  // 1. Vai buscar a lista de tudo o que as Compras e Vendas geraram mas ainda não foi pago
   listarPendentes(): Observable<any[]> {
     return this.http.get<any[]>(`${this.API_URL}/pendentes`);
   }
 
-  // 2. Confirma a transação, gera o movimento na conta escolhida e tira o documento de "Pendente"
   confirmarTransacao(dados: any): Observable<any> {
     return this.http.post<any>(`${this.API_URL}/confirmar-pagamento`, dados).pipe(
       tap(() => {
-        // Como o dinheiro mexeu, temos de forçar a atualização dos saldos e limpar a cache
+        this.notificarNovaTransacao();
+      })
+    );
+  }
+
+  anularMovimento(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/movimentos/${id}`).pipe(
+      tap(() => {
         this.notificarNovaTransacao();
       })
     );
@@ -131,10 +160,8 @@ export class TesourariaService {
     this.carregarContasDaAPI(); 
     this.extratosCache.clear(); 
     
-    // Se estivéssemos a ver um extrato, atualiza-o de imediato
     if(this.contaAtivaId) {
         this.obterExtrato(this.contaAtivaId);
     }
   }
-
 }

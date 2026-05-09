@@ -21,4 +21,7 @@ public class MovimentoDTO {
     @NotNull
     @Positive(message = "O valor deve ser positivo")
     private BigDecimal valor;
+
+    private Long clienteId;
+    private Long fornecedorId;
 }

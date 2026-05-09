@@ -13,6 +13,7 @@
           <thead class="bg-light">
             <tr>
               <th class="ps-4 py-3 border-0 text-muted small uppercase">Data</th>
+              <th class="border-0 text-muted small uppercase">Vencimento</th>
               <th class="border-0 text-muted small uppercase">Fornecedor</th>
               <th class="border-0 text-muted small uppercase">Artigo</th>
               <th class="border-0 text-muted small uppercase">Estado</th>
@@ -22,12 +23,19 @@
               <th class="border-0 text-muted small uppercase text-end">Qtd</th>
               <th class="border-0 text-muted small uppercase text-end">Preço Base</th>
               <th class="border-0 text-muted small uppercase text-end">IVA</th> 
-              <th class="border-0 text-muted small uppercase text-end pe-4">Total</th>
+              <th class="border-0 text-muted small uppercase text-end">Total</th>
+              <th class="border-0 text-muted small uppercase text-center pe-4">Ações</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let c of listaCompras">
               <td class="ps-4 text-muted small">{{ c.dataCompra | date:'dd/MM/yyyy' }}</td>
+              
+              <td>
+                  <span class="badge bg-light text-danger border border-danger border-opacity-25">
+                      <i class="bi bi-calendar-x me-1"></i>{{ c.dataVencimento | date:'dd/MM/yyyy' }}
+                  </span>
+              </td>
               
               <td class="fw-bold text-dark">{{ c.fornecedorNome }}</td>
               
@@ -40,9 +48,9 @@
 
               <td>
                   <span class="badge" 
-                        [ngClass]="c.estadoPagamento === 'PAGO' ? 'bg-success' : 'bg-warning text-dark'">
+                        [ngClass]="c.estadoPagamento === 'PAGO' ? 'bg-success' : (c.estadoPagamento === 'PARCIALMENTE_PAGO' ? 'bg-info text-dark' : 'bg-warning text-dark')">
                       <i class="bi" [ngClass]="c.estadoPagamento === 'PAGO' ? 'bi-check-circle' : 'bi-hourglass-split'"></i>
-                      {{ c.estadoPagamento === 'PAGO' ? 'Pago' : 'Pendente' }}
+                      {{ c.estadoPagamento === 'PAGO' ? 'Pago' : (c.estadoPagamento === 'PARCIALMENTE_PAGO' ? 'Parcial' : 'Pendente') }}
                   </span>
               </td>
               
@@ -75,11 +83,22 @@
                   <span *ngIf="!c.taxaIvaValor">-</span>
               </td>
               
-              <td class="text-end fw-bold text-primary pe-4">{{ c.total | currency:'EUR' }}</td>
+              <td class="text-end fw-bold text-primary">{{ c.total | currency:'EUR' }}</td>
+
+              <td class="text-center pe-4">
+                  <button class="btn btn-sm btn-light text-primary me-1 border" 
+                          (click)="abrirModalEditar(c)" title="Editar Compra">
+                      <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-sm btn-light text-danger border" 
+                          (click)="eliminarCompra(c)" title="Anular Compra">
+                      <i class="bi bi-trash"></i>
+                  </button>
+              </td>
             </tr>
 
             <tr *ngIf="listaCompras.length === 0">
-              <td colspan="11" class="text-center py-5 text-muted">
+              <td colspan="13" class="text-center py-5 text-muted">
                 <i class="bi bi-cart-x fs-1 d-block mb-2 opacity-50"></i>
                 <span class="fw-bold">Ainda não tens compras registadas.</span>
               </td>
@@ -96,17 +115,30 @@
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title fw-bold">Nova Compra</h5>
+        <h5 class="modal-title fw-bold">
+            <i class="bi" [ngClass]="compraEmEdicao ? 'bi-pencil-square me-2' : 'bi-cart-plus me-2'"></i>
+            {{ compraEmEdicao ? 'Editar Compra #' + compraEmEdicao.id : 'Nova Compra' }}
+        </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
         <form [formGroup]="formCompra">
           
-          <div class="mb-4 bg-light p-3 rounded border">
-              <label class="form-label small fw-bold text-primary">
-                  <i class="bi bi-calendar-check me-2"></i>Data da Compra
-              </label>
-              <input type="datetime-local" class="form-control border-primary" formControlName="dataCompra">
+          <div class="row mb-4 bg-light p-3 rounded border mx-0">
+              <div class="col-md-6 mb-3 mb-md-0 px-2">
+                  <label class="form-label small fw-bold text-secondary">
+                      <i class="bi bi-calendar-event me-2"></i>Data da Compra
+                  </label>
+                  <input type="datetime-local" class="form-control border-secondary" formControlName="dataCompra">
+              </div>
+              <div class="col-md-6 px-2">
+                  <label class="form-label small fw-bold text-danger">
+                      <i class="bi bi-calendar-x me-2"></i>Data de Vencimento
+                  </label>
+                  <input type="datetime-local" class="form-control border-danger" formControlName="dataVencimento"
+                         [ngClass]="{ 'is-invalid': f['dataVencimento'].touched && f['dataVencimento'].invalid }">
+                  <small class="text-muted" style="font-size: 0.7rem;">Quando o dinheiro sai efetivamente da conta</small>
+              </div>
           </div>
 
           <div class="row">
@@ -192,8 +224,9 @@
       </div>
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" [disabled]="formCompra.invalid" (click)="registarCompra()">
-          <i class="bi bi-check-lg me-2"></i>Registar
+        <button type="button" class="btn btn-primary" [disabled]="formCompra.invalid" (click)="guardarCompra()">
+          <i class="bi" [ngClass]="compraEmEdicao ? 'bi-save me-2' : 'bi-check-lg me-2'"></i>
+          {{ compraEmEdicao ? 'Atualizar Compra' : 'Registar' }}
         </button>
       </div>
     </div>

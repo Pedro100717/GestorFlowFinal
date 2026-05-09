@@ -10,6 +10,10 @@ public class VendaResponseDTO {
     private Long id;
     private String designacao;
     private LocalDateTime dataVenda;
+
+    // 🚀 O NOVO CAMPO: Para o Angular saber quando a fatura vence
+    private LocalDateTime dataVencimento;
+
     private BigDecimal totalSemIva;
     private BigDecimal totalComIva;
     private String estadoPagamento;

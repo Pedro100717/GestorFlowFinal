@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, shareReplay, tap } from 'rxjs';
-import { Venda } from '../core/models/venda.model';
+import { Venda, TaxaIva } from '../core/models/venda.model'; // 🛡️ Importação limpa
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -11,47 +11,59 @@ export class VendaService {
 
   private readonly API_URL = `${environment.apiUrl}/vendas`;
 
-  // --- GESTÃO DE ESTADO (STATE MANAGEMENT) ---
-  // 1. O "Cofre" fechado onde guardamos a lista atual de Vendas (começa vazio)
   private vendasSubject = new BehaviorSubject<Venda[]>([]);
-  
-  // 2. A "Montra" pública (Observable) para os ecrãs ficarem a ver as alterações em tempo real
   public vendas$ = this.vendasSubject.asObservable();
 
-  // Cache para o IVA (Dados de Referência que já falámos)
-  private cacheTaxasIva$: Observable<any[]> | null = null;
+  // 🛡️ Cache agora fortemente tipada
+  private cacheTaxasIva$: Observable<TaxaIva[]> | null = null;
 
   constructor(private http: HttpClient) { }
 
-  // 3. O método que vai ao Java e ENCHE o cofre
   carregarVendasDaAPI(): void {
     this.http.get<any>(this.API_URL).subscribe({
       next: (dados) => {
         const lista = dados.content || dados;
-        this.vendasSubject.next(lista); // Atualiza o cofre com os dados do Java!
+        this.vendasSubject.next(lista);
       },
       error: (err) => console.error('Erro ao carregar vendas:', err)
     });
   }
 
-  // 4. Registar Venda (Vai ao Java e, se der sucesso, atualiza o cofre na memória!)
-  registar(venda: Venda): Observable<Venda> {
+  registar(venda: Venda): Observable<Venda> { // 🛡️ Tipado
     return this.http.post<Venda>(this.API_URL, venda).pipe(
       tap((novaVendaRegistada) => {
-        // Pega na lista atual do cofre
         const listaAtual = this.vendasSubject.getValue();
-        // Coloca a nova venda no TOPO da lista e guarda de volta no cofre
         this.vendasSubject.next([novaVendaRegistada, ...listaAtual]);
       })
     );
   }
 
-  // ==========================================
-  // DADOS DE REFERÊNCIA (COM CACHE)
-  // ==========================================
-  listarTaxasIva(): Observable<any[]> {
+  atualizar(id: number, venda: Venda): Observable<Venda> { // 🛡️ Tipado
+    return this.http.put<Venda>(`${this.API_URL}/${id}`, venda).pipe(
+      tap((vendaAtualizada) => {
+        const listaAtual = this.vendasSubject.getValue();
+        const index = listaAtual.findIndex(v => v.id === id);
+        if (index !== -1) {
+          listaAtual[index] = vendaAtualizada;
+          this.vendasSubject.next([...listaAtual]);
+        }
+      })
+    );
+  }
+
+  anular(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/${id}`).pipe(
+      tap(() => {
+        const listaAtual = this.vendasSubject.getValue();
+        this.vendasSubject.next(listaAtual.filter(v => v.id !== id));
+      })
+    );
+  }
+
+  // 🛡️ Contrato garantido: Retorna sempre um array de TaxaIva
+  listarTaxasIva(): Observable<TaxaIva[]> {
     if (!this.cacheTaxasIva$) {
-      this.cacheTaxasIva$ = this.http.get<any[]>(`${this.API_URL}/taxas-iva`).pipe(
+      this.cacheTaxasIva$ = this.http.get<TaxaIva[]>(`${this.API_URL}/taxas-iva`).pipe(
         shareReplay(1)
       );
     }

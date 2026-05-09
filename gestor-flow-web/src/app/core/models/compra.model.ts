@@ -1,16 +1,27 @@
+// 🛡️ Interface de suporte para evitar o uso de 'any' nos serviços e componentes
+export interface TaxaIva {
+    id: number;
+    valor: number;
+    descricao?: string;
+}
+
 export interface Compra {
     id?: number;
     dataCompra?: string;
+    
+    // 🚀 O MOTOR DO SIMULADOR: Sem isto, a simulação é apenas um palpite
+    dataVencimento?: string; 
+    
     numeroFaturaFornecedor?: string;
     designacao?: string;
-    quantidade?: number; // ⚠️ Passou a opcional para evitar chatices
-    precoUnitario?: number; // ⚠️ Passou a opcional
+    quantidade?: number; 
+    precoUnitario?: number; 
     total?: number;
 
-    // 🛡️ NOVO: Estado para a tabela de Compras não quebrar!
+    // 🛡️ Estado: PAGO, PENDENTE ou PARCIALMENTE_PAGO
     estadoPagamento?: string;
 
-    // Flat Fields (Substitui os objetos antigos)
+    // Flat Fields (Campos Planos para facilitar o uso em tabelas)
     fornecedorId?: number;
     fornecedorNome?: string;
 

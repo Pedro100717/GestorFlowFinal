@@ -14,10 +14,13 @@ public class VendaDTO {
     private Long clienteId;
 
     private LocalDate dataVenda;
+
+    // 🚀 O NOVO CAMPO PARA O SIMULADOR DE TESOURARIA
+    private LocalDate dataVencimento;
+
     private Long centroCustoId;
     private Long seccaoHomoId;
 
-    // 🛡️ O Segredo do Boss: Uma venda tem MÚLTIPLAS linhas!
     @NotEmpty(message = "A venda deve ter pelo menos uma linha")
     @Valid
     private List<LinhaVendaDTO> linhas;

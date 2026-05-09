@@ -3,24 +3,42 @@ package pt.gestorflow.backend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pt.gestorflow.backend.dto.AnaliseAnaliticaProjection;
+import pt.gestorflow.backend.dto.AnaliseAnaliticaDTO;
 import pt.gestorflow.backend.repository.AnaliseRepository;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AnaliseService {
 
     private final AnaliseRepository analiseRepository;
-    private final AuthService authService; // 🚀 Injeta o nosso segurança
+    private final AuthService authService;
 
     @Transactional(readOnly = true)
-    public List<AnaliseAnaliticaProjection> obterDashboard() {
-        // 🚀 Vai buscar o ID blindado
+    public List<AnaliseAnaliticaDTO> obterDashboard() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // A magia acontece aqui: vai buscar os dados já somados da base de dados
-        return analiseRepository.obterAnaliseVendasCompras(utilizadorId);
+        // 🚀 O MAPEAMENTO INDUSTRIAL: Da Base de Dados (Projection) para o objeto da API (DTO)
+        return analiseRepository.obterAnaliseVendasCompras(utilizadorId).stream()
+                .map(proj -> {
+                    AnaliseAnaliticaDTO dto = new AnaliseAnaliticaDTO();
+                    dto.setCentroCusto(proj.getCentroCusto());
+                    dto.setSeccaoHomo(proj.getSeccaoHomo());
+
+                    // Operacional
+                    dto.setTotalVendasSemIva(proj.getTotalVendasSemIva());
+                    dto.setTotalComprasSemIva(proj.getTotalComprasSemIva());
+                    dto.setMargemBruta(proj.getMargemBruta());
+
+                    // Fiscal
+                    dto.setTotalIvaVendas(proj.getTotalIvaVendas());
+                    dto.setTotalIvaCompras(proj.getTotalIvaCompras());
+                    dto.setSaldoIva(proj.getSaldoIva());
+
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

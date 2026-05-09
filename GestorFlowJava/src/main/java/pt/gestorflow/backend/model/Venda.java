@@ -22,13 +22,20 @@ public class Venda extends Auditable {
     @Column(nullable = false)
     private LocalDateTime dataVenda;
 
+    // 🚀 O MOTOR DO SIMULADOR DE TESOURARIA
+    @Column(name = "data_vencimento")
+    private LocalDateTime dataVencimento;
+
     @Column(precision = 10, scale = 2)
     private BigDecimal totalSemIva;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal totalComIva;
 
-    // 🛡️ CORREÇÃO: O Estado de Pagamento adicionado para não dar NullPointerException
+    // 🚀 NOVO CAMPO: O que já foi efetivamente pago
+    @Column(precision = 10, scale = 2)
+    private BigDecimal valorPago = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "estado_pagamento")
     private EstadoPagamento estadoPagamento = EstadoPagamento.PENDENTE;
@@ -66,6 +73,9 @@ public class Venda extends Auditable {
     @PrePersist
     protected void onPrePersist() {
         if (dataVenda == null) dataVenda = LocalDateTime.now();
+        if (valorPago == null) valorPago = BigDecimal.ZERO; // Dupla segurança
+        // 🛡️ FALLBACK: Garante que faturas antigas não partem o simulador
+        if (dataVencimento == null) dataVencimento = dataVenda;
     }
 
     // ==========================================

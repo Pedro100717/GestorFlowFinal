@@ -8,11 +8,16 @@ import pt.gestorflow.backend.model.Movimento;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 public interface MovimentoRepository extends JpaRepository<Movimento, Long> {
 
+    // 🚀 O método que faltava para a segurança do estorno!
+    Optional<Movimento> findByIdAndUtilizadorId(Long id, Long utilizadorId);
+
     @EntityGraph(attributePaths = {"compra", "venda", "fornecedor", "cliente"})
     List<Movimento> findAllByContaIdOrderByDataMovimentoDesc(Long contaId);
+
     // 1. Quanto pagámos a este Fornecedor a partir desta Conta específica?
     @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.fornecedor.id = :fornecedorId AND m.conta.id = :contaId AND m.tipo = 'DEBITO' AND m.utilizador.id = :userId")
     BigDecimal totalPagoAFornecedorPorConta(@Param("fornecedorId") Long fornecedorId, @Param("contaId") Long contaId, @Param("userId") Long userId);
@@ -21,7 +26,7 @@ public interface MovimentoRepository extends JpaRepository<Movimento, Long> {
     @Query("SELECT COALESCE(SUM(m.valor), 0) FROM Movimento m WHERE m.fornecedor.id = :fornecedorId AND m.tipo = 'DEBITO' AND m.utilizador.id = :userId")
     BigDecimal totalGastoComFornecedor(@Param("fornecedorId") Long fornecedorId, @Param("userId") Long userId);
 
-    // 3. O Lucro / Fluxo Real da Conta (Agora em JPQL seguro e isolado por utilizador)
+    // 3. O Lucro / Fluxo Real da Conta
     @Query("SELECT COALESCE(SUM(CASE WHEN m.tipo = 'CREDITO' THEN m.valor ELSE (m.valor * -1) END), 0) FROM Movimento m WHERE m.conta.id = :contaId AND m.utilizador.id = :userId")
     BigDecimal lucroRealDaConta(@Param("contaId") Long contaId, @Param("userId") Long userId);
 

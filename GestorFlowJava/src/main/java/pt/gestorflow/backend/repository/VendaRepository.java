@@ -32,5 +32,6 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
     @Query("SELECT COALESCE(SUM(v.totalComIva), 0) FROM Venda v WHERE v.utilizador.id = :userId AND v.dataVenda BETWEEN :inicio AND :fim")
     BigDecimal totalVendasPorPeriodo(Long userId, LocalDateTime inicio, LocalDateTime fim);
 
-    List<Venda> findAllByUtilizadorIdAndEstadoPagamento(Long utilizadorId, EstadoPagamento estadoPagamento);
+    // 🚀 A MUDANÇA INDUSTRIAL FINAL: 'In' no nome do método para suportar PENDENTE e PARCIALMENTE_PAGO
+    List<Venda> findAllByUtilizadorIdAndEstadoPagamentoIn(Long utilizadorId, List<EstadoPagamento> estados);
 }

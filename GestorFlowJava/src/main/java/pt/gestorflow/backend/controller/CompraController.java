@@ -40,7 +40,11 @@ public class CompraController {
         return ResponseEntity.ok(service.listarMinhasCompras(page, size));
     }
 
-    // 🛡️ ADICIONADO: O padrão perfeito para eliminações (Status 204)
+    @PutMapping("/{id}")
+    public ResponseEntity<CompraResponseDTO> atualizarCompra(@PathVariable Long id, @Valid @RequestBody CompraDTO dto) {
+        return ResponseEntity.ok(service.atualizarCompra(id, dto));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         service.eliminar(id);

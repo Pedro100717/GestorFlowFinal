@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import pt.gestorflow.backend.dto.VendaDTO;
 import pt.gestorflow.backend.dto.VendaResponseDTO;
 import pt.gestorflow.backend.service.VendaService;
-import pt.gestorflow.backend.model.TxIva; // 🛡️ Importação Adicionada
+import pt.gestorflow.backend.model.TxIva;
 
-import java.util.List; // 🛡️ Importação Adicionada
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/vendas")
@@ -42,6 +42,14 @@ public class VendaController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(service.listarMinhasVendas(page, size));
+    }
+
+    // ==========================================
+    // --- 🚀 A PORTA PARA A EDIÇÃO (UPDATE) ---
+    // ==========================================
+    @PutMapping("/{id}")
+    public ResponseEntity<VendaResponseDTO> atualizarVenda(@PathVariable Long id, @Valid @RequestBody VendaDTO dto) {
+        return ResponseEntity.ok(service.atualizarVenda(id, dto));
     }
 
     @DeleteMapping("/{id}")

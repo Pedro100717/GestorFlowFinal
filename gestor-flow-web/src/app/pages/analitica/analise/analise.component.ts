@@ -1,21 +1,28 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // 🛡️ IMPORTANTE: Adicionado para o ngModel funcionar
+import { FormsModule } from '@angular/forms'; 
 import { AnaliticaService } from '../../../services/analitica.service';
 import { AnaliseDashboard } from '../../../core/models/analitica.model';
 
 interface GrupoCentroCusto {
   centroCusto: string;
   seccoes: AnaliseDashboard[];
-  subtotalVendas: number;
-  subtotalCompras: number;
-  subtotalMargem: number;
+  
+  // 📈 Subtotais Operacionais (Tabela 1)
+  subtotalVendasSemIva: number;
+  subtotalComprasSemIva: number;
+  subtotalMargemBruta: number;
+  
+  // ⚖️ Subtotais Fiscais (Tabela 2)
+  subtotalIvaVendas: number;
+  subtotalIvaCompras: number;
+  subtotalSaldoIva: number;
 }
 
 @Component({
   selector: 'app-analise',
   standalone: true,
-  imports: [CommonModule, FormsModule], // 🛡️ FormsModule ADICIONADO AQUI
+  imports: [CommonModule, FormsModule], 
   templateUrl: './analise.component.html'
 })
 export class AnaliseComponent implements OnInit {
@@ -28,10 +35,15 @@ export class AnaliseComponent implements OnInit {
   listaCentros: string[] = [];
   centroSelecionado: string = ''; // Vazio significa "Todos"
 
-  // Totais Visíveis
-  totalGeralVendas: number = 0;
-  totalGeralCompras: number = 0;
-  totalGeralMargem: number = 0;
+  // 📈 Totais Gerais Operacionais
+  totalGeralVendasSemIva: number = 0;
+  totalGeralComprasSemIva: number = 0;
+  totalGeralMargemBruta: number = 0;
+
+  // ⚖️ Totais Gerais Fiscais
+  totalGeralIvaVendas: number = 0;
+  totalGeralIvaCompras: number = 0;
+  totalGeralSaldoIva: number = 0;
 
   carregando: boolean = true;
 
@@ -61,7 +73,7 @@ export class AnaliseComponent implements OnInit {
 
   private processarDados(dadosBrutos: AnaliseDashboard[]) {
     const mapa = new Map<string, GrupoCentroCusto>();
-    const centrosSet = new Set<string>(); // Para extrair os nomes únicos dos centros
+    const centrosSet = new Set<string>();
 
     dadosBrutos.forEach(linha => {
       centrosSet.add(linha.centroCusto);
@@ -70,36 +82,41 @@ export class AnaliseComponent implements OnInit {
         mapa.set(linha.centroCusto, {
           centroCusto: linha.centroCusto,
           seccoes: [],
-          subtotalVendas: 0,
-          subtotalCompras: 0,
-          subtotalMargem: 0
+          
+          subtotalVendasSemIva: 0,
+          subtotalComprasSemIva: 0,
+          subtotalMargemBruta: 0,
+          
+          subtotalIvaVendas: 0,
+          subtotalIvaCompras: 0,
+          subtotalSaldoIva: 0
         });
       }
 
       const grupo = mapa.get(linha.centroCusto)!;
       grupo.seccoes.push(linha);
-      grupo.subtotalVendas += linha.totalVendas;
-      grupo.subtotalCompras += linha.totalCompras;
-      grupo.subtotalMargem += linha.margem;
+      
+      // Acumular Operacional
+      grupo.subtotalVendasSemIva += linha.totalVendasSemIva;
+      grupo.subtotalComprasSemIva += linha.totalComprasSemIva;
+      grupo.subtotalMargemBruta += linha.margemBruta;
+      
+      // Acumular Fiscal
+      grupo.subtotalIvaVendas += linha.totalIvaVendas;
+      grupo.subtotalIvaCompras += linha.totalIvaCompras;
+      grupo.subtotalSaldoIva += linha.saldoIva;
     });
 
-    // Guarda tudo na "Gaveta Principal"
     this.gruposTodos = Array.from(mapa.values());
-    
-    // Preenche as opções do Dropdown
     this.listaCentros = Array.from(centrosSet).sort();
 
-    // Aplica o filtro atual (por defeito mostra "Todos")
     this.aplicarFiltro();
   }
 
-  // 🚀 O MOTOR DE FILTRAGEM INSTANTÂNEA
   aplicarFiltro() {
     if (this.centroSelecionado === '') {
-      // Se não houver filtro, exibe todos
       this.gruposExibidos = [...this.gruposTodos];
     } else {
-      // Se houver filtro, exibe só o selecionado
       this.gruposExibidos = this.gruposTodos.filter(g => g.centroCusto === this.centroSelecionado);
     }
     
@@ -107,15 +124,26 @@ export class AnaliseComponent implements OnInit {
   }
 
   private recalcularTotais() {
-    this.totalGeralVendas = 0;
-    this.totalGeralCompras = 0;
-    this.totalGeralMargem = 0;
+    // Reset Operacional
+    this.totalGeralVendasSemIva = 0;
+    this.totalGeralComprasSemIva = 0;
+    this.totalGeralMargemBruta = 0;
+    
+    // Reset Fiscal
+    this.totalGeralIvaVendas = 0;
+    this.totalGeralIvaCompras = 0;
+    this.totalGeralSaldoIva = 0;
 
-    // Soma apenas os valores que estão visíveis no ecrã!
     this.gruposExibidos.forEach(g => {
-      this.totalGeralVendas += g.subtotalVendas;
-      this.totalGeralCompras += g.subtotalCompras;
-      this.totalGeralMargem += g.subtotalMargem;
+      // Somar Operacional
+      this.totalGeralVendasSemIva += g.subtotalVendasSemIva;
+      this.totalGeralComprasSemIva += g.subtotalComprasSemIva;
+      this.totalGeralMargemBruta += g.subtotalMargemBruta;
+      
+      // Somar Fiscal
+      this.totalGeralIvaVendas += g.subtotalIvaVendas;
+      this.totalGeralIvaCompras += g.subtotalIvaCompras;
+      this.totalGeralSaldoIva += g.subtotalSaldoIva;
     });
   }
 }

@@ -13,36 +13,45 @@
           <thead class="bg-light">
             <tr>
               <th class="ps-4 py-3 border-0 text-muted small uppercase">Data</th>
+              <th class="border-0 text-muted small uppercase">Vencimento</th>
               <th class="border-0 text-muted small uppercase">Cliente</th>
               <th class="border-0 text-muted small uppercase">Artigo / Designação</th>
               <th class="border-0 text-muted small uppercase">Estado</th>
               <th class="border-0 text-muted small uppercase">Conta Movimentada</th>
               <th class="border-0 text-muted small uppercase">C. Custo</th>
-              <th class="border-0 text-muted small uppercase">Secção</th>
               <th class="border-0 text-muted small uppercase text-end">Qtd</th>
               <th class="border-0 text-muted small uppercase text-end">Preço Unit.</th>
-              <th class="border-0 text-muted small uppercase text-end">IVA</th>
-              <th class="border-0 text-muted small uppercase text-end pe-4">Total</th>
+              <th class="border-0 text-muted small uppercase text-end">Total</th>
+              <th class="border-0 text-muted small uppercase text-center pe-4">Ações</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let v of listaVendas">
               <td class="ps-4 text-muted small">{{ v.dataVenda | date:'dd/MM/yyyy' }}</td>
               
+              <td>
+                  <span class="badge bg-light text-primary border border-primary border-opacity-25">
+                      <i class="bi bi-calendar-check me-1"></i>{{ v.dataVencimento | date:'dd/MM/yyyy' }}
+                  </span>
+              </td>
+              
               <td class="fw-bold text-dark">{{ v.clienteNome }}</td>
               
               <td>
-                  <div class="fw-bold">{{ v.linhas?.[0]?.artigoNome }}</div>
-                  <div class="small text-muted" *ngIf="v.linhas?.[0]?.designacaoPersonalizada">
-                      {{ v.linhas?.[0]?.designacaoPersonalizada }}
-                  </div>
+                  <ng-container *ngIf="v.linhas && v.linhas.length > 0">
+                      <div class="fw-bold">{{ v.linhas[0].artigoNome }}</div>
+                      <div class="small text-muted" *ngIf="v.linhas[0].designacaoPersonalizada">
+                          {{ v.linhas[0].designacaoPersonalizada }}
+                      </div>
+                  </ng-container>
+                  <span *ngIf="!v.linhas || v.linhas.length === 0" class="text-muted">-</span>
               </td>
               
               <td>
                   <span class="badge" 
-                        [ngClass]="v.estadoPagamento === 'PAGO' ? 'bg-success' : 'bg-warning text-dark'">
+                        [ngClass]="v.estadoPagamento === 'PAGO' ? 'bg-success' : (v.estadoPagamento === 'PARCIALMENTE_PAGO' ? 'bg-info text-dark' : 'bg-warning text-dark')">
                       <i class="bi" [ngClass]="v.estadoPagamento === 'PAGO' ? 'bi-check-circle' : 'bi-hourglass-split'"></i>
-                      {{ v.estadoPagamento === 'PAGO' ? 'Pago' : 'Pendente' }}
+                      {{ v.estadoPagamento === 'PAGO' ? 'Pago' : (v.estadoPagamento === 'PARCIALMENTE_PAGO' ? 'Parcial' : 'Pendente') }}
                   </span>
               </td>
 
@@ -54,28 +63,31 @@
               </td>
               
               <td>
-                  <span *ngIf="v.centroCustoCodigo" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
+                  <span *ngIf="v.centroCustoCodigo" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" title="{{v.seccaoHomoCodigo}}">
                       {{ v.centroCustoCodigo }}
                   </span>
                   <span *ngIf="!v.centroCustoCodigo" class="text-muted small">-</span>
               </td>
               
-              <td>
-                  <span *ngIf="v.seccaoHomoCodigo" class="text-secondary small fw-bold">
-                      {{ v.seccaoHomoCodigo }}
-                  </span>
-                  <span *ngIf="!v.seccaoHomoCodigo" class="text-muted small">-</span>
+              <td class="text-end font-monospace">
+                  {{ v.linhas && v.linhas.length > 0 ? v.linhas[0].quantidade : '-' }}
+              </td>
+              <td class="text-end font-monospace">
+                  {{ v.linhas && v.linhas.length > 0 ? (v.linhas[0].precoUnitario | currency:'EUR') : '-' }}
               </td>
               
-              <td class="text-end font-monospace">{{ v.linhas?.[0]?.quantidade }}</td>
-              <td class="text-end font-monospace">{{ v.linhas?.[0]?.precoUnitario | currency:'EUR' }}</td>
-              
-              <td class="text-end text-muted small">
-                  <span *ngIf="v.linhas?.[0]?.taxaIvaValor">{{ v.linhas?.[0]?.taxaIvaValor }}%</span>
-                  <span *ngIf="!v.linhas?.[0]?.taxaIvaValor">-</span>
+              <td class="text-end fw-bold text-success">{{ v.totalComIva | currency:'EUR' }}</td>
+
+              <td class="text-center pe-4">
+                  <button class="btn btn-sm btn-light text-primary me-1 border" 
+                          (click)="abrirModalEditar(v)" title="Editar Venda">
+                      <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-sm btn-light text-danger border" 
+                          (click)="eliminarVenda(v)" title="Anular Venda">
+                      <i class="bi bi-trash"></i>
+                  </button>
               </td>
-              
-              <td class="text-end fw-bold text-success pe-4">{{ v.totalComIva | currency:'EUR' }}</td>
             </tr>
             <tr *ngIf="listaVendas.length === 0">
                 <td colspan="11" class="text-center py-5 text-muted">
@@ -94,17 +106,30 @@
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title fw-bold">Nova Venda</h5>
+        <h5 class="modal-title fw-bold">
+            <i class="bi" [ngClass]="vendaEmEdicao ? 'bi-pencil-square me-2' : 'bi-receipt me-2'"></i>
+            {{ vendaEmEdicao ? 'Editar Venda #' + vendaEmEdicao.id : 'Nova Venda' }}
+        </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
         <form [formGroup]="formVenda">
 
-          <div class="mb-4 bg-light p-3 rounded border">
-              <label class="form-label small fw-bold text-primary">
-                  <i class="bi bi-calendar-check me-2"></i>Data da Venda
-              </label>
-              <input type="datetime-local" class="form-control border-primary" formControlName="dataVenda">
+          <div class="row mb-4 bg-light p-3 rounded border mx-0">
+              <div class="col-md-6 mb-3 mb-md-0 px-2">
+                  <label class="form-label small fw-bold text-secondary">
+                      <i class="bi bi-calendar-event me-2"></i>Data da Venda
+                  </label>
+                  <input type="datetime-local" class="form-control border-secondary" formControlName="dataVenda">
+              </div>
+              <div class="col-md-6 px-2">
+                  <label class="form-label small fw-bold text-primary">
+                      <i class="bi bi-calendar-check me-2"></i>Data de Vencimento
+                  </label>
+                  <input type="datetime-local" class="form-control border-primary" formControlName="dataVencimento"
+                         [ngClass]="{ 'is-invalid': f['dataVencimento'].touched && f['dataVencimento'].invalid }">
+                  <small class="text-muted" style="font-size: 0.7rem;">Quando o dinheiro entra na conta</small>
+              </div>
           </div>
 
           <div class="row">
@@ -186,8 +211,9 @@
       </div>
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" [disabled]="formVenda.invalid" (click)="registarVenda()">
-          <i class="bi bi-check-lg me-2"></i> Emitir Venda
+        <button type="button" class="btn btn-primary" [disabled]="formVenda.invalid" (click)="guardarVenda()">
+          <i class="bi" [ngClass]="vendaEmEdicao ? 'bi-save me-2' : 'bi-check-lg me-2'"></i>
+          {{ vendaEmEdicao ? 'Atualizar Venda' : 'Emitir Venda' }}
         </button>
       </div>
     </div>

@@ -7,7 +7,7 @@ import { ClienteService } from '../../services/cliente.service';
 import { AnaliticaService } from '../../services/analitica.service';
 import { TesourariaService } from '../../services/tesouraria.service'; 
 
-import { Venda } from '../../core/models/venda.model';
+import { Venda, TaxaIva } from '../../core/models/venda.model'; // 🛡️ Importado TaxaIva
 import { Artigo } from '../../core/models/artigo.model';
 import { Cliente } from '../../core/models/cliente.model';
 import { CentroCusto, SeccaoHomo } from '../../core/models/analitica.model';
@@ -28,14 +28,15 @@ export class VendasComponent implements OnInit {
   listaVendas: Venda[] = [];
   listaArtigos: Artigo[] = [];
   listaClientes: Cliente[] = [];
-  listaTaxasIva: any[] = [];
+  listaTaxasIva: TaxaIva[] = []; // 🛡️ Tipagem corrigida!
   listaCentros: CentroCusto[] = [];
   listaSeccoes: SeccaoHomo[] = [];
-  // ❌ seccoesFiltradas removida - as secções agora são livres e independentes!
 
   formVenda!: FormGroup;
   totalCalculado: number = 0;
   stockDisponivel: number | null = null; 
+  
+  vendaEmEdicao: Venda | null = null;
 
   constructor(
     private vendaService: VendaService,
@@ -52,8 +53,6 @@ export class VendasComponent implements OnInit {
     this.carregarTudo();
     this.formVenda.valueChanges.subscribe(() => this.calcularTotal());
     
-    // ❌ Subscrição do centroCustoId removida! Já não há filtro de secções por centro.
-    
     this.vendaService.vendas$.subscribe((vendasAtualizadas) => {
       this.listaVendas = vendasAtualizadas;
       this.cd.detectChanges();
@@ -63,6 +62,8 @@ export class VendasComponent implements OnInit {
   inicializarFormulario() {
     this.formVenda = this.fb.group({
       dataVenda: [this.getDataAtual(), [Validators.required]],
+      // 🚀 NOVO CAMPO: O Motor do Simulador
+      dataVencimento: [this.getDataAtual(), [Validators.required]], 
       clienteId: [null, [Validators.required]],
       artigoId: [null, [Validators.required]],
       taxaIvaId: [null, [Validators.required]],
@@ -78,6 +79,14 @@ export class VendasComponent implements OnInit {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
+  }
+
+  // 🛡️ Função utilitária para converter datas do Java para o formato do input HTML
+  formatarDataParaInput(dataIso: string | undefined): string {
+    if (!dataIso) return this.getDataAtual();
+    const d = new Date(dataIso);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
   }
 
   get f() { return this.formVenda.controls; }
@@ -100,26 +109,26 @@ export class VendasComponent implements OnInit {
         this.listaTaxasIva = res.taxas;
         this.cd.detectChanges();
       },
-      error: (err) => console.error('Erro ao carregar dados das vendas:', err)
+      error: (err) => console.error('Erro ao carregar dados:', err)
     });
   }
 
-  // ❌ Função filtrarSeccoes() removida na íntegra!
-
   aoSelecionarArtigo() {
-    const artigoId = this.formVenda.get('artigoId')?.value;
-    const artigo = this.listaArtigos.find(a => a.id == artigoId);
-    
-    if (artigo) {
-      this.formVenda.patchValue({ precoUnitario: artigo.preco });
-      this.stockDisponivel = artigo.stockAtual || 0;
-      
-      if (artigo.movimentaStock && this.stockDisponivel! <= 0) {
-          const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000 });
-          Toast.fire({ icon: 'warning', title: 'Atenção: Este artigo não tem stock disponível!' });
-      }
-    } else {
-        this.stockDisponivel = null;
+    if (!this.vendaEmEdicao) {
+        const artigoId = this.formVenda.get('artigoId')?.value;
+        const artigo = this.listaArtigos.find(a => a.id == artigoId);
+        
+        if (artigo) {
+          this.formVenda.patchValue({ precoUnitario: artigo.preco });
+          this.stockDisponivel = artigo.stockAtual || 0;
+          
+          if (artigo.movimentaStock && this.stockDisponivel! <= 0) {
+              const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000 });
+              Toast.fire({ icon: 'warning', title: 'Atenção: Este artigo não tem stock disponível!' });
+          }
+        } else {
+            this.stockDisponivel = null;
+        }
     }
   }
 
@@ -137,59 +146,94 @@ export class VendasComponent implements OnInit {
   }
 
   abrirModalNovo() {
+    this.vendaEmEdicao = null;
     this.formVenda.reset({ 
         dataVenda: this.getDataAtual(),
+        dataVencimento: this.getDataAtual(),
         quantidade: 1, 
         precoUnitario: 0,
         taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null
     });
     this.stockDisponivel = null;
     this.totalCalculado = 0;
-    // ❌ Limpeza da array seccoesFiltradas removida
     const modal = new bootstrap.Modal(document.getElementById('modalVenda'));
     modal.show();
   }
 
-  registarVenda() {
-    if (this.formVenda.invalid) {
-      this.formVenda.markAllAsTouched();
-      Swal.fire({
-        icon: 'warning',
-        title: 'Atenção',
-        text: 'Por favor, preencha todos os campos obrigatórios corretamente.',
-        confirmButtonColor: '#0d6efd'
-      });
+  abrirModalEditar(venda: Venda) {
+    if (venda.estadoPagamento !== 'PENDENTE') {
+      Swal.fire({ icon: 'warning', title: 'Operação Bloqueada', text: 'Estorne o pagamento primeiro.', confirmButtonColor: '#0d6efd'});
       return;
     }
-    
-    const qtd = this.formVenda.get('quantidade')?.value;
-    const artigoId = this.formVenda.get('artigoId')?.value;
-    const artigo = this.listaArtigos.find(a => a.id == artigoId);
 
-    if (artigo && artigo.movimentaStock && (artigo.stockAtual || 0) < qtd) {
-        Swal.fire({
-          title: 'Stock Insuficiente',
-          text: `Tens apenas ${artigo.stockAtual} em stock. Queres vender ${qtd} mesmo assim (o stock ficará negativo)?`,
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#f39c12',
-          cancelButtonColor: '#6c757d',
-          confirmButtonText: 'Sim, vender mesmo assim!',
-          cancelButtonText: 'Cancelar'
-        }).then((result) => {
-          if (result.isConfirmed) {
-            this.executarRegistoVenda();
-          }
-        });
-    } else {
-        this.executarRegistoVenda();
+    this.vendaEmEdicao = venda;
+    const linhaBase = venda.linhas && venda.linhas.length > 0 ? venda.linhas[0] : null;
+
+    let idIvaParaForm = null;
+    if (linhaBase && linhaBase.taxaIvaValor) {
+        const taxaCorreta = this.listaTaxasIva.find(t => t.valor === linhaBase.taxaIvaValor);
+        if (taxaCorreta) idIvaParaForm = taxaCorreta.id;
     }
+
+    this.formVenda.patchValue({
+      dataVenda: this.formatarDataParaInput(venda.dataVenda),
+      dataVencimento: this.formatarDataParaInput(venda.dataVencimento), // 🚀 Carrega o vencimento
+      clienteId: venda.clienteId,
+      centroCustoId: venda.centroCustoId,
+      seccaoHomoId: venda.seccaoHomoId,
+      artigoId: linhaBase ? linhaBase.artigoId : null,
+      taxaIvaId: idIvaParaForm,
+      quantidade: linhaBase ? linhaBase.quantidade : 1,
+      precoUnitario: linhaBase ? linhaBase.precoUnitario : 0,
+      designacaoPersonalizada: linhaBase ? linhaBase.designacaoPersonalizada : ''
+    });
+
+    this.calcularTotal();
+    const modal = new bootstrap.Modal(document.getElementById('modalVenda')!);
+    modal.show();
   }
 
-  private executarRegistoVenda() {
+  eliminarVenda(venda: Venda) {
+    if (venda.estadoPagamento !== 'PENDENTE') {
+      Swal.fire({ icon: 'warning', title: 'Operação Bloqueada', text: 'Não é possível eliminar uma fatura já recebida.', confirmButtonColor: '#0d6efd'});
+      return;
+    }
+
+    Swal.fire({
+      title: 'Tem a certeza?',
+      text: `Vai anular a fatura de ${venda.clienteNome}.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Sim, anular!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.vendaService.anular(venda.id!).subscribe({
+          next: () => {
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Anulada!'});
+            this.tesourariaService.notificarNovaTransacao(); 
+          },
+          error: (e) => Swal.fire('Erro', e.error?.message, 'error')
+        });
+      }
+    });
+  }
+
+  guardarVenda() {
+    if (this.formVenda.invalid) {
+      this.formVenda.markAllAsTouched();
+      return;
+    }
+    this.executarRegistoOuUpdate();
+  }
+
+  private executarRegistoOuUpdate() {
     const formVal = this.formVenda.value;
+    
     const payloadVenda = {
         dataVenda: formVal.dataVenda,
+        dataVencimento: formVal.dataVencimento, // 🚀 ENVIAR PARA O JAVA
         clienteId: formVal.clienteId,
         centroCustoId: formVal.centroCustoId,
         seccaoHomoId: formVal.seccaoHomoId,
@@ -204,24 +248,17 @@ export class VendasComponent implements OnInit {
         ]
     };
 
-    this.vendaService.registar(payloadVenda).subscribe({
+    const operacao$ = this.vendaEmEdicao 
+        ? this.vendaService.atualizar(this.vendaEmEdicao.id!, payloadVenda)
+        : this.vendaService.registar(payloadVenda);
+
+    operacao$.subscribe({
       next: () => {
-        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-        Toast.fire({ icon: 'success', title: 'Venda registada com sucesso!' });
-        
+        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Guardado!' });
         this.tesourariaService.notificarNovaTransacao(); 
-        
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalVenda'));
-        modal?.hide();
+        bootstrap.Modal.getInstance(document.getElementById('modalVenda'))?.hide();
       },
-      error: (e: any) => {
-        Swal.fire({
-          icon: 'error',
-          title: 'Erro ao registar',
-          text: e.error?.message || 'Ocorreu um erro ao processar a venda.',
-          confirmButtonColor: '#0d6efd'
-        });
-      }
+      error: (e: any) => Swal.fire('Erro', e.error?.message, 'error')
     });
   }
 }

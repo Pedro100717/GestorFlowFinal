@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Data
 public class CompraDTO {
@@ -13,7 +12,7 @@ public class CompraDTO {
     @NotNull private Long artigoId;
 
     @NotNull(message = "A taxa de IVA é obrigatória")
-    private Long taxaIvaId; // <--- NOVO
+    private Long taxaIvaId;
 
     @NotNull @Positive
     private BigDecimal quantidade;
@@ -28,4 +27,7 @@ public class CompraDTO {
     private Long seccaoHomoId;
 
     private LocalDate dataCompra;
+
+    // 🚀 O NOVO CAMPO PARA O SIMULADOR DE TESOURARIA
+    private LocalDate dataVencimento;
 }

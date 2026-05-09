@@ -19,6 +19,10 @@ public class Compra extends Auditable {
     @Column(nullable = false)
     private LocalDateTime dataCompra;
 
+    // 🚀 O MOTOR DO SIMULADOR DE TESOURARIA
+    @Column(name = "data_vencimento")
+    private LocalDateTime dataVencimento;
+
     private String numeroFaturaFornecedor;
 
     @Column(nullable = false)
@@ -33,11 +37,15 @@ public class Compra extends Auditable {
     @Column(precision = 10, scale = 2)
     private BigDecimal total;
 
+    // O que já foi efetivamente pago ao fornecedor
+    @Column(precision = 10, scale = 2)
+    private BigDecimal valorPago = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "estado_pagamento")
     private EstadoPagamento estadoPagamento = EstadoPagamento.PENDENTE;
 
-    // --- Relações (Otimizadas com FetchType.LAZY) ---
+    // --- Relações ---
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tx_iva_id", nullable = false)
@@ -72,9 +80,15 @@ public class Compra extends Auditable {
         if (dataCompra == null) {
             dataCompra = LocalDateTime.now();
         }
+        if (valorPago == null) {
+            valorPago = BigDecimal.ZERO;
+        }
+        // 🛡️ FALLBACK: Garante que faturas antigas não partem o simulador
+        if (dataVencimento == null) {
+            dataVencimento = dataCompra;
+        }
     }
 
-    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE PARA JPA
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

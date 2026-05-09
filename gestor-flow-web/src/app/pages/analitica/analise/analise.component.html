@@ -1,98 +1,148 @@
 <div class="container-fluid">
   
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div>
-        <h3 class="fw-bold text-secondary mb-0">Dashboard Analítico</h3>
-        <small class="text-muted">Análise de Margens por Centro de Custo e Secção</small>
-      </div>
-      
-      <div class="d-flex gap-2">
-        <select class="form-select form-select-sm border-secondary text-secondary fw-bold" 
-                style="width: auto; min-width: 200px;" 
-                [(ngModel)]="centroSelecionado" 
-                (change)="aplicarFiltro()" 
-                [disabled]="carregando">
-          <option value="">-- Todos os Centros --</option>
-          <option *ngFor="let c of listaCentros" [value]="c">{{ c }}</option>
-        </select>
-  
-        <button class="btn btn-primary btn-sm d-flex align-items-center" (click)="carregarDados()" [disabled]="carregando">
-          <i class="bi bi-arrow-clockwise me-2" [class.fa-spin]="carregando"></i>Atualizar
-        </button>
-      </div>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold text-secondary mb-0">Dashboard Analítico</h3>
+      <small class="text-muted">Análise Operacional e Fiscal por Centro de Custo</small>
     </div>
-  
-    <div *ngIf="carregando" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
-      <div class="mt-2 text-muted small">A calcular rentabilidade...</div>
+    
+    <div class="d-flex gap-2">
+      <select class="form-select form-select-sm border-secondary text-secondary fw-bold" 
+              style="width: auto; min-width: 200px;" 
+              [(ngModel)]="centroSelecionado" 
+              (change)="aplicarFiltro()" 
+              [disabled]="carregando">
+        <option value="">-- Todos os Centros --</option>
+        <option *ngFor="let c of listaCentros" [value]="c">{{ c }}</option>
+      </select>
+
+      <button class="btn btn-primary btn-sm d-flex align-items-center" (click)="carregarDados()" [disabled]="carregando">
+        <i class="bi bi-arrow-clockwise me-2" [class.fa-spin]="carregando"></i>Atualizar
+      </button>
     </div>
-  
-    <div class="card shadow-sm border-0" *ngIf="!carregando">
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-bordered align-middle mb-0">
-            
-            <thead class="bg-light">
-              <tr>
-                <th class="py-3 border-0 text-muted small uppercase">Dimensão Analítica</th>
-                <th class="border-0 text-muted small uppercase text-end">Total Compras</th>
-                <th class="border-0 text-muted small uppercase text-end">Total Vendas</th>
-                <th class="border-0 text-muted small uppercase text-end pe-4">Margem Bruta</th>
-              </tr>
-            </thead>
-            
-            <tbody>
-              <ng-container *ngFor="let grupo of gruposExibidos">
-                
-                <tr *ngFor="let sec of grupo.seccoes">
-                  <td class="ps-4">
-                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-2">
-                      {{ grupo.centroCusto }}
-                    </span>
-                    <span class="fw-bold text-secondary">{{ sec.seccaoHomo }}</span>
-                  </td>
-                  <td class="text-end font-monospace text-danger">{{ sec.totalCompras | currency:'EUR' }}</td>
-                  <td class="text-end font-monospace text-success">{{ sec.totalVendas | currency:'EUR' }}</td>
-                  <td class="text-end font-monospace fw-bold pe-4" 
-                      [ngClass]="sec.margem >= 0 ? 'text-success' : 'text-danger'">
-                    {{ sec.margem | currency:'EUR' }}
-                  </td>
-                </tr>
-  
-                <tr class="table-secondary">
-                  <td class="text-end fw-bold text-uppercase small pt-3 pb-3">Subtotal {{ grupo.centroCusto }}</td>
-                  <td class="text-end fw-bold text-danger">{{ grupo.subtotalCompras | currency:'EUR' }}</td>
-                  <td class="text-end fw-bold text-success">{{ grupo.subtotalVendas | currency:'EUR' }}</td>
-                  <td class="text-end fw-bold pe-4" [ngClass]="grupo.subtotalMargem >= 0 ? 'text-success' : 'text-danger'">
-                    {{ grupo.subtotalMargem | currency:'EUR' }}
-                  </td>
-                </tr>
-  
-              </ng-container>
-  
-              <tr *ngIf="gruposExibidos.length === 0">
-                <td colspan="4" class="text-center py-5 text-muted">
-                  <i class="bi bi-bar-chart fs-1 d-block mb-2 opacity-50"></i>
-                  <span class="fw-bold">Nenhum dado encontrado.</span><br>
-                  <small>Registe faturas ou limpe o filtro selecionado.</small>
-                </td>
-              </tr>
-            </tbody>
-  
-            <tfoot class="bg-dark text-white" *ngIf="gruposExibidos.length > 0">
-              <tr>
-                <td class="text-end fw-bold text-uppercase pt-3 pb-3">Total Geral (Filtrado)</td>
-                <td class="text-end fw-bold text-warning">{{ totalGeralCompras | currency:'EUR' }}</td>
-                <td class="text-end fw-bold text-success">{{ totalGeralVendas | currency:'EUR' }}</td>
-                <td class="text-end fw-bold fs-5 pe-4" [ngClass]="totalGeralMargem >= 0 ? 'text-info' : 'text-danger'">
-                  {{ totalGeralMargem | currency:'EUR' }}
-                </td>
-              </tr>
-            </tfoot>
-  
-          </table>
-        </div>
-      </div>
-    </div>
-  
   </div>
+
+  <div *ngIf="carregando" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <div class="mt-2 text-muted small">A processar matrizes analíticas...</div>
+  </div>
+
+  <div *ngIf="!carregando">
+      
+      <h5 class="fw-bold text-primary mb-3"><i class="bi bi-graph-up me-2"></i>1. Análise Operacional (Valores Líquidos)</h5>
+      <div class="card shadow-sm border-0 mb-5">
+          <div class="card-body p-0">
+              <div class="table-responsive">
+                  <table class="table table-bordered align-middle mb-0">
+                      <thead class="bg-light">
+                          <tr>
+                              <th class="py-3 border-0 text-muted small uppercase">Dimensão Analítica</th>
+                              <th class="border-0 text-muted small uppercase text-end">Compras (Base)</th>
+                              <th class="border-0 text-muted small uppercase text-end">Vendas (Base)</th>
+                              <th class="border-0 text-muted small uppercase text-end pe-4">Margem Bruta</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <ng-container *ngFor="let grupo of gruposExibidos">
+                              <tr *ngFor="let sec of grupo.seccoes">
+                                  <td class="ps-4">
+                                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-2">{{ grupo.centroCusto }}</span>
+                                      <span class="fw-bold text-secondary">{{ sec.seccaoHomo }}</span>
+                                  </td>
+                                  <td class="text-end font-monospace text-danger">{{ sec.totalComprasSemIva | currency:'EUR' }}</td>
+                                  <td class="text-end font-monospace text-success">{{ sec.totalVendasSemIva | currency:'EUR' }}</td>
+                                  <td class="text-end font-monospace fw-bold pe-4" [ngClass]="sec.margemBruta >= 0 ? 'text-success' : 'text-danger'">
+                                      {{ sec.margemBruta | currency:'EUR' }}
+                                  </td>
+                              </tr>
+                              <tr class="table-secondary">
+                                  <td class="text-end fw-bold text-uppercase small pt-3 pb-3">Subtotal {{ grupo.centroCusto }}</td>
+                                  <td class="text-end fw-bold text-danger">{{ grupo.subtotalComprasSemIva | currency:'EUR' }}</td>
+                                  <td class="text-end fw-bold text-success">{{ grupo.subtotalVendasSemIva | currency:'EUR' }}</td>
+                                  <td class="text-end fw-bold pe-4" [ngClass]="grupo.subtotalMargemBruta >= 0 ? 'text-success' : 'text-danger'">
+                                      {{ grupo.subtotalMargemBruta | currency:'EUR' }}
+                                  </td>
+                              </tr>
+                          </ng-container>
+                          <tr *ngIf="gruposExibidos.length === 0">
+                              <td colspan="4" class="text-center py-5 text-muted">
+                                  <i class="bi bi-bar-chart fs-1 d-block mb-2 opacity-50"></i>
+                                  <span class="fw-bold">Nenhum dado encontrado.</span>
+                              </td>
+                          </tr>
+                      </tbody>
+                      <tfoot class="bg-dark text-white" *ngIf="gruposExibidos.length > 0">
+                          <tr>
+                              <td class="text-end fw-bold text-uppercase pt-3 pb-3">Total Geral (Operacional)</td>
+                              <td class="text-end fw-bold text-warning">{{ totalGeralComprasSemIva | currency:'EUR' }}</td>
+                              <td class="text-end fw-bold text-success">{{ totalGeralVendasSemIva | currency:'EUR' }}</td>
+                              <td class="text-end fw-bold fs-5 pe-4" [ngClass]="totalGeralMargemBruta >= 0 ? 'text-info' : 'text-danger'">
+                                  {{ totalGeralMargemBruta | currency:'EUR' }}
+                              </td>
+                          </tr>
+                      </tfoot>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+      <h5 class="fw-bold text-secondary mb-3"><i class="bi bi-bank me-2"></i>2. Análise Fiscal (Impostos)</h5>
+      <div class="card shadow-sm border-0 mb-4">
+          <div class="card-body p-0">
+              <div class="table-responsive">
+                  <table class="table table-bordered align-middle mb-0">
+                      <thead class="bg-light">
+                          <tr>
+                              <th class="py-3 border-0 text-muted small uppercase">Dimensão Analítica</th>
+                              <th class="border-0 text-muted small uppercase text-end" title="O IVA que pagaste e podes deduzir">IVA Suportado (Compras)</th>
+                              <th class="border-0 text-muted small uppercase text-end" title="O IVA que cobraste e tens de entregar">IVA Liquidado (Vendas)</th>
+                              <th class="border-0 text-muted small uppercase text-end pe-4" title="Positivo = A Pagar | Negativo = A Recuperar">Saldo de IVA</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <ng-container *ngFor="let grupo of gruposExibidos">
+                              <tr *ngFor="let sec of grupo.seccoes">
+                                  <td class="ps-4">
+                                      <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 me-2">{{ grupo.centroCusto }}</span>
+                                      <span class="fw-bold text-secondary">{{ sec.seccaoHomo }}</span>
+                                  </td>
+                                  <td class="text-end font-monospace text-muted">{{ sec.totalIvaCompras | currency:'EUR' }}</td>
+                                  <td class="text-end font-monospace text-dark">{{ sec.totalIvaVendas | currency:'EUR' }}</td>
+                                  <td class="text-end font-monospace fw-bold pe-4" [ngClass]="sec.saldoIva > 0 ? 'text-danger' : (sec.saldoIva < 0 ? 'text-success' : 'text-muted')">
+                                      {{ sec.saldoIva | currency:'EUR' }}
+                                  </td>
+                              </tr>
+                              <tr class="table-light">
+                                  <td class="text-end fw-bold text-uppercase small pt-3 pb-3">Subtotal IVA {{ grupo.centroCusto }}</td>
+                                  <td class="text-end fw-bold text-muted">{{ grupo.subtotalIvaCompras | currency:'EUR' }}</td>
+                                  <td class="text-end fw-bold text-dark">{{ grupo.subtotalIvaVendas | currency:'EUR' }}</td>
+                                  <td class="text-end fw-bold pe-4" [ngClass]="grupo.subtotalSaldoIva > 0 ? 'text-danger' : (grupo.subtotalSaldoIva < 0 ? 'text-success' : 'text-muted')">
+                                      {{ grupo.subtotalSaldoIva | currency:'EUR' }}
+                                  </td>
+                              </tr>
+                          </ng-container>
+                          <tr *ngIf="gruposExibidos.length === 0">
+                              <td colspan="4" class="text-center py-5 text-muted">
+                                  <i class="bi bi-bank fs-1 d-block mb-2 opacity-50"></i>
+                                  <span class="fw-bold">Nenhum imposto apurado.</span>
+                              </td>
+                          </tr>
+                      </tbody>
+                      <tfoot class="bg-secondary text-white" *ngIf="gruposExibidos.length > 0">
+                          <tr>
+                              <td class="text-end fw-bold text-uppercase pt-3 pb-3">Total Saldo Fiscal</td>
+                              <td class="text-end fw-bold text-light">{{ totalGeralIvaCompras | currency:'EUR' }}</td>
+                              <td class="text-end fw-bold text-warning">{{ totalGeralIvaVendas | currency:'EUR' }}</td>
+                              <td class="text-end fw-bold fs-5 pe-4" [ngClass]="totalGeralSaldoIva > 0 ? 'text-danger' : (totalGeralSaldoIva < 0 ? 'text-info' : 'text-light')">
+                                  {{ totalGeralSaldoIva | currency:'EUR' }}
+                                  <small class="fs-6 d-block fw-normal">{{ totalGeralSaldoIva > 0 ? '(A Pagar ao Estado)' : (totalGeralSaldoIva < 0 ? '(A Recuperar)' : '') }}</small>
+                              </td>
+                          </tr>
+                      </tfoot>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+  </div>
+</div>

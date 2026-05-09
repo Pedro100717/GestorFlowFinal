@@ -109,6 +109,35 @@ public class ArtigoService {
         return converterParaDTO(artigo);
     }
 
+    @Transactional
+    public void adicionarStock(Long artigoId, BigDecimal quantidade) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(artigoId, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
+
+        // Só mexemos no stock se for fisicamente palpável (Mercadoria)
+        if (artigo instanceof Mercadoria m) {
+            m.setStockAtual(m.getStockAtual().add(quantidade));
+            artigoRepository.save(m);
+        }
+    }
+
+    @Transactional
+    public void removerStock(Long artigoId, BigDecimal quantidade) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(artigoId, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
+
+        if (artigo instanceof Mercadoria m) {
+            // Em ERPs estritos, poderíamos bloquear se o stock ficasse negativo.
+            // Para já, permitimos stock negativo (venda a descoberto), mas atualizamos a matemática:
+            m.setStockAtual(m.getStockAtual().subtract(quantidade));
+            artigoRepository.save(m);
+        }
+    }
+
     // --- CONVERSOR INTERNO ---
     private ArtigoResponseDTO converterParaDTO(Artigo a) {
         ArtigoResponseDTO dto = new ArtigoResponseDTO();

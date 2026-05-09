@@ -9,7 +9,6 @@ import pt.gestorflow.backend.model.Compra;
 import pt.gestorflow.backend.model.EstadoPagamento;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,5 +26,6 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
     @Query("SELECT COALESCE(SUM(c.total), 0) FROM Compra c WHERE c.utilizador.id = :userId")
     BigDecimal totalGastos(Long userId);
 
-    List<Compra> findAllByUtilizadorIdAndEstadoPagamento(Long utilizadorId, EstadoPagamento estadoPagamento);
+    // 🚀 A MUDANÇA INDUSTRIAL: 'In' no nome do método e 'List<EstadoPagamento>' nos parâmetros
+    List<Compra> findAllByUtilizadorIdAndEstadoPagamentoIn(Long utilizadorId, List<EstadoPagamento> estados);
 }

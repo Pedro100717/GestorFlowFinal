@@ -1,11 +1,33 @@
+export interface TaxaIva {
+    id: number;
+    valor: number;
+}
+
+export interface LinhaVenda {
+    id?: number;
+    artigoId: number;
+    artigoNome?: string;
+    taxaIvaId: number;
+    taxaIvaValor?: number;
+    quantidade: number;
+    precoUnitario: number;
+    totalLinhaSemIva?: number;
+    totalLinhaComIva?: number;
+    designacaoPersonalizada?: string;
+}
+
 export interface Venda {
     id?: number;
     dataVenda?: string;
+    
+    // 🚀 O MOTOR DO SIMULADOR: Data prevista para o dinheiro entrar
+    dataVencimento?: string; 
+    
     designacao?: string;
     totalSemIva?: number;
     totalComIva?: number;
 
-    // 🛡️ NOVO: Estado para sabermos se está PAGO ou PENDENTE
+    // 🛡️ Estado: PAGO, PENDENTE ou PARCIALMENTE_PAGO
     estadoPagamento?: string;
 
     // Flat Fields (Substitui os objetos antigos)
@@ -23,10 +45,10 @@ export interface Venda {
     
     designacaoPersonalizada?: string;
 
-    // 🛡️ NOVO: O array de múltiplas linhas que criámos!
-    linhas?: any[];
+    // 🛡️ AGORA TIPADO: O array de múltiplas linhas
+    linhas?: LinhaVenda[];
 
-    // ⚠️ Antigos campos (Com '?' para não darem erro nas partes antigas do código)
+    // ⚠️ Legado (Manter para compatibilidade com código antigo)
     artigoId?: number;
     artigoNome?: string;
     quantidade?: number;

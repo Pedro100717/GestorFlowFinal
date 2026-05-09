@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, shareReplay, tap } from 'rxjs'; // <--- NOVOS IMPORTS
-import { Compra } from '../core/models/compra.model';
+import { BehaviorSubject, Observable, shareReplay, tap } from 'rxjs';
+import { Compra, TaxaIva } from '../core/models/compra.model'; // 🛡️ Tipagem forte ativada
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -12,17 +12,14 @@ export class CompraService {
   private readonly API_URL = `${environment.apiUrl}/compras`;
 
   // --- GESTÃO DE ESTADO (STATE MANAGEMENT) ---
-  // 1. O "Cofre" das compras
   private comprasSubject = new BehaviorSubject<Compra[]>([]);
-  // 2. A "Montra" para o ecrã ver
   public compras$ = this.comprasSubject.asObservable();
 
-  // Cache para o IVA
-  private cacheTaxasIva$: Observable<any[]> | null = null;
+  // 🛡️ ADEUS ANY! Cache agora protegida
+  private cacheTaxasIva$: Observable<TaxaIva[]> | null = null;
 
   constructor(private http: HttpClient) { }
 
-  // 3. Encher o cofre com dados da API
   carregarComprasDaAPI(): void {
     this.http.get<any>(this.API_URL).subscribe({
       next: (dados) => {
@@ -33,7 +30,7 @@ export class CompraService {
     });
   }
 
-  // 4. Registar e atualizar o cofre instantaneamente
+  // 🛡️ Parâmetro de entrada tipado
   registar(compra: Compra): Observable<Compra> {
     return this.http.post<Compra>(this.API_URL, compra).pipe(
       tap((novaCompraRegistada) => {
@@ -43,12 +40,33 @@ export class CompraService {
     );
   }
 
-  // ==========================================
-  // DADOS DE REFERÊNCIA (COM CACHE)
-  // ==========================================
-  listarTaxasIva(): Observable<any[]> {
+  // 🛡️ Parâmetro de entrada tipado
+  atualizar(id: number, compra: Compra): Observable<Compra> {
+    return this.http.put<Compra>(`${this.API_URL}/${id}`, compra).pipe(
+      tap((compraAtualizada) => {
+        const listaAtual = this.comprasSubject.getValue();
+        const index = listaAtual.findIndex(c => c.id === id);
+        if (index !== -1) {
+          listaAtual[index] = compraAtualizada;
+          this.comprasSubject.next([...listaAtual]); 
+        }
+      })
+    );
+  }
+
+  eliminar(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/${id}`).pipe(
+      tap(() => {
+        const listaAtual = this.comprasSubject.getValue();
+        this.comprasSubject.next(listaAtual.filter(c => c.id !== id));
+      })
+    );
+  }
+
+  // 🛡️ Contrato garantido: Retorna TaxaIva[]
+  listarTaxasIva(): Observable<TaxaIva[]> {
     if (!this.cacheTaxasIva$) {
-      this.cacheTaxasIva$ = this.http.get<any[]>(`${this.API_URL}/taxas-iva`).pipe(
+      this.cacheTaxasIva$ = this.http.get<TaxaIva[]>(`${this.API_URL}/taxas-iva`).pipe(
         shareReplay(1)
       );
     }

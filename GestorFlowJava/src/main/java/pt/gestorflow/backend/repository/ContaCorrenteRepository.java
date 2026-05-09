@@ -32,7 +32,7 @@ public interface ContaCorrenteRepository extends JpaRepository<Cliente, Long> {
         LEFT JOIN (
             SELECT cliente_id, SUM(valor) AS total_pago
             FROM movimentos_tesouraria
-            WHERE utilizador_id = :utilizadorId AND tipo = 'ENTRADA'
+            WHERE utilizador_id = :utilizadorId AND tipo = 'CREDITO'
             GROUP BY cliente_id
         ) t ON c.id = t.cliente_id
         WHERE c.utilizador_id = :utilizadorId
@@ -60,7 +60,7 @@ public interface ContaCorrenteRepository extends JpaRepository<Cliente, Long> {
             0 AS debito,
             m.valor AS credito
         FROM movimentos_tesouraria m
-        WHERE m.cliente_id = :clienteId AND m.utilizador_id = :utilizadorId AND m.tipo = 'ENTRADA'
+        WHERE m.cliente_id = :clienteId AND m.utilizador_id = :utilizadorId AND m.tipo = 'CREDITO'
         
         ORDER BY dataMovimento ASC
         """, nativeQuery = true)
@@ -88,7 +88,7 @@ public interface ContaCorrenteRepository extends JpaRepository<Cliente, Long> {
         LEFT JOIN (
             SELECT fornecedor_id, SUM(valor) AS total_pago
             FROM movimentos_tesouraria
-            WHERE utilizador_id = :utilizadorId AND tipo = 'SAIDA'
+            WHERE utilizador_id = :utilizadorId AND tipo = 'DEBITO'
             GROUP BY fornecedor_id
         ) t ON f.id = t.fornecedor_id
         WHERE f.utilizador_id = :utilizadorId
@@ -116,7 +116,7 @@ public interface ContaCorrenteRepository extends JpaRepository<Cliente, Long> {
             m.valor AS debito,
             0 AS credito
         FROM movimentos_tesouraria m
-        WHERE m.fornecedor_id = :fornecedorId AND m.utilizador_id = :utilizadorId AND m.tipo = 'SAIDA'
+        WHERE m.fornecedor_id = :fornecedorId AND m.utilizador_id = :utilizadorId AND m.tipo = 'DEBITO'
         
         ORDER BY dataMovimento ASC
         """, nativeQuery = true)

@@ -5,7 +5,14 @@ import java.math.BigDecimal;
 public interface AnaliseAnaliticaProjection {
     String getCentroCusto();
     String getSeccaoHomo();
-    BigDecimal getTotalVendas();
-    BigDecimal getTotalCompras();
-    BigDecimal getMargem();
+
+    // Operacional
+    BigDecimal getTotalVendasSemIva();
+    BigDecimal getTotalComprasSemIva();
+    BigDecimal getMargemBruta();
+
+    // Fiscal
+    BigDecimal getTotalIvaVendas();
+    BigDecimal getTotalIvaCompras();
+    BigDecimal getSaldoIva();
 }

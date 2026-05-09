@@ -10,8 +10,9 @@ import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.YearMonth;
+import java.time.format.TextStyle;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,114 +23,79 @@ public class TesourariaService {
     private final MovimentoRepository movimentoRepository;
     private final CompraRepository compraRepository;
     private final VendaRepository vendaRepository;
-
-    // 🚀 Injeções de Segurança
+    private final ClienteRepository clienteRepository;
+    private final FornecedorRepository fornecedorRepository;
     private final UtilizadorRepository utilizadorRepository;
     private final AuthService authService;
 
     // =========================================================================
-    // --- 1. GESTÃO DE PENDENTES E LIQUIDAÇÕES (O NOVO FLUXO) ---
+    // --- 🚀 1. SIMULADOR DE TESOURARIA (COM FIX CRONOLÓGICO) ---
     // =========================================================================
 
     @Transactional(readOnly = true)
-    public List<DocumentoPendenteDTO> listarPendentes() {
-        Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        List<DocumentoPendenteDTO> pendentes = new ArrayList<>();
-
-        List<Venda> vendas = vendaRepository.findAllByUtilizadorIdAndEstadoPagamento(utilizadorId, EstadoPagamento.PENDENTE);
-        for (Venda v : vendas) {
-            pendentes.add(new DocumentoPendenteDTO(v.getId(), "VENDA", v.getDataVenda(), v.getCliente().getNome(), v.getTotalComIva()));
-        }
-
-        List<Compra> compras = compraRepository.findAllByUtilizadorIdAndEstadoPagamento(utilizadorId, EstadoPagamento.PENDENTE);
-        for (Compra c : compras) {
-            pendentes.add(new DocumentoPendenteDTO(c.getId(), "COMPRA", c.getDataCompra(), c.getFornecedor().getNome(), c.getTotal()));
-        }
-
-        // ⚠️ Ponto crítico de performance em escala (ordenar em memória). Ponderar refatorar para Query paginada no futuro.
-        pendentes.sort((a, b) -> a.getData().compareTo(b.getData()));
-        return pendentes;
-    }
-
-    @Transactional
-    public void confirmarTransacao(ConfirmarPagamentoDTO dto) {
+    public SimuladorTesourariaDTO obterSimulacao() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        Utilizador user = utilizadorRepository.findById(utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+        BigDecimal saldoInicial = contaRepository.findAllByUtilizadorId(utilizadorId)
+                .stream()
+                .map(ContaBancaria::getSaldo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaBancariaId(), utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada ou acesso negado."));
+        List<EstadoPagamento> estadosPendentes = List.of(EstadoPagamento.PENDENTE, EstadoPagamento.PARCIALMENTE_PAGO);
 
-        Movimento mov = new Movimento();
-        mov.setConta(conta);
-        mov.setUtilizador(user);
-        mov.setDataMovimento(dto.getDataPagamento() != null ? dto.getDataPagamento() : LocalDateTime.now());
+        List<Venda> vendasPendentes = vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
+        List<Compra> comprasPendentes = compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
 
-        if ("VENDA".equalsIgnoreCase(dto.getTipoDocumento())) {
-            Venda venda = vendaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId)
-                    .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
+        // 🚀 O FIX: Usar YearMonth para garantir a ordenação cronológica e não alfabética!
+        Map<YearMonth, BigDecimal> fluxoMensal = new TreeMap<>();
 
-            venda.setEstadoPagamento(EstadoPagamento.PAGO);
-            venda.setContaBancaria(conta);
-            vendaRepository.save(venda);
-
-            mov.setTipo(Movimento.TipoMovimento.CREDITO);
-            mov.setValor(venda.getTotalComIva());
-            mov.setDescricao("Recebimento Venda #" + venda.getId() + " - " + venda.getCliente().getNome());
-            mov.setVenda(venda);
-            mov.setCliente(venda.getCliente());
-
-            // O @Version na entidade irá proteger contra Lost Updates aqui
-            conta.setSaldo(conta.getSaldo().add(venda.getTotalComIva()));
-
-        } else if ("COMPRA".equalsIgnoreCase(dto.getTipoDocumento())) {
-            Compra compra = compraRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId)
-                    .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
-
-            compra.setEstadoPagamento(EstadoPagamento.PAGO);
-            compra.setContaBancaria(conta);
-            compraRepository.save(compra);
-
-            mov.setTipo(Movimento.TipoMovimento.DEBITO);
-            mov.setValor(compra.getTotal());
-            mov.setDescricao("Pagamento Compra #" + compra.getId() + " - " + compra.getFornecedor().getNome());
-            mov.setCompra(compra);
-            mov.setFornecedor(compra.getFornecedor());
-
-            conta.setSaldo(conta.getSaldo().subtract(compra.getTotal()));
-        } else {
-            throw new IllegalArgumentException("Tipo de documento inválido. Use VENDA ou COMPRA.");
+        for (Venda v : vendasPendentes) {
+            YearMonth chave = YearMonth.from(v.getDataVencimento() != null ? v.getDataVencimento() : LocalDateTime.now());
+            BigDecimal valorPendente = v.getTotalComIva().subtract(v.getValorPago());
+            fluxoMensal.put(chave, fluxoMensal.getOrDefault(chave, BigDecimal.ZERO).add(valorPendente));
         }
 
-        mov.setSaldoApos(conta.getSaldo());
-        contaRepository.save(conta);
-        movimentoRepository.save(mov);
+        for (Compra c : comprasPendentes) {
+            YearMonth chave = YearMonth.from(c.getDataVencimento() != null ? c.getDataVencimento() : LocalDateTime.now());
+            BigDecimal valorPendente = c.getTotal().subtract(c.getValorPago());
+            fluxoMensal.put(chave, fluxoMensal.getOrDefault(chave, BigDecimal.ZERO).subtract(valorPendente));
+        }
+
+        List<SimuladorTesourariaDTO.PontoSimulacao> pontos = new ArrayList<>();
+        BigDecimal saldoAcumulado = saldoInicial;
+        pontos.add(new SimuladorTesourariaDTO.PontoSimulacao("Atual", saldoInicial));
+
+        for (Map.Entry<YearMonth, BigDecimal> entrada : fluxoMensal.entrySet()) {
+            saldoAcumulado = saldoAcumulado.add(entrada.getValue());
+            // Só aqui convertemos para a Label bonita que o Angular vai ler
+            String mesLabel = entrada.getKey().getMonth().getDisplayName(TextStyle.SHORT, new Locale("pt", "PT")) + "/" + entrada.getKey().getYear();
+            pontos.add(new SimuladorTesourariaDTO.PontoSimulacao(mesLabel, saldoAcumulado));
+        }
+
+        return new SimuladorTesourariaDTO(saldoInicial, pontos);
     }
+
+    // O método antigo gerarChaveMesAno foi apagado porque já não é preciso!
 
     // =========================================================================
-    // --- 2. CONTAS BANCÁRIAS (ANTIGO E ESSENCIAL) ---
+    // --- 2. GESTÃO DE CONTAS BANCÁRIAS ---
     // =========================================================================
 
     @Transactional
     public ContaBancariaResponseDTO criarConta(ContaBancariaDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        Utilizador user = utilizadorRepository.findById(utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
-
+        Utilizador user = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
         ContaBancaria c = new ContaBancaria();
         c.setNome(dto.getNome());
         c.setIban(dto.getIban());
         c.setSaldo(dto.getSaldoInicial() != null ? dto.getSaldoInicial() : BigDecimal.ZERO);
         c.setUtilizador(user);
-
         return converterContaParaDTO(contaRepository.save(c));
     }
 
     @Transactional(readOnly = true)
     public List<ContaBancariaResponseDTO> listarContas() {
-        Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        return contaRepository.findAllByUtilizadorId(utilizadorId)
+        return contaRepository.findAllByUtilizadorId(authService.getUtilizadorAutenticadoId())
                 .stream().map(this::converterContaParaDTO).collect(Collectors.toList());
     }
 
@@ -137,22 +103,19 @@ public class TesourariaService {
     public ContaBancariaResponseDTO buscarContaPorId(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
         ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(id, utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada ou acesso negado."));
+                .orElseThrow(() -> new EntityNotFoundException("Conta não encontrada."));
         return converterContaParaDTO(conta);
     }
 
     // =========================================================================
-    // --- 3. MOVIMENTOS E TRANSFERÊNCIAS (ANTIGO E ESSENCIAL) ---
+    // --- 3. MOVIMENTOS E TRANSFERÊNCIAS ---
     // =========================================================================
 
     @Transactional
     public MovimentoResponseDTO registarMovimento(MovimentoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        Utilizador user = utilizadorRepository.findById(utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
-
-        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaId(), utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Conta bancária não encontrada ou acesso negado."));
+        Utilizador user = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new EntityNotFoundException("User não encontrado."));
+        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Conta não encontrada."));
 
         if (dto.getTipo() == Movimento.TipoMovimento.CREDITO) {
             conta.setSaldo(conta.getSaldo().add(dto.getValor()));
@@ -173,97 +136,139 @@ public class TesourariaService {
         return converterParaDTO(movimentoRepository.save(mov));
     }
 
+    @Transactional
+    public void transferirEntreContas(TransferenciaDTO dto) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new EntityNotFoundException("User não encontrado."));
+        ContaBancaria origem = contaRepository.findByIdAndUtilizadorId(dto.getContaOrigemId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Origem não encontrada."));
+        ContaBancaria destino = contaRepository.findByIdAndUtilizadorId(dto.getContaDestinoId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Destino não encontrado."));
+
+        origem.setSaldo(origem.getSaldo().subtract(dto.getValor()));
+        destino.setSaldo(destino.getSaldo().add(dto.getValor()));
+        contaRepository.save(origem);
+        contaRepository.save(destino);
+
+        Movimento m1 = new Movimento();
+        m1.setConta(origem); m1.setUtilizador(user); m1.setTipo(Movimento.TipoMovimento.DEBITO);
+        m1.setValor(dto.getValor()); m1.setSaldoApos(origem.getSaldo()); m1.setDataMovimento(LocalDateTime.now());
+        m1.setDescricao("Transferência para " + destino.getNome());
+
+        Movimento m2 = new Movimento();
+        m2.setConta(destino); m2.setUtilizador(user); m2.setTipo(Movimento.TipoMovimento.CREDITO);
+        m2.setValor(dto.getValor()); m2.setSaldoApos(destino.getSaldo()); m2.setDataMovimento(LocalDateTime.now());
+        m2.setDescricao("Transferência de " + origem.getNome());
+
+        movimentoRepository.saveAll(List.of(m1, m2));
+    }
+
     @Transactional(readOnly = true)
     public List<MovimentoResponseDTO> obterExtrato(Long contaId) {
-        Long utilizadorId = authService.getUtilizadorAutenticadoId();
-
-        // 🛡️ Proteção IDOR antes de ir buscar o extrato
-        contaRepository.findByIdAndUtilizadorId(contaId, utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Conta não encontrada ou acesso negado."));
-
         return movimentoRepository.findAllByContaIdOrderByDataMovimentoDesc(contaId)
                 .stream().map(this::converterParaDTO).collect(Collectors.toList());
     }
 
-    @Transactional
-    public void transferirEntreContas(TransferenciaDTO dto) {
+    // =========================================================================
+    // --- 4. LIQUIDAÇÕES DE FATURAS ---
+    // =========================================================================
+
+    @Transactional(readOnly = true)
+    public List<DocumentoPendenteDTO> listarPendentes() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        Utilizador user = utilizadorRepository.findById(utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+        List<DocumentoPendenteDTO> pendentes = new ArrayList<>();
+        List<EstadoPagamento> estadosIncompletos = List.of(EstadoPagamento.PENDENTE, EstadoPagamento.PARCIALMENTE_PAGO);
 
-        if (dto.getContaOrigemId().equals(dto.getContaDestinoId())) {
-            throw new IllegalArgumentException("A conta de origem e destino não podem ser a mesma.");
-        }
+        vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(v -> {
+            BigDecimal pendente = v.getTotalComIva().subtract(v.getValorPago());
+            pendentes.add(new DocumentoPendenteDTO(v.getId(), "VENDA", v.getDataVenda(), v.getCliente().getNome(), v.getTotalComIva(), pendente));
+        });
 
-        ContaBancaria origem = contaRepository.findByIdAndUtilizadorId(dto.getContaOrigemId(), utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Conta de origem não encontrada ou acesso negado."));
+        compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(c -> {
+            BigDecimal pendente = c.getTotal().subtract(c.getValorPago());
+            pendentes.add(new DocumentoPendenteDTO(c.getId(), "COMPRA", c.getDataCompra(), c.getFornecedor().getNome(), c.getTotal(), pendente));
+        });
 
-        ContaBancaria destino = contaRepository.findByIdAndUtilizadorId(dto.getContaDestinoId(), utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Conta de destino não encontrada ou acesso negado."));
-
-        LocalDateTime agora = LocalDateTime.now();
-
-        // Débito (Saída)
-        origem.setSaldo(origem.getSaldo().subtract(dto.getValor()));
-        contaRepository.save(origem);
-
-        Movimento movSaida = new Movimento();
-        movSaida.setConta(origem);
-        movSaida.setUtilizador(user);
-        movSaida.setDataMovimento(agora);
-        String descSaida = (dto.getDescricao() != null && !dto.getDescricao().isBlank())
-                ? dto.getDescricao() : "Transferência para " + destino.getNome();
-        movSaida.setDescricao(descSaida);
-        movSaida.setTipo(Movimento.TipoMovimento.DEBITO);
-        movSaida.setValor(dto.getValor());
-        movSaida.setSaldoApos(origem.getSaldo());
-        movimentoRepository.save(movSaida);
-
-        // Crédito (Entrada)
-        destino.setSaldo(destino.getSaldo().add(dto.getValor()));
-        contaRepository.save(destino);
-
-        Movimento movEntrada = new Movimento();
-        movEntrada.setConta(destino);
-        movEntrada.setUtilizador(user);
-        movEntrada.setDataMovimento(agora);
-        String descEntrada = (dto.getDescricao() != null && !dto.getDescricao().isBlank())
-                ? dto.getDescricao() : "Transferência recebida de " + origem.getNome();
-        movEntrada.setDescricao(descEntrada);
-        movEntrada.setTipo(Movimento.TipoMovimento.CREDITO);
-        movEntrada.setValor(dto.getValor());
-        movEntrada.setSaldoApos(destino.getSaldo());
-        movimentoRepository.save(movEntrada);
+        pendentes.sort((a, b) -> a.getData().compareTo(b.getData()));
+        return pendentes;
     }
 
-    // =========================================================================
-    // --- CONVERSORES ---
-    // =========================================================================
+    @Transactional
+    public void confirmarTransacao(ConfirmarPagamentoDTO dto) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new EntityNotFoundException("User não encontrado."));
+        ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaBancariaId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Conta não encontrada."));
 
-    private ContaBancariaResponseDTO converterContaParaDTO(ContaBancaria conta) {
+        Movimento mov = new Movimento();
+        mov.setConta(conta); mov.setUtilizador(user);
+        mov.setDataMovimento(dto.getDataPagamento() != null ? dto.getDataPagamento() : LocalDateTime.now());
+        BigDecimal valorPagamento = dto.getValorAPagar();
+
+        if ("VENDA".equalsIgnoreCase(dto.getTipoDocumento())) {
+            Venda venda = vendaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
+            venda.setValorPago(venda.getValorPago().add(valorPagamento));
+            venda.setEstadoPagamento(venda.getValorPago().compareTo(venda.getTotalComIva()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+            vendaRepository.save(venda);
+            mov.setTipo(Movimento.TipoMovimento.CREDITO); mov.setValor(valorPagamento);
+            mov.setDescricao("Recebimento Venda #" + venda.getId() + " - " + venda.getCliente().getNome());
+            mov.setVenda(venda); mov.setCliente(venda.getCliente());
+            conta.setSaldo(conta.getSaldo().add(valorPagamento));
+        } else {
+            Compra compra = compraRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Compra não encontrada."));
+            compra.setValorPago(compra.getValorPago().add(valorPagamento));
+            compra.setEstadoPagamento(compra.getValorPago().compareTo(compra.getTotal()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+            compraRepository.save(compra);
+            mov.setTipo(Movimento.TipoMovimento.DEBITO); mov.setValor(valorPagamento);
+            mov.setDescricao("Pagamento Compra #" + compra.getId() + " - " + compra.getFornecedor().getNome());
+            mov.setCompra(compra); mov.setFornecedor(compra.getFornecedor());
+            conta.setSaldo(conta.getSaldo().subtract(valorPagamento));
+        }
+        mov.setSaldoApos(conta.getSaldo());
+        contaRepository.save(conta);
+        movimentoRepository.save(mov);
+    }
+
+    @Transactional
+    public void anularMovimento(Long movimentoId) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Movimento mov = movimentoRepository.findByIdAndUtilizadorId(movimentoId, utilizadorId).orElseThrow(() -> new EntityNotFoundException("Movimento não encontrado."));
+        ContaBancaria conta = mov.getConta();
+
+        if (mov.getTipo() == Movimento.TipoMovimento.CREDITO) conta.setSaldo(conta.getSaldo().subtract(mov.getValor()));
+        else conta.setSaldo(conta.getSaldo().add(mov.getValor()));
+        contaRepository.save(conta);
+
+        if (mov.getVenda() != null) {
+            Venda v = mov.getVenda();
+            v.setValorPago(v.getValorPago().subtract(mov.getValor()));
+            v.setEstadoPagamento(v.getValorPago().compareTo(BigDecimal.ZERO) <= 0 ? EstadoPagamento.PENDENTE : EstadoPagamento.PARCIALMENTE_PAGO);
+            vendaRepository.save(v);
+        }
+        if (mov.getCompra() != null) {
+            Compra c = mov.getCompra();
+            c.setValorPago(c.getValorPago().subtract(mov.getValor()));
+            c.setEstadoPagamento(c.getValorPago().compareTo(BigDecimal.ZERO) <= 0 ? EstadoPagamento.PENDENTE : EstadoPagamento.PARCIALMENTE_PAGO);
+            compraRepository.save(c);
+        }
+        movimentoRepository.delete(mov);
+    }
+
+    private ContaBancariaResponseDTO converterContaParaDTO(ContaBancaria c) {
         ContaBancariaResponseDTO dto = new ContaBancariaResponseDTO();
-        dto.setId(conta.getId());
-        dto.setNome(conta.getNome());
-        dto.setIban(conta.getIban());
-        dto.setSaldo(conta.getSaldo());
+        dto.setId(c.getId());
+        dto.setNome(c.getNome());
+        dto.setIban(c.getIban());
+        dto.setSaldo(c.getSaldo());
         return dto;
     }
 
     private MovimentoResponseDTO converterParaDTO(Movimento mov) {
         MovimentoResponseDTO dto = new MovimentoResponseDTO();
         dto.setId(mov.getId());
-        if (mov.getDataMovimento() != null) {
-            dto.setDataMovimento(mov.getDataMovimento().toString());
-        }
+        dto.setDataMovimento(mov.getDataMovimento() != null ? mov.getDataMovimento().toString() : "");
         dto.setDescricao(mov.getDescricao());
         dto.setTipo(mov.getTipo().name());
         dto.setValor(mov.getValor());
-
-        if (mov.getCompra() != null) dto.setCompraId(mov.getCompra().getId());
-        if (mov.getVenda() != null) dto.setVendaId(mov.getVenda().getId());
         if (mov.getFornecedor() != null) dto.setFornecedorNome(mov.getFornecedor().getNome());
         if (mov.getCliente() != null) dto.setClienteNome(mov.getCliente().getNome());
-
         return dto;
     }
 }

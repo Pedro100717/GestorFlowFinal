@@ -10,11 +10,17 @@ export interface SeccaoHomo {
     codigo: string;
 }
 
-// 🛡️ A NOSSA NOVA INTERFACE PARA O DASHBOARD ANALÍTICO
 export interface AnaliseDashboard {
     centroCusto: string;
     seccaoHomo: string;
-    totalVendas: number;
-    totalCompras: number;
-    margem: number;
+    
+    // Operacional (O que vai para a Tabela 1)
+    totalVendasSemIva: number;
+    totalComprasSemIva: number;
+    margemBruta: number;
+    
+    // Fiscal (O que vai para a Tabela 2)
+    totalIvaVendas: number;
+    totalIvaCompras: number;
+    saldoIva: number;
 }

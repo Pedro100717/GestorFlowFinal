@@ -30,19 +30,18 @@ public class VendaService {
     private final MovimentoStockRepository movimentoStockRepository;
     private final CentroCustoRepository centroCustoRepository;
     private final SeccaoHomoRepository seccaoHomoRepository;
+    private final LinhaVendaRepository linhaVendaRepository;
 
-    // 🚀 Injeções de Segurança
     private final UtilizadorRepository utilizadorRepository;
     private final AuthService authService;
+    private final ArtigoService artigoService;
 
     @Transactional
     public VendaResponseDTO registarVenda(VendaDTO dto) {
-        // 🚀 1. Identidade Blindada
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
-        // 🛡️ Validação Comercial Segura
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
 
@@ -54,7 +53,9 @@ public class VendaService {
         venda.setEstadoPagamento(EstadoPagamento.PENDENTE);
         venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda().atStartOfDay() : LocalDateTime.now());
 
-        // 🛡️ CORREÇÃO CRÍTICA IDOR: Validação do dono do Centro de Custo e Secção Homogénea
+        // 🚀 MAPEAMENTO DO VENCIMENTO
+        venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : venda.getDataVenda());
+
         if (dto.getCentroCustoId() != null) {
             CentroCusto centro = centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
@@ -72,7 +73,6 @@ public class VendaService {
 
         if (venda.getLinhas() == null) venda.setLinhas(new ArrayList<>());
 
-        // PROCESSAR LINHAS E STOCK
         for (VendaDTO.LinhaVendaDTO linhaDto : dto.getLinhas()) {
             Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId()));
@@ -80,10 +80,8 @@ public class VendaService {
             TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
                     .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
 
-            // Desconta Stock (Logística)
             if (artigo instanceof Mercadoria mercadoria) {
-                mercadoria.setStockAtual(mercadoria.getStockAtual().subtract(linhaDto.getQuantidade()));
-                artigoRepository.save(mercadoria);
+                artigoService.removerStock(mercadoria.getId(), linhaDto.getQuantidade());
 
                 MovimentoStock mov = new MovimentoStock();
                 mov.setMercadoria(mercadoria);
@@ -107,7 +105,7 @@ public class VendaService {
             linha.setPrecoUnitario(linhaDto.getPrecoUnitario());
             linha.setTotalLinhaSemIva(totalLinhaSemIva);
             linha.setTotalLinhaComIva(totalLinhaComIva);
-            linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada()); // Preservar designação customizada
+            linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
 
             venda.getLinhas().add(linha);
 
@@ -118,9 +116,137 @@ public class VendaService {
         venda.setTotalSemIva(totalGeralSemIva);
         venda.setTotalComIva(totalGeralComIva);
 
-        Venda vendaGuardada = vendaRepository.save(venda);
+        return converterParaDTO(vendaRepository.save(venda));
+    }
 
-        return converterParaDTO(vendaGuardada);
+    @Transactional
+    public VendaResponseDTO atualizarVenda(Long id, VendaDTO dto) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
+
+        if (venda.getEstadoPagamento() != EstadoPagamento.PENDENTE) {
+            throw new IllegalStateException("Não podes alterar uma venda que já tenha pagamentos na Tesouraria.");
+        }
+
+        Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado."));
+        venda.setCliente(cliente);
+        venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda().atStartOfDay() : venda.getDataVenda());
+
+        // 🚀 MAPEAMENTO DO VENCIMENTO NA EDIÇÃO
+        venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : venda.getDataVencimento());
+
+        for (LinhaVenda linhaAntiga : venda.getLinhas()) {
+            if (linhaAntiga.getArtigo() instanceof Mercadoria mercadoria) {
+                artigoService.adicionarStock(mercadoria.getId(), linhaAntiga.getQuantidade());
+
+                MovimentoStock mov = new MovimentoStock();
+                mov.setMercadoria(mercadoria);
+                mov.setUtilizador(user);
+                mov.setTipo(MovimentoStock.TipoMovimentoStock.ENTRADA);
+                mov.setQuantidade(linhaAntiga.getQuantidade());
+                mov.setStockAposMovimento(mercadoria.getStockAtual());
+                mov.setMotivo("Edição Venda #" + venda.getId() + " (Devolução Antiga)");
+                movimentoStockRepository.save(mov);
+            }
+        }
+
+        linhaVendaRepository.deleteAll(venda.getLinhas());
+        venda.getLinhas().clear();
+
+        BigDecimal totalGeralSemIva = BigDecimal.ZERO;
+        BigDecimal totalGeralComIva = BigDecimal.ZERO;
+
+        for (VendaDTO.LinhaVendaDTO linhaDto : dto.getLinhas()) {
+            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado."));
+            TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
+
+            if (artigo instanceof Mercadoria mercadoria) {
+                artigoService.removerStock(mercadoria.getId(), linhaDto.getQuantidade());
+
+                MovimentoStock mov = new MovimentoStock();
+                mov.setMercadoria(mercadoria);
+                mov.setUtilizador(user);
+                mov.setTipo(MovimentoStock.TipoMovimentoStock.SAIDA);
+                mov.setQuantidade(linhaDto.getQuantidade());
+                mov.setStockAposMovimento(mercadoria.getStockAtual());
+                mov.setMotivo("Edição Venda #" + venda.getId() + " (Nova Saída)");
+                movimentoStockRepository.save(mov);
+            }
+
+            BigDecimal totalLinhaSemIva = linhaDto.getPrecoUnitario().multiply(linhaDto.getQuantidade());
+            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP).add(BigDecimal.ONE);
+            BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva);
+
+            LinhaVenda linha = new LinhaVenda();
+            linha.setVenda(venda);
+            linha.setArtigo(artigo);
+            linha.setTaxaIva(taxaIva);
+            linha.setQuantidade(linhaDto.getQuantidade());
+            linha.setPrecoUnitario(linhaDto.getPrecoUnitario());
+            linha.setTotalLinhaSemIva(totalLinhaSemIva);
+            linha.setTotalLinhaComIva(totalLinhaComIva);
+            linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
+
+            venda.getLinhas().add(linha);
+
+            totalGeralSemIva = totalGeralSemIva.add(totalLinhaSemIva);
+            totalGeralComIva = totalGeralComIva.add(totalLinhaComIva);
+        }
+
+        venda.setTotalSemIva(totalGeralSemIva);
+        venda.setTotalComIva(totalGeralComIva);
+
+        if (dto.getCentroCustoId() != null) {
+            centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId).ifPresent(venda::setCentroCusto);
+        } else {
+            venda.setCentroCusto(null);
+        }
+
+        if (dto.getSeccaoHomoId() != null) {
+            seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId).ifPresent(venda::setSeccaoHomo);
+        } else {
+            venda.setSeccaoHomo(null);
+        }
+
+        return converterParaDTO(vendaRepository.save(venda));
+    }
+
+    @Transactional
+    public void anularVenda(Long id) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
+
+        if (venda.getEstadoPagamento() == EstadoPagamento.PAGO || venda.getEstadoPagamento() == EstadoPagamento.PARCIALMENTE_PAGO) {
+            throw new IllegalStateException("Não é possível anular uma venda que já foi recebida na tesouraria (parcial ou totalmente).");
+        }
+
+        for (LinhaVenda linha : venda.getLinhas()) {
+            if (linha.getArtigo() instanceof Mercadoria mercadoria) {
+                artigoService.adicionarStock(mercadoria.getId(), linha.getQuantidade());
+
+                MovimentoStock mov = new MovimentoStock();
+                mov.setMercadoria(mercadoria);
+                mov.setUtilizador(user);
+                mov.setTipo(MovimentoStock.TipoMovimentoStock.ENTRADA);
+                mov.setQuantidade(linha.getQuantidade());
+                mov.setStockAposMovimento(mercadoria.getStockAtual());
+                mov.setMotivo("Reposição por Anulação de Venda #" + venda.getId());
+                movimentoStockRepository.save(mov);
+            }
+        }
+
+        vendaRepository.delete(venda);
     }
 
     @Transactional(readOnly = true)
@@ -138,51 +264,19 @@ public class VendaService {
     @Transactional(readOnly = true)
     public Page<VendaResponseDTO> listarMinhasVendas(int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        // Ordenação estável
         Pageable pageable = PageRequest.of(pagina, tamanho,
                 Sort.by("dataVenda").descending().and(Sort.by("id").descending()));
         return vendaRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
-    }
-
-    @Transactional
-    public void anularVenda(Long id) {
-        Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        Utilizador user = utilizadorRepository.findById(utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
-
-        Venda venda = vendaRepository.findByIdAndUtilizadorId(id, utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
-
-        if (venda.getEstadoPagamento() == EstadoPagamento.PAGO) {
-            throw new IllegalStateException("Não é possível anular uma venda que já foi recebida na tesouraria.");
-        }
-
-        // 🛡️ CORREÇÃO CRÍTICA LOGÍSTICA: Repor o stock antes de apagar a venda!
-        for (LinhaVenda linha : venda.getLinhas()) {
-            if (linha.getArtigo() instanceof Mercadoria mercadoria) {
-                // Devolve a quantidade ao armazém
-                mercadoria.setStockAtual(mercadoria.getStockAtual().add(linha.getQuantidade()));
-                artigoRepository.save(mercadoria);
-
-                // Regista o movimento de reposição na auditoria
-                MovimentoStock mov = new MovimentoStock();
-                mov.setMercadoria(mercadoria);
-                mov.setUtilizador(user);
-                mov.setTipo(MovimentoStock.TipoMovimentoStock.ENTRADA); // Entrada por anulação
-                mov.setQuantidade(linha.getQuantidade());
-                mov.setStockAposMovimento(mercadoria.getStockAtual());
-                mov.setMotivo("Reposição por Anulação de Venda #" + venda.getId());
-                movimentoStockRepository.save(mov);
-            }
-        }
-
-        vendaRepository.delete(venda);
     }
 
     private VendaResponseDTO converterParaDTO(Venda v) {
         VendaResponseDTO dto = new VendaResponseDTO();
         dto.setId(v.getId());
         dto.setDataVenda(v.getDataVenda());
+
+        // 🚀 RESPOSTA COM VENCIMENTO
+        dto.setDataVencimento(v.getDataVencimento());
+
         dto.setTotalSemIva(v.getTotalSemIva());
         dto.setTotalComIva(v.getTotalComIva());
         dto.setEstadoPagamento(v.getEstadoPagamento().name());

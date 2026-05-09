@@ -8,6 +8,10 @@ import java.time.LocalDateTime;
 public class CompraResponseDTO {
     private Long id;
     private LocalDateTime dataCompra;
+
+    // 🚀 O NOVO CAMPO: Para o Angular saber quando a fatura vence
+    private LocalDateTime dataVencimento;
+
     private String numeroFaturaFornecedor;
     private String designacao;
     private BigDecimal quantidade;
