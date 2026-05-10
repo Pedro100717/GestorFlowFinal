@@ -22,8 +22,8 @@ export interface Movimento {
     // --- Campos devolvidos pelo Response DTO (Flat Fields) ---
     compraId?: number; 
     vendaId?: number; 
-    fornecedorNome?: string; // Para mostrar na tabela de tesouraria
-    clienteNome?: string;    // Para mostrar na tabela de tesouraria
+    fornecedorNome?: string; 
+    clienteNome?: string;    
 }
 
 // ==========================================
@@ -63,4 +63,44 @@ export interface PontoSimulacao {
 export interface SimuladorTesourariaDTO {
     saldoAtual: number;
     pontos: PontoSimulacao[];
+}
+
+// ==========================================
+// 🚀 MODELOS DE PLANEAMENTO FINANCEIRO
+// ==========================================
+
+export enum TipoMovimentoPlaneado {
+    ENTRADA = 'ENTRADA',
+    SAIDA = 'SAIDA'
+}
+
+export enum FrequenciaMovimento {
+    PONTUAL = 'PONTUAL',
+    SEMANAL = 'SEMANAL',
+    MENSAL = 'MENSAL',
+    TRIMESTRAL = 'TRIMESTRAL',
+    SEMESTRAL = 'SEMESTRAL',
+    ANUAL = 'ANUAL'
+}
+
+export interface MovimentoPlaneado {
+    id?: number;
+    descricao: string;
+    tipo: TipoMovimentoPlaneado | string;
+    frequencia: FrequenciaMovimento | string;
+    valorBase: number;
+    taxaIva: number;
+    
+    dataInicio: string; // Formato 'YYYY-MM-DD'
+    dataFim?: string;   // Opcional
+    
+    // Dimensões Analíticas (Obrigatórias)
+    centroCustoId: number;
+    seccaoHomoId: number;
+    
+    // Parceiros (Opcionais)
+    clienteId?: number;
+    fornecedorId?: number;
+    
+    ativo?: boolean;
 }

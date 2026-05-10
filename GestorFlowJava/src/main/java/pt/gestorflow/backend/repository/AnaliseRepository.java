@@ -11,8 +11,11 @@ public interface AnaliseRepository extends JpaRepository<Venda, Long> {
 
     @Query(nativeQuery = true, value = """
         SELECT 
-            COALESCE(cc.codigo, 'Sem Centro') AS centroCusto,
-            COALESCE(sh.codigo, 'Sem Secção') AS seccaoHomo,
+            COALESCE(cc.codigo, 'N/A') AS centroCustoCodigo,
+            COALESCE(cc.nome, 'Sem Centro') AS centroCustoNome,
+            
+            COALESCE(sh.codigo, 'N/A') AS seccaoCodigo,
+            COALESCE(sh.nome, 'Sem Secção') AS seccaoNome,
             
             -- 📈 VALORES OPERACIONAIS (SEM IVA)
             COALESCE(SUM(uniao.venda_base), 0) AS totalVendasSemIva,
@@ -45,7 +48,8 @@ public interface AnaliseRepository extends JpaRepository<Venda, Long> {
         ) uniao
         LEFT JOIN centro_custo cc ON uniao.centro_custo_id = cc.id
         LEFT JOIN seccao_homo sh ON uniao.seccao_homo_id = sh.id
-        GROUP BY cc.codigo, sh.codigo
+        -- 🚀 ADICIONADO: Os nomes têm de ir para o GROUP BY
+        GROUP BY cc.codigo, cc.nome, sh.codigo, sh.nome
         ORDER BY cc.codigo, sh.codigo
     """)
     List<AnaliseAnaliticaProjection> obterAnaliseVendasCompras(@Param("userId") Long userId);

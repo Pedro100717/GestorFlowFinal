@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,10 +27,13 @@ public class TesourariaService {
     private final ClienteRepository clienteRepository;
     private final FornecedorRepository fornecedorRepository;
     private final UtilizadorRepository utilizadorRepository;
+
+    // 🚀 NOVO: Repositório dos planos para o motor matemático
+    private final MovimentoPlaneadoRepository movimentoPlaneadoRepository;
     private final AuthService authService;
 
     // =========================================================================
-    // --- 🚀 1. SIMULADOR DE TESOURARIA (COM FIX CRONOLÓGICO) ---
+    // --- 🚀 1. SIMULADOR DE TESOURARIA (MOTOR DE PROJEÇÃO INDUSTRIAL) ---
     // =========================================================================
 
     @Transactional(readOnly = true)
@@ -41,14 +45,18 @@ public class TesourariaService {
                 .map(ContaBancaria::getSaldo)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<EstadoPagamento> estadosPendentes = List.of(EstadoPagamento.PENDENTE, EstadoPagamento.PARCIALMENTE_PAGO);
+        // 🚀 PASSO 1: Criar o "Horizonte" (Os próximos 12 meses garantidos)
+        Map<YearMonth, BigDecimal> fluxoMensal = new TreeMap<>();
+        YearMonth mesCorrente = YearMonth.now();
+        for (int i = 0; i <= 12; i++) {
+            fluxoMensal.put(mesCorrente.plusMonths(i), BigDecimal.ZERO);
+        }
 
+        List<EstadoPagamento> estadosPendentes = List.of(EstadoPagamento.PENDENTE, EstadoPagamento.PARCIALMENTE_PAGO);
         List<Venda> vendasPendentes = vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
         List<Compra> comprasPendentes = compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
 
-        // 🚀 O FIX: Usar YearMonth para garantir a ordenação cronológica e não alfabética!
-        Map<YearMonth, BigDecimal> fluxoMensal = new TreeMap<>();
-
+        // 🚀 PASSO 2: Injetar a Realidade (Faturas Pendentes Reais)
         for (Venda v : vendasPendentes) {
             YearMonth chave = YearMonth.from(v.getDataVencimento() != null ? v.getDataVencimento() : LocalDateTime.now());
             BigDecimal valorPendente = v.getTotalComIva().subtract(v.getValorPago());
@@ -61,13 +69,36 @@ public class TesourariaService {
             fluxoMensal.put(chave, fluxoMensal.getOrDefault(chave, BigDecimal.ZERO).subtract(valorPendente));
         }
 
+        // 🚀 PASSO 3: O MOTOR MATEMÁTICO DE RECORRÊNCIA (Injetar o Futuro Planeado)
+        List<MovimentoPlaneado> planosAtivos = movimentoPlaneadoRepository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId);
+
+        for (MovimentoPlaneado plan : planosAtivos) {
+            for (Map.Entry<YearMonth, BigDecimal> mesHorizonte : fluxoMensal.entrySet()) {
+                if (deveAplicarPlanoNesteMes(plan, mesHorizonte.getKey())) {
+
+                    // Semanal: multiplicamos o valor base por 4 semanas médias num mês
+                    BigDecimal valorAInjetar = plan.getFrequencia() == FrequenciaMovimento.SEMANAL
+                            ? plan.getValorComIva().multiply(BigDecimal.valueOf(4))
+                            : plan.getValorComIva();
+
+                    // TODO: Futura Lógica de Conciliação Automática (O Triângulo Dourado)
+
+                    if (plan.getTipo() == TipoMovimentoPlaneado.ENTRADA) {
+                        fluxoMensal.put(mesHorizonte.getKey(), mesHorizonte.getValue().add(valorAInjetar));
+                    } else {
+                        fluxoMensal.put(mesHorizonte.getKey(), mesHorizonte.getValue().subtract(valorAInjetar));
+                    }
+                }
+            }
+        }
+
+        // 🚀 PASSO 4: Gerar os Pontos do Gráfico
         List<SimuladorTesourariaDTO.PontoSimulacao> pontos = new ArrayList<>();
         BigDecimal saldoAcumulado = saldoInicial;
         pontos.add(new SimuladorTesourariaDTO.PontoSimulacao("Atual", saldoInicial));
 
         for (Map.Entry<YearMonth, BigDecimal> entrada : fluxoMensal.entrySet()) {
             saldoAcumulado = saldoAcumulado.add(entrada.getValue());
-            // Só aqui convertemos para a Label bonita que o Angular vai ler
             String mesLabel = entrada.getKey().getMonth().getDisplayName(TextStyle.SHORT, new Locale("pt", "PT")) + "/" + entrada.getKey().getYear();
             pontos.add(new SimuladorTesourariaDTO.PontoSimulacao(mesLabel, saldoAcumulado));
         }
@@ -75,7 +106,25 @@ public class TesourariaService {
         return new SimuladorTesourariaDTO(saldoInicial, pontos);
     }
 
-    // O método antigo gerarChaveMesAno foi apagado porque já não é preciso!
+    // --- ALGORITMO DE CÁLCULO DE RECORRÊNCIA ---
+    private boolean deveAplicarPlanoNesteMes(MovimentoPlaneado plan, YearMonth mesAtual) {
+        YearMonth inicio = YearMonth.from(plan.getDataInicio());
+        YearMonth fim = plan.getDataFim() != null ? YearMonth.from(plan.getDataFim()) : YearMonth.now().plusYears(100);
+
+        if (mesAtual.isBefore(inicio) || mesAtual.isAfter(fim)) {
+            return false;
+        }
+
+        long mesesPassados = ChronoUnit.MONTHS.between(inicio, mesAtual);
+
+        return switch (plan.getFrequencia()) {
+            case MENSAL, SEMANAL -> true;
+            case TRIMESTRAL -> mesesPassados % 3 == 0;
+            case SEMESTRAL -> mesesPassados % 6 == 0;
+            case ANUAL -> mesesPassados % 12 == 0;
+            case PONTUAL -> mesesPassados == 0;
+        };
+    }
 
     // =========================================================================
     // --- 2. GESTÃO DE CONTAS BANCÁRIAS ---

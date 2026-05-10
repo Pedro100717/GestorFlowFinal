@@ -194,6 +194,7 @@
     </div>
 
     <div *ngIf="abaAtiva === 'simulador'" class="row g-4">
+        
         <div class="col-md-4">
             <div class="card shadow-sm border-0 h-100 bg-primary bg-opacity-10 border border-primary border-opacity-25">
                 <div class="card-body">
@@ -206,8 +207,8 @@
         <div class="col-md-8">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body d-flex flex-column justify-content-center">
-                    <h6 class="fw-bold text-secondary mb-1">Visão Geral</h6>
-                    <p class="text-muted small mb-0">Esta simulação cruza o teu saldo bancário atual com as datas de vencimento das compras e vendas que ainda tens pendentes ou parcialmente pagas.</p>
+                    <h6 class="fw-bold text-secondary mb-1">Visão Geral (Até 12 Meses)</h6>
+                    <p class="text-muted small mb-0">Esta simulação cruza o teu saldo bancário atual com faturas pendentes reais e custos fixos planeados (Rendas, Salários, Assinaturas).</p>
                 </div>
             </div>
         </div>
@@ -215,7 +216,7 @@
         <div class="col-12">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold text-secondary">Evolução Projetada de Saldos (Por Mês)</h5>
+                    <h5 class="mb-0 fw-bold text-secondary">Projeção Bancária</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 350px; width: 100%;">
@@ -227,8 +228,71 @@
 
         <div class="col-12 mt-2">
             <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-calendar-event me-2"></i>Custos Fixos / Planeamento Anual</h5>
+                        <small class="text-muted">Despesas ou receitas recorrentes a ser projetadas no gráfico acima.</small>
+                    </div>
+                    <button class="btn btn-sm btn-primary" (click)="abrirModalPlaneamento()">
+                        <i class="bi bi-plus me-1"></i>Novo Plano
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 bg-white">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 py-3 text-muted small uppercase" style="width: 60px;">Status</th>
+                                <th class="text-muted small uppercase">Descrição</th>
+                                <th class="text-muted small uppercase">Recorrência</th>
+                                <th class="text-muted small uppercase text-end">Valor Base</th>
+                                <th class="text-muted small uppercase text-center pe-4" style="width: 100px;">Gestão</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let plano of listaPlanos" [ngClass]="{'opacity-50': !plano.ativo}">
+                                <td class="ps-4 text-center">
+                                    <div class="form-check form-switch m-0 d-flex justify-content-center">
+                                        <input class="form-check-input mt-0" type="checkbox" role="switch" 
+                                               [checked]="plano.ativo" 
+                                               (change)="alternarStatusPlano(plano)" 
+                                               title="Ativar/Desativar Projeção" style="cursor: pointer;">
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge me-2" [ngClass]="plano.tipo === 'ENTRADA' ? 'bg-success' : 'bg-danger'">
+                                        {{ plano.tipo === 'ENTRADA' ? '+' : '-' }}
+                                    </span>
+                                    <span class="fw-bold text-dark">{{ plano.descricao }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
+                                        <i class="bi bi-arrow-repeat me-1"></i> {{ plano.frequencia }}
+                                    </span>
+                                </td>
+                                <td class="text-end fw-bold font-monospace" [ngClass]="plano.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'">
+                                    {{ plano.valorBase | currency:'EUR' }}
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">+ IVA ({{ plano.taxaIva }}%)</small>
+                                </td>
+                                <td class="text-center pe-4">
+                                    <span class="text-muted small">Auto</span>
+                                </td>
+                            </tr>
+                            <tr *ngIf="listaPlanos.length === 0">
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="bi bi-calendar-x fs-2 d-block mb-2 opacity-50"></i>
+                                    <span class="fw-bold">Nenhum custo fixo orçamentado.</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 mt-2">
+            <div class="card shadow-sm border-0">
                 <div class="card-header bg-white py-3 border-0">
-                    <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-columns me-2"></i>Evolução Detalhada</h5>
+                    <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-columns me-2"></i>Faturas Pendentes vs Saldo Real</h5>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover table-bordered align-middle mb-0 bg-white">
@@ -236,10 +300,10 @@
                             <tr>
                                 <th class="py-3 text-muted small uppercase" style="width: 120px;">Data</th>
                                 <th class="text-muted small uppercase">Descritivo</th>
-                                <th class="text-muted small uppercase text-end" style="width: 130px;">Receita Prevista</th>
-                                <th class="text-muted small uppercase text-end" style="width: 130px;">Despesa Prevista</th>
+                                <th class="text-muted small uppercase text-end" style="width: 130px;">Receita</th>
+                                <th class="text-muted small uppercase text-end" style="width: 130px;">Despesa</th>
                                 <th class="text-dark fw-bold small uppercase text-end bg-light" style="width: 130px;">Saldo</th>
-                                <th class="text-muted small uppercase text-center" style="width: 100px;">Efetivar</th>
+                                <th class="text-muted small uppercase text-center" style="width: 100px;">Ação</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -247,25 +311,20 @@
                                 <td class="text-muted small ps-3">
                                     <span *ngIf="!linha.isAtual">{{ linha.data | date:'dd/MM/yyyy' }}</span>
                                 </td>
-                                
                                 <td class="fw-bold" [ngClass]="linha.isAtual ? 'text-primary' : 'text-dark'">
                                     {{ linha.descritivo }}
                                 </td>
-                                
                                 <td class="text-end text-success fw-bold font-monospace">
                                     <span *ngIf="linha.receita">{{ linha.receita | currency:'EUR' }}</span>
                                 </td>
-                                
                                 <td class="text-end text-danger fw-bold font-monospace">
                                     <span *ngIf="linha.despesa">{{ linha.despesa | currency:'EUR' }}</span>
                                 </td>
-                                
                                 <td class="text-end fw-bold font-monospace" 
                                     [ngClass]="linha.saldo >= 0 ? 'text-dark' : 'text-danger'"
                                     style="border-left: 2px solid #dee2e6; border-right: 2px solid #dee2e6; background-color: #f8f9fa;">
                                     {{ linha.saldo | currency:'EUR' }}
                                 </td>
-                                
                                 <td class="text-center pe-3">
                                     <button *ngIf="!linha.isAtual" 
                                             class="btn btn-sm btn-outline-primary rounded-pill fw-bold px-3 shadow-sm" 
@@ -356,7 +415,6 @@
                                 <option [ngValue]="null" disabled>Selecione o Cliente...</option>
                                 <option *ngFor="let cli of clientes" [ngValue]="cli.id">{{ cli.nome }}</option>
                             </select>
-                            <div class="invalid-feedback">Obrigatório indicar o cliente.</div>
                         </div>
 
                         <div class="col-12 mb-2" *ngIf="formMovimento.get('tipo')?.value === 'DEBITO' || formMovimento.get('tipo')?.value === 'SAIDA'">
@@ -367,7 +425,6 @@
                                 <option [ngValue]="null" disabled>Selecione o Fornecedor...</option>
                                 <option *ngFor="let forni of fornecedores" [ngValue]="forni.id">{{ forni.nome }}</option>
                             </select>
-                            <div class="invalid-feedback">Obrigatório indicar o fornecedor.</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -397,7 +454,6 @@
             </div>
             <div class="modal-body p-4">
                 <form [formGroup]="formTransferencia">
-                    
                     <div class="mb-3 p-3 bg-light rounded border">
                         <label class="form-label small fw-bold text-danger">Retirar Dinheiro de:</label>
                         <select class="form-select border-danger border-opacity-50" formControlName="contaOrigemId">
@@ -407,7 +463,6 @@
                             </option>
                         </select>
                     </div>
-
                     <div class="mb-4 p-3 bg-light rounded border">
                         <label class="form-label small fw-bold text-success">Depositar Dinheiro em:</label>
                         <select class="form-select border-success border-opacity-50" formControlName="contaDestinoId">
@@ -417,7 +472,6 @@
                             </option>
                         </select>
                     </div>
-
                     <div class="row">
                         <div class="col-12 mb-3">
                             <label class="form-label small fw-bold">Valor a Transferir (€)</label>
@@ -427,7 +481,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="mb-1">
                         <label class="form-label small fw-bold text-muted">Descrição / Motivo (Opcional)</label>
                         <input type="text" class="form-control" formControlName="descricao" placeholder="Ex: Reforço de Caixa">
@@ -454,15 +507,12 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                
                 <div class="text-center mb-4">
                     <p class="text-muted mb-1">{{ docParaConfirmar?.entidade }}</p>
                     <h4 class="fw-bold text-dark mb-0">Pendente: {{ docParaConfirmar?.valorPendente | currency:'EUR' }}</h4>
                     <small class="text-muted">(Total da Fatura: {{ docParaConfirmar?.total | currency:'EUR' }})</small>
                 </div>
-
                 <form [formGroup]="formConfirmacao">
-                    
                     <div class="mb-4 p-3 bg-light rounded border border-2" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'border-success' : 'border-danger'">
                         <label class="form-label fw-bold" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'text-success' : 'text-danger'">
                             Valor a Liquidar Agora (€) <span class="text-danger">*</span>
@@ -472,11 +522,7 @@
                             <input type="number" class="form-control fw-bold text-center text-dark" formControlName="valorAPagar" 
                                    [ngClass]="{'is-invalid': formConfirmacao.get('valorAPagar')?.invalid && formConfirmacao.get('valorAPagar')?.touched}">
                         </div>
-                        <div class="text-danger small mt-2 fw-bold" *ngIf="formConfirmacao.get('valorAPagar')?.value > (docParaConfirmar?.valorPendente || 0)">
-                            <i class="bi bi-exclamation-triangle-fill me-1"></i> O valor excede a dívida!
-                        </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Por onde foi pago? <span class="text-danger">*</span></label>
                         <select class="form-select form-select-lg fw-bold" formControlName="contaBancariaId">
@@ -486,13 +532,11 @@
                             </option>
                         </select>
                     </div>
-
                     <div class="mb-1">
                         <label class="form-label small fw-bold">Data de Movimentação (Extrato)</label>
                         <input type="datetime-local" class="form-control" formControlName="dataPagamento">
                     </div>
                 </form>
-
             </div>
             <div class="modal-footer bg-light border-0">
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
@@ -500,6 +544,121 @@
                         [disabled]="formConfirmacao.invalid || formConfirmacao.get('valorAPagar')?.value > (docParaConfirmar?.valorPendente || 0) || formConfirmacao.get('valorAPagar')?.value <= 0" 
                         (click)="confirmarTransacao()">
                     <i class="bi bi-check-lg me-1"></i> Confirmar Liquidação
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalPlaneamento" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-calendar-check me-2"></i>Novo Custo/Receita Fixo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <form [formGroup]="formPlaneamento">
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Descrição <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" formControlName="descricao" placeholder="Ex: Renda Escritório Sede">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Direção do Dinheiro <span class="text-danger">*</span></label>
+                            <select class="form-select fw-bold" formControlName="tipo" [ngClass]="formPlaneamento.get('tipo')?.value === 'ENTRADA' ? 'text-success' : 'text-danger'">
+                                <option value="SAIDA">Despesa (Sai)</option>
+                                <option value="ENTRADA">Receita (Entra)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                            <h6 class="fw-bold text-secondary mb-0"><i class="bi bi-diagram-3 me-2"></i>Contabilidade Analítica</h6>
+                        </div>
+                        <div class="card-body row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Centro de Custo <span class="text-danger">*</span></label>
+                                <select class="form-select" formControlName="centroCustoId">
+                                    <option [ngValue]="null" disabled>-- Selecione o Centro --</option>
+                                    <option *ngFor="let cc of centrosCusto" [ngValue]="cc.id">{{ cc.nome }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Secção Homogénea <span class="text-danger">*</span></label>
+                                <select class="form-select" formControlName="seccaoHomoId">
+                                    <option [ngValue]="null" disabled>-- Selecione a Secção --</option>
+                                    <option *ngFor="let sec of todasSeccoes" [ngValue]="sec.id">{{ sec.nome }}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Valor Base (€) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control fw-bold font-monospace" formControlName="valorBase">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Taxa IVA (%) <span class="text-danger">*</span></label>
+                            <select class="form-select" formControlName="taxaIva">
+                                <option [value]="23">23% (Normal)</option>
+                                <option [value]="13">13% (Intermédia)</option>
+                                <option [value]="6">6% (Reduzida)</option>
+                                <option [value]="0">Isento (0%)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4" *ngIf="formPlaneamento.get('tipo')?.value === 'SAIDA'">
+                            <label class="form-label small fw-bold text-danger">Fornecedor <span class="text-danger">*</span></label>
+                            <select class="form-select border-danger border-opacity-50" formControlName="fornecedorId">
+                                <option [ngValue]="null" disabled>Quem pagamos?</option>
+                                <option *ngFor="let f of fornecedores" [ngValue]="f.id">{{ f.nome }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" *ngIf="formPlaneamento.get('tipo')?.value === 'ENTRADA'">
+                            <label class="form-label small fw-bold text-success">Cliente <span class="text-danger">*</span></label>
+                            <select class="form-select border-success border-opacity-50" formControlName="clienteId">
+                                <option [ngValue]="null" disabled>Quem nos paga?</option>
+                                <option *ngFor="let c of clientes" [ngValue]="c.id">{{ c.nome }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm border-start border-4 border-warning">
+                        <div class="card-body row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Repetir (Frequência) <span class="text-danger">*</span></label>
+                                <select class="form-select bg-warning bg-opacity-10 fw-bold border-warning border-opacity-50" formControlName="frequencia">
+                                    <option value="MENSAL">Mensalmente</option>
+                                    <option value="SEMANAL">Semanalmente</option>
+                                    <option value="TRIMESTRAL">Trimestralmente</option>
+                                    <option value="SEMESTRAL">Semestralmente</option>
+                                    <option value="ANUAL">Anualmente</option>
+                                    <option value="PONTUAL">Uma Vez (Pontual)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">A Partir de <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" formControlName="dataInicio">
+                            </div>
+                            <div class="col-md-4" *ngIf="formPlaneamento.get('frequencia')?.value !== 'PONTUAL'">
+                                <label class="form-label small fw-bold">Até quando? (Opcional)</label>
+                                <input type="date" class="form-control" formControlName="dataFim" title="Deixar vazio se for para sempre">
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-dark px-4 fw-bold shadow-sm" [disabled]="formPlaneamento.invalid" (click)="guardarPlaneamento()">
+                    Gravar e Projetar <i class="bi bi-graph-up ms-2"></i>
                 </button>
             </div>
         </div>

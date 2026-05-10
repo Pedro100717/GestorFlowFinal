@@ -3,8 +3,13 @@ package pt.gestorflow.backend.dto;
 import java.math.BigDecimal;
 
 public interface AnaliseAnaliticaProjection {
-    String getCentroCusto();
-    String getSeccaoHomo();
+
+    // 🚀 O NOVO CONTRATO: Campos separados!
+    String getCentroCustoCodigo();
+    String getCentroCustoNome();
+
+    String getSeccaoCodigo();
+    String getSeccaoNome();
 
     // Operacional
     BigDecimal getTotalVendasSemIva();

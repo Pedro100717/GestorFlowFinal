@@ -24,8 +24,12 @@ public class AnaliseService {
         return analiseRepository.obterAnaliseVendasCompras(utilizadorId).stream()
                 .map(proj -> {
                     AnaliseAnaliticaDTO dto = new AnaliseAnaliticaDTO();
-                    dto.setCentroCusto(proj.getCentroCusto());
-                    dto.setSeccaoHomo(proj.getSeccaoHomo());
+
+                    // 🚀 MAPEAMENTO ATUALIZADO: Os 4 campos distintos em vez de 2!
+                    dto.setCentroCustoCodigo(proj.getCentroCustoCodigo());
+                    dto.setCentroCustoNome(proj.getCentroCustoNome());
+                    dto.setSeccaoCodigo(proj.getSeccaoCodigo());
+                    dto.setSeccaoNome(proj.getSeccaoNome());
 
                     // Operacional
                     dto.setTotalVendasSemIva(proj.getTotalVendasSemIva());

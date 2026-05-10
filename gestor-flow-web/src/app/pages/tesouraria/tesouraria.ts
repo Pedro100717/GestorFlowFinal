@@ -6,14 +6,20 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TesourariaService } from '../../services/tesouraria.service';
 import { ClienteService } from '../../services/cliente.service'; 
 import { FornecedorService } from '../../services/fornecedor.service';
+import { PlaneamentoService } from '../../services/planeamento.service';
 
-import { ContaBancaria, Movimento, DocumentoPendente, SimuladorTesourariaDTO } from '../../core/models/tesouraria.model'; 
+// 🚀 IMPORT CORRETO (Tudo vem do AnaliticaService)
+import { AnaliticaService } from '../../services/analitica.service';
+
+import { 
+  ContaBancaria, Movimento, DocumentoPendente, 
+  SimuladorTesourariaDTO, MovimentoPlaneado, 
+  TipoMovimentoPlaneado, FrequenciaMovimento 
+} from '../../core/models/tesouraria.model'; 
 import { Cliente } from '../../core/models/cliente.model';
 import { Fornecedor } from '../../core/models/fornecedor.model';
 
 import Swal from 'sweetalert2';
-
-// 🚀 IMPORT DO MOTOR GRÁFICO
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables); 
 
@@ -29,31 +35,37 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   abaAtiva: 'contas' | 'pendentes' | 'simulador' = 'contas'; 
 
+  // --- DADOS REAIS ---
   listaContas: ContaBancaria[] = [];
   movimentos: Movimento[] = [];
   contaSelecionada: ContaBancaria | null = null;
-
   listaPendentes: DocumentoPendente[] = []; 
   docParaConfirmar: DocumentoPendente | null = null; 
 
+  // --- DADOS DE PLANEAMENTO & ANALÍTICA ---
+  listaPlanos: MovimentoPlaneado[] = [];
   clientes: Cliente[] = [];
   fornecedores: Fornecedor[] = [];
+  centrosCusto: any[] = [];
+  todasSeccoes: any[] = []; 
 
+  // --- FORMULÁRIOS ---
   formConta!: FormGroup;
   formMovimento!: FormGroup;
   formTransferencia!: FormGroup;
   formConfirmacao!: FormGroup; 
+  formPlaneamento!: FormGroup; 
 
-  // 🚀 VARIÁVEIS DO GRÁFICO
+  // --- SIMULADOR ---
   simulacaoAtual: SimuladorTesourariaDTO | null = null;
   chartInstance: any;
-
-  // 🚀 VARIÁVEIS DA TABELA DESENHADA À MÃO
   linhasSimulador: any[] = [];
   saldoAtualTotal: number = 0;
 
   constructor(
     private tesourariaService: TesourariaService,
+    private planeamentoService: PlaneamentoService,
+    private analiticaService: AnaliticaService, // Único serviço analítico necessário
     private clienteService: ClienteService,
     private fornecedorService: FornecedorService,
     private fb: FormBuilder,
@@ -63,92 +75,96 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   ngOnInit() {
     this.inicializarFormularios();
 
+    // Subscrição às Contas (Fonte da Verdade)
     this.tesourariaService.contas$.subscribe(contas => {
       this.listaContas = contas;
       if (this.contaSelecionada) {
         this.contaSelecionada = contas.find(c => c.id === this.contaSelecionada!.id) || null;
       }
-      this.gerarTabelaSimulador(); // Atualiza a tabela manual se o saldo mudar
+      this.gerarTabelaSimulador();
       this.cd.detectChanges();
     });
 
+    // Subscrição aos Movimentos
     this.tesourariaService.movimentos$.subscribe(movs => {
       this.movimentos = movs;
       this.cd.detectChanges();
     });
 
-    this.carregarDados();
-    this.carregarEntidades();
+    this.carregarDadosIniciais();
   }
 
   ngAfterViewInit() {
     this.carregarSimulador();
   }
 
-  carregarDados() {
+  private carregarDadosIniciais() {
     this.tesourariaService.carregarContasDaAPI();
     this.carregarPendentes();
+    this.carregarEntidades();
+    this.carregarMestresAnaliticos();
+    this.carregarPlanos();
   }
 
-  carregarEntidades() {
-    this.clienteService.listar().subscribe((res: any) => {
-      this.clientes = res.content || res;
+  // =========================================================================
+  // --- 🚀 MÓDULO DE PLANEAMENTO E ANALÍTICA ---
+  // =========================================================================
+
+  carregarMestresAnaliticos() {
+    // 🚀 Usa os métodos reais do teu analitica.service.ts
+    this.analiticaService.listarCentros().subscribe((res: any) => {
+      this.centrosCusto = res.content || res;
     });
-    
-    this.fornecedorService.listar().subscribe((res: any) => {
-      this.fornecedores = res.content || res;
+
+    this.analiticaService.listarSeccoes().subscribe((res: any) => {
+      this.todasSeccoes = res.content || res;
     });
   }
 
-  carregarPendentes() {
-    this.tesourariaService.listarPendentes().subscribe({
-      next: (dados: DocumentoPendente[]) => {
-        this.listaPendentes = dados;
-        this.gerarTabelaSimulador(); // Atualiza a tabela manual se entrarem pendentes
-        this.cd.detectChanges();
+  carregarPlanos() {
+    this.planeamentoService.listarPlanos().subscribe(planos => {
+      this.listaPlanos = planos;
+      this.cd.detectChanges();
+    });
+  }
+
+  abrirModalPlaneamento() {
+    this.formPlaneamento.reset({
+      tipo: TipoMovimentoPlaneado.SAIDA,
+      frequencia: FrequenciaMovimento.MENSAL,
+      taxaIva: 23,
+      valorBase: 0,
+      dataInicio: new Date().toISOString().split('T')[0]
+    });
+    new bootstrap.Modal(document.getElementById('modalPlaneamento')).show();
+  }
+
+  guardarPlaneamento() {
+    if (this.formPlaneamento.invalid) {
+      this.formPlaneamento.markAllAsTouched();
+      return;
+    }
+
+    this.planeamentoService.criarPlano(this.formPlaneamento.value).subscribe({
+      next: () => {
+        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Planeamento guardado!' });
+        bootstrap.Modal.getInstance(document.getElementById('modalPlaneamento'))?.hide();
+        this.carregarSimulador();
+        this.carregarPlanos();
       },
-      error: (e: HttpErrorResponse) => console.error('Erro ao carregar pendentes:', e.message)
+      error: (e) => Swal.fire('Erro', 'Falha ao guardar o plano estratégico.', 'error')
+    });
+  }
+
+  alternarStatusPlano(plano: MovimentoPlaneado) {
+    this.planeamentoService.alternarStatus(plano.id!).subscribe(() => {
+      this.carregarPlanos();
+      this.carregarSimulador();
     });
   }
 
   // =========================================================================
-  // --- 🚀 CONSTRUTOR DA TABELA DESENHADA PELO USER ---
-  // =========================================================================
-  gerarTabelaSimulador() {
-    this.saldoAtualTotal = this.listaContas.reduce((acc, c) => acc + c.saldo, 0);
-    this.linhasSimulador = [];
-
-    this.linhasSimulador.push({
-      isAtual: true,
-      descritivo: 'SALDO ATUAL',
-      saldo: this.saldoAtualTotal
-    });
-
-    const pendentesOrdenados = [...this.listaPendentes].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-
-    let saldoCorrente = this.saldoAtualTotal;
-    
-    pendentesOrdenados.forEach(doc => {
-      let receita = doc.tipo === 'VENDA' ? doc.valorPendente : null;
-      let despesa = doc.tipo === 'COMPRA' ? doc.valorPendente : null;
-      
-      if (receita) saldoCorrente += receita;
-      if (despesa) saldoCorrente -= despesa;
-
-      this.linhasSimulador.push({
-        isAtual: false,
-        data: doc.data,
-        descritivo: doc.entidade,
-        receita: receita,
-        despesa: despesa,
-        saldo: saldoCorrente,
-        documento: doc 
-      });
-    });
-  }
-
-  // =========================================================================
-  // --- 🚀 O MOTOR GRÁFICO (SIMULADOR) ---
+  // --- 🚀 MOTOR GRÁFICO & SIMULADOR ---
   // =========================================================================
   
   atualizarGraficoSimulador() {
@@ -171,22 +187,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   desenharGrafico(dados: SimuladorTesourariaDTO) {
     const canvas = document.getElementById('graficoSimulador') as HTMLCanvasElement;
     if (!canvas) return;
-    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    if (this.chartInstance) {
-      this.chartInstance.destroy();
-    }
+    if (this.chartInstance) this.chartInstance.destroy();
 
     const labels = dados.pontos.map(p => p.label);
-    
-    // 🚀 LIMPO E ESTRUTURADO: Lê diretamente do modelo tipado (Sem maroscas)!
     const saldos = dados.pontos.map(p => p.saldoProjetado || 0);
 
-    const riscoTesouraria = saldos.some(s => s < 0);
-    const corLinha = riscoTesouraria ? '#dc3545' : '#0d6efd'; 
-    const corFundo = riscoTesouraria ? 'rgba(220, 53, 69, 0.1)' : 'rgba(13, 110, 253, 0.1)';
+    const risco = saldos.some(s => s < 0);
 
     this.chartInstance = new Chart(ctx, {
       type: 'line',
@@ -195,42 +204,44 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
         datasets: [{
           label: 'Saldo Projetado (€)',
           data: saldos,
-          borderColor: corLinha,
-          backgroundColor: corFundo,
+          borderColor: risco ? '#dc3545' : '#0d6efd',
+          backgroundColor: risco ? 'rgba(220, 53, 69, 0.1)' : 'rgba(13, 110, 253, 0.1)',
           borderWidth: 3,
           tension: 0.4,
-          fill: true,
-          pointBackgroundColor: corLinha,
-          pointRadius: 4,
-          pointHoverRadius: 6
+          fill: true
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (context: any) => ` ${context.parsed.y.toLocaleString('pt-PT', {style: 'currency', currency: 'EUR'})}`
-            }
-          }
-        },
-        scales: {
-          y: { 
-            beginAtZero: false,
-            grid: { color: '#e9ecef' }
-          },
-          x: { 
-            grid: { display: false }
-          }
-        }
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: false } }
       }
     });
   }
 
+  gerarTabelaSimulador() {
+    this.saldoAtualTotal = this.listaContas.reduce((acc, c) => acc + c.saldo, 0);
+    this.linhasSimulador = [{ isAtual: true, descritivo: 'SALDO ATUAL', saldo: this.saldoAtualTotal }];
+
+    const pendentesOrdenados = [...this.listaPendentes].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+    let saldoCorrente = this.saldoAtualTotal;
+    
+    pendentesOrdenados.forEach(doc => {
+      let receita = doc.tipo === 'VENDA' ? doc.valorPendente : null;
+      let despesa = doc.tipo === 'COMPRA' ? doc.valorPendente : null;
+      if (receita) saldoCorrente += receita;
+      if (despesa) saldoCorrente -= despesa;
+
+      this.linhasSimulador.push({
+        isAtual: false, data: doc.data, descritivo: doc.entidade,
+        receita, despesa, saldo: saldoCorrente, documento: doc 
+      });
+    });
+  }
+
   // =========================================================================
-  // --- INICIALIZAÇÕES E UTILITÁRIOS ---
+  // --- GESTÃO DE FORMULÁRIOS & REGRAS ---
   // =========================================================================
 
   inicializarFormularios() {
@@ -249,8 +260,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       fornecedorId: [null]
     });
 
-    this.configurarObrigatoriedadeDinamica();
-
     this.formTransferencia = this.fb.group({
       contaOrigemId: [null, Validators.required],
       contaDestinoId: [null, Validators.required],
@@ -263,128 +272,94 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       dataPagamento: [this.getDataAtual(), Validators.required],
       valorAPagar: [null, [Validators.required, Validators.min(0.01)]]
     });
+
+    // 🚀 Form de Planeamento
+    this.formPlaneamento = this.fb.group({
+      descricao: ['', Validators.required],
+      tipo: [TipoMovimentoPlaneado.SAIDA, Validators.required],
+      frequencia: [FrequenciaMovimento.MENSAL, Validators.required],
+      valorBase: [0, [Validators.required, Validators.min(0.01)]],
+      taxaIva: [23, Validators.required],
+      dataInicio: [new Date().toISOString().split('T')[0], Validators.required],
+      dataFim: [null],
+      centroCustoId: [null, Validators.required],
+      seccaoHomoId: [null, Validators.required],
+      clienteId: [null],
+      fornecedorId: [null]
+    });
+
+    this.configurarValidacoesDinamicas();
   }
 
-  configurarObrigatoriedadeDinamica() {
-    const tipoControl = this.formMovimento.get('tipo');
-    const clienteControl = this.formMovimento.get('clienteId');
-    const fornecedorControl = this.formMovimento.get('fornecedorId');
+  private configurarValidacoesDinamicas() {
+    // Para Movimentos Reais
+    this.formMovimento.get('tipo')?.valueChanges.subscribe(tipo => {
+      this.aplicarRegrasParceiro(this.formMovimento, tipo);
+    });
 
-    this.aplicarRegras(tipoControl?.value, clienteControl, fornecedorControl);
-
-    tipoControl?.valueChanges.subscribe(tipoSelecionado => {
-      this.aplicarRegras(tipoSelecionado, clienteControl, fornecedorControl);
+    // Para Planeamento
+    this.formPlaneamento.get('tipo')?.valueChanges.subscribe(tipo => {
+      this.aplicarRegrasParceiro(this.formPlaneamento, tipo);
     });
   }
 
-  private aplicarRegras(tipoSelecionado: string, clienteControl: AbstractControl | null, fornecedorControl: AbstractControl | null) {
-    if (!clienteControl || !fornecedorControl) return;
-
-    if (tipoSelecionado === 'DEBITO' || tipoSelecionado === 'SAIDA') {
-      fornecedorControl.setValidators([Validators.required]);
-      clienteControl.clearValidators();
-      clienteControl.setValue(null);
-    } else if (tipoSelecionado === 'CREDITO' || tipoSelecionado === 'ENTRADA') {
-      clienteControl.setValidators([Validators.required]);
-      fornecedorControl.clearValidators();
-      fornecedorControl.setValue(null);
+  private aplicarRegrasParceiro(form: FormGroup, tipo: string) {
+    const cli = form.get('clienteId');
+    const fornc = form.get('fornecedorId');
+    if (tipo === 'DEBITO' || tipo === 'SAIDA') {
+      fornc?.setValidators(Validators.required);
+      cli?.clearValidators();
+      cli?.setValue(null);
     } else {
-      clienteControl.clearValidators();
-      fornecedorControl.clearValidators();
+      cli?.setValidators(Validators.required);
+      fornc?.clearValidators();
+      fornc?.setValue(null);
     }
-    clienteControl.updateValueAndValidity();
-    fornecedorControl.updateValueAndValidity();
-  }
-
-  getDataAtual(): string {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
+    cli?.updateValueAndValidity();
+    fornc?.updateValueAndValidity();
   }
 
   // =========================================================================
-  // --- ACÇÕES FINANCEIRAS ---
+  // --- ACÇÕES FINANCEIRAS CORE (Contas, Movimentos, etc) ---
   // =========================================================================
+
+  carregarEntidades() {
+    this.clienteService.listar().subscribe((res: any) => this.clientes = res.content || res);
+    this.fornecedorService.listar().subscribe((res: any) => this.fornecedores = res.content || res);
+  }
+
+  carregarPendentes() {
+    this.tesourariaService.listarPendentes().subscribe({
+      next: (dados: DocumentoPendente[]) => {
+        this.listaPendentes = dados;
+        this.gerarTabelaSimulador();
+        this.cd.detectChanges();
+      },
+      error: (e: HttpErrorResponse) => console.error('Erro ao carregar pendentes:', e.message)
+    });
+  }
 
   abrirModalConfirmacao(doc: DocumentoPendente) {
     this.docParaConfirmar = doc;
-    const contaPadrao = this.listaContas.length > 0 ? this.listaContas[0].id : null;
     this.formConfirmacao.reset({ 
       dataPagamento: this.getDataAtual(), 
-      contaBancariaId: contaPadrao,
+      contaBancariaId: this.listaContas[0]?.id,
       valorAPagar: doc.valorPendente
     });
     new bootstrap.Modal(document.getElementById('modalConfirmacao')).show();
   }
 
   confirmarTransacao() {
-    if (this.formConfirmacao.invalid || !this.docParaConfirmar) {
-      this.formConfirmacao.markAllAsTouched();
-      return;
-    }
-
-    const payload = {
+    if (this.formConfirmacao.invalid || !this.docParaConfirmar) return;
+    this.tesourariaService.confirmarTransacao({
+      ...this.formConfirmacao.value,
       documentoId: this.docParaConfirmar.id,
-      tipoDocumento: this.docParaConfirmar.tipo,
-      contaBancariaId: this.formConfirmacao.value.contaBancariaId,
-      dataPagamento: this.formConfirmacao.value.dataPagamento,
-      valorAPagar: this.formConfirmacao.value.valorAPagar
-    };
-
-    this.tesourariaService.confirmarTransacao(payload).subscribe({
-      next: () => {
-        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-        Toast.fire({ icon: 'success', title: 'Transação liquidada com sucesso!' });
-        bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'))?.hide();
-        
-        this.carregarPendentes();
-        this.tesourariaService.carregarContasDaAPI(); 
-        if (this.abaAtiva === 'simulador') this.carregarSimulador(); 
-      },
-      error: (e: HttpErrorResponse) => {
-        Swal.fire({ icon: 'error', title: 'Falha ao Liquidar', text: e.error?.message || 'Ocorreu um erro.', confirmButtonColor: '#0d6efd' });
-      }
-    });
-  }
-
-  novaConta() {
-    this.formConta.reset({ saldoInicial: 0, iban: 'PT50' }); 
-    new bootstrap.Modal(document.getElementById('modalConta')).show();
-  }
-
-  guardarConta() {
-    if (this.formConta.invalid) {
-      this.formConta.markAllAsTouched();
-      return;
-    }
-    this.tesourariaService.criarConta(this.formConta.value).subscribe({
-      next: () => {
-        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Conta criada com sucesso!' });
-        bootstrap.Modal.getInstance(document.getElementById('modalConta'))?.hide();
-        if (this.abaAtiva === 'simulador') this.carregarSimulador(); 
-      }
-    });
-  }
-
-  novoMovimento() {
-    const contaId = this.contaSelecionada ? this.contaSelecionada.id : null;
-    this.formMovimento.reset({ contaId: contaId, tipo: 'DEBITO', valor: 0, descricao: '', clienteId: null, fornecedorId: null });
-    this.aplicarRegras('DEBITO', this.formMovimento.get('clienteId'), this.formMovimento.get('fornecedorId'));
-    new bootstrap.Modal(document.getElementById('modalMovimento')).show();
-  }
-
-  registarMovimento() {
-    if (this.formMovimento.invalid) {
-      this.formMovimento.markAllAsTouched();
-      return;
-    }
-    this.tesourariaService.registarMovimento(this.formMovimento.value).subscribe({
-      next: () => {
-        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Movimento registado!' });
-        bootstrap.Modal.getInstance(document.getElementById('modalMovimento'))?.hide();
-        if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
-        if (this.abaAtiva === 'simulador') this.carregarSimulador(); 
-      }
+      tipoDocumento: this.docParaConfirmar.tipo
+    }).subscribe(() => {
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Liquidado!', timer: 2000 });
+      bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'))?.hide();
+      this.carregarDadosIniciais();
+      if (this.abaAtiva === 'simulador') this.carregarSimulador();
     });
   }
 
@@ -393,52 +368,62 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     this.tesourariaService.obterExtrato(conta.id!);
   }
 
+  novaConta() {
+    this.formConta.reset({ saldoInicial: 0, iban: 'PT50' }); 
+    new bootstrap.Modal(document.getElementById('modalConta')).show();
+  }
+
+  guardarConta() {
+    if (this.formConta.invalid) return;
+    this.tesourariaService.criarConta(this.formConta.value).subscribe(() => {
+      bootstrap.Modal.getInstance(document.getElementById('modalConta'))?.hide();
+      this.carregarSimulador();
+    });
+  }
+
+  novoMovimento() {
+    this.formMovimento.reset({ contaId: this.contaSelecionada?.id, tipo: 'DEBITO', valor: 0 });
+    this.aplicarRegrasParceiro(this.formMovimento, 'DEBITO');
+    new bootstrap.Modal(document.getElementById('modalMovimento')).show();
+  }
+
+  registarMovimento() {
+    if (this.formMovimento.invalid) return;
+    this.tesourariaService.registarMovimento(this.formMovimento.value).subscribe(() => {
+      bootstrap.Modal.getInstance(document.getElementById('modalMovimento'))?.hide();
+      if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
+      this.carregarSimulador();
+    });
+  }
+
   novaTransferencia() {
-    const contaId = this.contaSelecionada ? this.contaSelecionada.id : null;
-    this.formTransferencia.reset({ contaOrigemId: contaId, contaDestinoId: null, valor: 0, descricao: '' });
+    this.formTransferencia.reset({ contaOrigemId: this.contaSelecionada?.id, valor: 0 });
     new bootstrap.Modal(document.getElementById('modalTransferencia')).show();
   }
 
   realizarTransferencia() {
-    if (this.formTransferencia.invalid) {
-      this.formTransferencia.markAllAsTouched();
-      return;
-    }
-    const origem = this.formTransferencia.get('contaOrigemId')?.value;
-    const destino = this.formTransferencia.get('contaDestinoId')?.value;
-    if (origem === destino) {
-      Swal.fire({ icon: 'warning', title: 'Operação Inválida', text: 'A conta origem e destino não podem ser a mesma.' });
-      return;
-    }
-    this.tesourariaService.realizarTransferencia(this.formTransferencia.value).subscribe({
-      next: () => {
-        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Transferência realizada!' });
-        bootstrap.Modal.getInstance(document.getElementById('modalTransferencia'))?.hide();
-        if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
-      }
+    if (this.formTransferencia.invalid) return;
+    this.tesourariaService.realizarTransferencia(this.formTransferencia.value).subscribe(() => {
+      bootstrap.Modal.getInstance(document.getElementById('modalTransferencia'))?.hide();
+      if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
     });
   }
 
   anularMovimento(mov: Movimento) {
-    Swal.fire({
-      title: 'Anular Movimento?',
-      text: `Vai anular a transação de ${mov.valor}€. O saldo será revertido.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc3545',
-      confirmButtonText: 'Sim, anular e reverter!',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.tesourariaService.anularMovimento(mov.id!).subscribe({
-          next: () => {
-            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Estornado!' });
-            if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
-            this.carregarPendentes();
-            if (this.abaAtiva === 'simulador') this.carregarSimulador(); 
-          }
+    Swal.fire({ title: 'Anular?', text: 'Saldo será revertido.', icon: 'warning', showCancelButton: true }).then(r => {
+      if (r.isConfirmed) {
+        this.tesourariaService.anularMovimento(mov.id!).subscribe(() => {
+          if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
+          this.carregarPendentes();
+          this.carregarSimulador();
         });
       }
     });
+  }
+
+  getDataAtual(): string {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
   }
 }

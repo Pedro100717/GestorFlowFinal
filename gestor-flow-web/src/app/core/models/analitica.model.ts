@@ -11,8 +11,12 @@ export interface SeccaoHomo {
 }
 
 export interface AnaliseDashboard {
-    centroCusto: string;
-    seccaoHomo: string;
+    // 🚀 A GRANDE MUDANÇA: Separar Código e Nome para o UI ficar perfeito!
+    centroCustoCodigo: string;
+    centroCustoNome: string;
+    
+    seccaoCodigo: string;
+    seccaoNome: string;
     
     // Operacional (O que vai para a Tabela 1)
     totalVendasSemIva: number;
