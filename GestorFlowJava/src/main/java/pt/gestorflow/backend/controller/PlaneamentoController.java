@@ -41,4 +41,10 @@ public class PlaneamentoController {
         planeamentoService.alternarStatus(id);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{id}/gerar-fatura")
+    public ResponseEntity<Void> gerarFaturaPendente(@PathVariable Long id) {
+        planeamentoService.gerarFaturaPendente(id);
+        return ResponseEntity.ok().build();
+    }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 import { MovimentoPlaneado } from '../core/models/tesouraria.model';
 import { environment } from '../../environments/environment';
 
@@ -9,7 +9,7 @@ import { environment } from '../../environments/environment';
 })
 export class PlaneamentoService {
 
-  private readonly API_URL = `${environment.apiUrl}/planeamento`;
+  private readonly API_URL = `${environment.apiUrl}/planeamento`; // Confirma só se não falta o '/api' aqui no teu environment
 
   constructor(private http: HttpClient) { }
 
@@ -34,5 +34,10 @@ export class PlaneamentoService {
   // Ativar ou desativar uma projeção no simulador sem a apagar
   alternarStatus(id: number): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/${id}/toggle`, {});
+  }
+
+  // 🚀 A CHAMADA PARA O BOTÃO MÁGICO (O que faltava para tirar o erro)
+  gerarFaturaPendente(id: number): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/${id}/gerar-fatura`, {});
   }
 }

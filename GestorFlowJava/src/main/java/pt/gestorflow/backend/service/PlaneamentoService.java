@@ -8,6 +8,8 @@ import pt.gestorflow.backend.dto.MovimentoPlaneadoDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,12 +18,41 @@ import java.util.stream.Collectors;
 public class PlaneamentoService {
 
     private final MovimentoPlaneadoRepository planeamentoRepository;
-    private final CentroCustoRepository centroCustoRepository;
-    private final SeccaoHomoRepository seccaoHomoRepository;
-    private final ClienteRepository clienteRepository;
-    private final FornecedorRepository fornecedorRepository;
     private final UtilizadorRepository utilizadorRepository;
+    private final TxIvaRepository txIvaRepository;
     private final AuthService authService;
+    private final DocumentoTesourariaRepository documentoTesourariaRepository;
+
+    // =========================================================================
+    // --- 🚀 O BOTÃO MÁGICO: EFETIVAR PLANEAMENTO (SEM COMPRAS/VENDAS) ---
+    // =========================================================================
+
+    @Transactional
+    public void gerarFaturaPendente(Long planoId) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(planoId, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
+
+        LocalDate hoje = LocalDate.now();
+        if (plano.getDataUltimoProcessamento() != null && plano.getDataUltimoProcessamento().getMonth() == hoje.getMonth() && plano.getDataUltimoProcessamento().getYear() == hoje.getYear()) {
+            throw new IllegalStateException("Este plano já foi processado no mês corrente.");
+        }
+
+        // 🚀 AQUI NASCE O DOCUMENTO PURO DE TESOURARIA
+        DocumentoTesouraria doc = new DocumentoTesouraria();
+        doc.setDescricao(plano.getDescricao());
+        doc.setTipo(plano.getTipo());
+        doc.setValorTotal(plano.getValorComIva()); // Usa a matemática do IVA!
+        doc.setDataEmissao(LocalDateTime.now());
+        doc.setUtilizador(plano.getUtilizador());
+        documentoTesourariaRepository.save(doc);
+
+        plano.setDataUltimoProcessamento(hoje);
+        planeamentoRepository.save(plano);
+    }
+    // =========================================================================
+    // --- GESTÃO CRUD SIMPLIFICADA (ESTILO EXCEL) ---
+    // =========================================================================
 
     @Transactional
     public MovimentoPlaneadoDTO criarPlano(MovimentoPlaneadoDTO dto) {
@@ -39,19 +70,18 @@ public class PlaneamentoService {
     @Transactional
     public MovimentoPlaneadoDTO atualizarPlano(Long id, MovimentoPlaneadoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        MovimentoPlaneado plano = planeamentoRepository.findById(id)
-                .filter(p -> p.getUtilizador().getId().equals(utilizadorId))
+
+        MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
 
         mapearDtoParaEntidade(dto, plano, utilizadorId);
-
         return mapearEntidadeParaDto(planeamentoRepository.save(plano));
     }
 
     @Transactional(readOnly = true)
     public List<MovimentoPlaneadoDTO> listarPlanos() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        return planeamentoRepository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId)
+        return planeamentoRepository.findAllByUtilizadorId(utilizadorId)
                 .stream()
                 .map(this::mapearEntidadeParaDto)
                 .collect(Collectors.toList());
@@ -60,64 +90,39 @@ public class PlaneamentoService {
     @Transactional
     public void apagarPlano(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        MovimentoPlaneado plano = planeamentoRepository.findById(id)
-                .filter(p -> p.getUtilizador().getId().equals(utilizadorId))
+        MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
-
         planeamentoRepository.delete(plano);
     }
 
     @Transactional
     public void alternarStatus(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        MovimentoPlaneado plano = planeamentoRepository.findById(id)
-                .filter(p -> p.getUtilizador().getId().equals(utilizadorId))
+        MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
 
         plano.setAtivo(!plano.getAtivo());
         planeamentoRepository.save(plano);
     }
 
-    // --- MÉTODOS DE MAPEAMENTO ---
+    // =========================================================================
+    // --- MAPEAMENTOS (ZERO BUROCRACIA COMERCIAL) ---
+    // =========================================================================
 
     private void mapearDtoParaEntidade(MovimentoPlaneadoDTO dto, MovimentoPlaneado plano, Long utilizadorId) {
         plano.setDescricao(dto.getDescricao());
         plano.setTipo(dto.getTipo());
         plano.setFrequencia(dto.getFrequencia());
         plano.setValorBase(dto.getValorBase());
-        plano.setTaxaIva(dto.getTaxaIva());
         plano.setDataInicio(dto.getDataInicio());
         plano.setDataFim(dto.getDataFim());
         plano.setAtivo(dto.getAtivo() != null ? dto.getAtivo() : true);
 
-        // Relacionamentos Obrigatórios
-        CentroCusto cc = centroCustoRepository.findById(dto.getCentroCustoId())
-                .filter(c -> c.getUtilizador().getId().equals(utilizadorId))
-                .orElseThrow(() -> new EntityNotFoundException("Centro de Custo inválido."));
-        plano.setCentroCusto(cc);
-
-        SeccaoHomo sh = seccaoHomoRepository.findById(dto.getSeccaoHomoId())
-                .filter(s -> s.getUtilizador().getId().equals(utilizadorId))
-                .orElseThrow(() -> new EntityNotFoundException("Secção Homogénea inválida."));
-        plano.setSeccaoHomo(sh);
-
-        // Relacionamentos Opcionais
-        if (dto.getClienteId() != null) {
-            Cliente cliente = clienteRepository.findById(dto.getClienteId())
-                    .filter(c -> c.getUtilizador().getId().equals(utilizadorId))
-                    .orElseThrow(() -> new EntityNotFoundException("Cliente inválido."));
-            plano.setCliente(cliente);
-        } else {
-            plano.setCliente(null);
-        }
-
-        if (dto.getFornecedorId() != null) {
-            Fornecedor fornecedor = fornecedorRepository.findById(dto.getFornecedorId())
-                    .filter(f -> f.getUtilizador().getId().equals(utilizadorId))
-                    .orElseThrow(() -> new EntityNotFoundException("Fornecedor inválido."));
-            plano.setFornecedor(fornecedor);
-        } else {
-            plano.setFornecedor(null);
+        // 🔗 Taxa de IVA: O único vínculo obrigatório para o cálculo
+        if (dto.getTaxaIvaId() != null) {
+            TxIva iva = txIvaRepository.findById(dto.getTaxaIvaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA inválida."));
+            plano.setTaxaIva(iva);
         }
     }
 
@@ -128,16 +133,14 @@ public class PlaneamentoService {
         dto.setTipo(plano.getTipo());
         dto.setFrequencia(plano.getFrequencia());
         dto.setValorBase(plano.getValorBase());
-        dto.setTaxaIva(plano.getTaxaIva());
         dto.setDataInicio(plano.getDataInicio());
         dto.setDataFim(plano.getDataFim());
         dto.setAtivo(plano.getAtivo());
+        dto.setDataUltimoProcessamento(plano.getDataUltimoProcessamento());
 
-        dto.setCentroCustoId(plano.getCentroCusto().getId());
-        dto.setSeccaoHomoId(plano.getSeccaoHomo().getId());
-
-        if (plano.getCliente() != null) dto.setClienteId(plano.getCliente().getId());
-        if (plano.getFornecedor() != null) dto.setFornecedorId(plano.getFornecedor().getId());
+        if (plano.getTaxaIva() != null) {
+            dto.setTaxaIvaId(plano.getTaxaIva().getId());
+        }
 
         return dto;
     }

@@ -12,25 +12,22 @@ import java.time.LocalDate;
 @Setter
 public class MovimentoPlaneadoDTO {
 
-    private Long id; // Nulo na criação, preenchido na edição
+    private Long id;
     private String descricao;
 
-    private TipoMovimentoPlaneado tipo;
-    private FrequenciaMovimento frequencia;
+    private TipoMovimentoPlaneado tipo; // ENTRADA ou SAIDA
+    private FrequenciaMovimento frequencia; // MENSAL, SEMANAL, etc.
 
     private BigDecimal valorBase;
-    private BigDecimal taxaIva;
+
+    // 🚀 Apenas a ligação à Taxa de IVA se mantém
+    private Long taxaIvaId;
 
     private LocalDate dataInicio;
-    private LocalDate dataFim; // Opcional
-
-    // 🚀 IDs das dimensões analíticas (Obrigatórios)
-    private Long centroCustoId;
-    private Long seccaoHomoId;
-
-    // 🚀 IDs dos parceiros (Opcionais)
-    private Long clienteId;
-    private Long fornecedorId;
+    private LocalDate dataFim;
 
     private Boolean ativo;
+
+    // 🚀 Para o Frontend saber quando o botão deve estar desativado
+    private LocalDate dataUltimoProcessamento;
 }

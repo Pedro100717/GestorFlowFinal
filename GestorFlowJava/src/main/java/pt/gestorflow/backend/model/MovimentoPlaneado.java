@@ -22,42 +22,28 @@ public class MovimentoPlaneado extends Auditable {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private TipoMovimentoPlaneado tipo; // ENTRADA (Vendas/Receitas) ou SAIDA (Compras/Custos)
+    private TipoMovimentoPlaneado tipo; // ENTRADA ou SAIDA
 
-    // 🚀 RIGOR INDUSTRIAL: Valores para simulação de fluxo de caixa e impostos
-    @Column(nullable = false)
+    @Column(nullable = false, name = "valor_base")
     private BigDecimal valorBase;
 
-    @Column(nullable = false)
-    private BigDecimal taxaIva; // Ex: 23.0
+    // 🚀 LIGAÇÃO REAL AO IVA (Única obrigatória para os cálculos)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tx_iva_id", nullable = false)
+    private TxIva taxaIva;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FrequenciaMovimento frequencia;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "data_inicio")
     private LocalDate dataInicio;
 
-    @Column
+    @Column(name = "data_fim")
     private LocalDate dataFim;
 
-    // 🚀 O "TRIÂNGULO DOURADO" DE CONCILIAÇÃO ANALÍTICA
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "centro_custo_id", nullable = false)
-    private CentroCusto centroCusto;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seccao_homo_id", nullable = false)
-    private SeccaoHomo seccaoHomo;
-
-    // 🚀 LIGAÇÕES AOS PARCEIROS (Opcionais para permitir previsões genéricas)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cliente_id")
-    private Cliente cliente; // Usado quando o tipo é ENTRADA
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "fornecedor_id")
-    private Fornecedor fornecedor; // Usado quando o tipo é SAIDA
+    @Column(name = "data_ultimo_processamento")
+    private LocalDate dataUltimoProcessamento;
 
     @Column(nullable = false)
     private Boolean ativo = true;
@@ -66,22 +52,18 @@ public class MovimentoPlaneado extends Auditable {
     @JoinColumn(name = "utilizador_id", nullable = false)
     private Utilizador utilizador;
 
-    // --- MÉTODOS DE APOIO AO MOTOR MATEMÁTICO ---
-
+    // --- MÉTODOS MATEMÁTICOS ADAPTADOS ---
     public BigDecimal getValorComIva() {
-        if (valorBase == null) return BigDecimal.ZERO;
-        BigDecimal taxa = taxaIva != null ? taxaIva : BigDecimal.ZERO;
-        BigDecimal fatorIva = taxa.divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
+        if (valorBase == null || taxaIva == null || taxaIva.getValor() == null) return valorBase;
+        BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
         return valorBase.multiply(fatorIva);
     }
 
     public BigDecimal getValorIva() {
-        if (valorBase == null) return BigDecimal.ZERO;
-        BigDecimal taxa = taxaIva != null ? taxaIva : BigDecimal.ZERO;
-        return valorBase.multiply(taxa.divide(BigDecimal.valueOf(100)));
+        if (valorBase == null || taxaIva == null || taxaIva.getValor() == null) return BigDecimal.ZERO;
+        return valorBase.multiply(taxaIva.getValor().divide(BigDecimal.valueOf(100)));
     }
 
-    // 🛡️ IMPLEMENTAÇÃO SEGURA DE EQUALS E HASHCODE
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

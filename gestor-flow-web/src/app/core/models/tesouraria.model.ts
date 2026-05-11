@@ -1,7 +1,3 @@
-// 1. IMPORTAR OS MODELOS REAIS
-import { Compra } from './compra.model';
-import { Venda } from './venda.model';
-
 export interface ContaBancaria {
     id?: number;
     nome: string;
@@ -32,22 +28,18 @@ export interface Movimento {
 
 export interface DocumentoPendente {
     id: number;
-    tipo: 'VENDA' | 'COMPRA';
+    tipo: 'VENDA' | 'COMPRA' | 'RECEITA' | 'DESPESA'; // 🚀 ATUALIZADO
     data: string;
     entidade: string;
     total: number;
-    
-    // O campo vital que o Backend agora envia para sabermos quanto falta pagar
     valorPendente: number; 
 }
 
 export interface ConfirmarPagamentoPayload {
     documentoId: number;
-    tipoDocumento: 'VENDA' | 'COMPRA';
+    tipoDocumento: 'VENDA' | 'COMPRA' | 'RECEITA' | 'DESPESA'; // 🚀 ATUALIZADO
     contaBancariaId: number;
     dataPagamento?: string;
-    
-    // A nossa tranche obrigatória!
     valorAPagar: number; 
 }
 
@@ -66,7 +58,7 @@ export interface SimuladorTesourariaDTO {
 }
 
 // ==========================================
-// 🚀 MODELOS DE PLANEAMENTO FINANCEIRO
+// 🚀 MODELOS DE PLANEAMENTO FINANCEIRO (CASH FLOW PURO)
 // ==========================================
 
 export enum TipoMovimentoPlaneado {
@@ -89,18 +81,15 @@ export interface MovimentoPlaneado {
     tipo: TipoMovimentoPlaneado | string;
     frequencia: FrequenciaMovimento | string;
     valorBase: number;
-    taxaIva: number;
+    
+    // 🚀 O ÚNICO LUGAR ONDE O RIGOR SE MANTÉM (Cálculos de IVA)
+    taxaIvaId: number; 
     
     dataInicio: string; // Formato 'YYYY-MM-DD'
     dataFim?: string;   // Opcional
     
-    // Dimensões Analíticas (Obrigatórias)
-    centroCustoId: number;
-    seccaoHomoId: number;
-    
-    // Parceiros (Opcionais)
-    clienteId?: number;
-    fornecedorId?: number;
-    
     ativo?: boolean;
+
+    // 🚀 Para o Angular saber se desativa o botão de "Gerar"
+    dataUltimoProcessamento?: string; 
 }

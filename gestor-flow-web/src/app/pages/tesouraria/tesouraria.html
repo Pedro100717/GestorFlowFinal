@@ -5,9 +5,6 @@
             <button class="btn btn-outline-success me-2" (click)="novaTransferencia()">
                 <i class="bi bi-arrow-left-right me-2"></i>Transferência
             </button>
-            <button class="btn btn-outline-primary me-2" (click)="novoMovimento()">
-                <i class="bi bi-plus-slash-minus me-2"></i>Movimento Manual
-            </button>
             <button class="btn btn-primary" (click)="novaConta()">
                 <i class="bi bi-bank me-2"></i>Nova Conta
             </button>
@@ -153,7 +150,7 @@
                         <tr>
                             <th class="ps-4 py-3 border-0 text-muted small uppercase">Tipo</th>
                             <th class="border-0 text-muted small uppercase">Data Emissão</th>
-                            <th class="border-0 text-muted small uppercase">Entidade</th>
+                            <th class="border-0 text-muted small uppercase">Entidade / Descritivo</th>
                             <th class="border-0 text-muted small uppercase text-end">Valor Pendente</th>
                             <th class="border-0 text-muted small uppercase text-end pe-4">Ação</th>
                         </tr>
@@ -161,9 +158,9 @@
                     <tbody>
                         <tr *ngFor="let doc of listaPendentes">
                             <td class="ps-4">
-                                <span class="badge" [ngClass]="doc.tipo === 'VENDA' ? 'bg-success bg-opacity-10 text-success border border-success' : 'bg-danger bg-opacity-10 text-danger border border-danger'">
-                                    <i class="bi" [ngClass]="doc.tipo === 'VENDA' ? 'bi-box-arrow-in-down-left' : 'bi-box-arrow-up-right'"></i> 
-                                    {{ doc.tipo === 'VENDA' ? 'Recebimento' : 'Pagamento' }}
+                                <span class="badge" [ngClass]="doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'bg-success bg-opacity-10 text-success border border-success' : 'bg-danger bg-opacity-10 text-danger border border-danger'">
+                                    <i class="bi" [ngClass]="doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'bi-box-arrow-in-down-left' : 'bi-box-arrow-up-right'"></i> 
+                                    {{ doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'Recebimento' : 'Pagamento' }}
                                 </span>
                             </td>
                             <td class="text-muted small">{{ doc.data | date:'dd/MM/yyyy HH:mm' }}</td>
@@ -174,7 +171,7 @@
                             </td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm shadow-sm" 
-                                        [ngClass]="doc.tipo === 'VENDA' ? 'btn-success' : 'btn-danger'"
+                                        [ngClass]="doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'btn-success' : 'btn-danger'"
                                         (click)="abrirModalConfirmacao(doc)">
                                     Liquidar <i class="bi bi-chevron-right ms-1"></i>
                                 </button>
@@ -245,7 +242,7 @@
                                 <th class="text-muted small uppercase">Descrição</th>
                                 <th class="text-muted small uppercase">Recorrência</th>
                                 <th class="text-muted small uppercase text-end">Valor Base</th>
-                                <th class="text-muted small uppercase text-center pe-4" style="width: 100px;">Gestão</th>
+                                <th class="text-muted small uppercase text-center pe-4" style="width: 150px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -271,10 +268,22 @@
                                 </td>
                                 <td class="text-end fw-bold font-monospace" [ngClass]="plano.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'">
                                     {{ plano.valorBase | currency:'EUR' }}
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">+ IVA ({{ plano.taxaIva }}%)</small>
                                 </td>
                                 <td class="text-center pe-4">
-                                    <span class="text-muted small">Auto</span>
+                                    <div class="d-flex justify-content-center gap-1">
+                                        <button class="btn btn-sm" 
+                                                [ngClass]="podeGerarFatura(plano) ? 'btn-outline-primary' : 'btn-secondary opacity-50'"
+                                                [disabled]="!podeGerarFatura(plano)"
+                                                (click)="gerarFaturaDoPlano(plano)" title="Efetivar Mês Atual">
+                                            <i class="bi" [ngClass]="podeGerarFatura(plano) ? 'bi-magic' : 'bi-check2-all'"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" (click)="abrirModalPlaneamento(plano)" title="Editar Plano">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" (click)="apagarPlano(plano)" title="Apagar Plano">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr *ngIf="listaPlanos.length === 0">
@@ -500,9 +509,9 @@
 <div class="modal fade" id="modalConfirmacao" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header text-white" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'bg-success' : 'bg-danger'">
+            <div class="modal-header text-white" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'bg-success' : 'bg-danger'">
                 <h5 class="modal-title fw-bold">
-                    Liquidar {{ docParaConfirmar?.tipo === 'VENDA' ? 'Recebimento' : 'Pagamento' }}
+                    Liquidar {{ docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'Recebimento' : 'Pagamento' }}
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -510,11 +519,11 @@
                 <div class="text-center mb-4">
                     <p class="text-muted mb-1">{{ docParaConfirmar?.entidade }}</p>
                     <h4 class="fw-bold text-dark mb-0">Pendente: {{ docParaConfirmar?.valorPendente | currency:'EUR' }}</h4>
-                    <small class="text-muted">(Total da Fatura: {{ docParaConfirmar?.total | currency:'EUR' }})</small>
+                    <small class="text-muted">(Total: {{ docParaConfirmar?.total | currency:'EUR' }})</small>
                 </div>
                 <form [formGroup]="formConfirmacao">
-                    <div class="mb-4 p-3 bg-light rounded border border-2" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'border-success' : 'border-danger'">
-                        <label class="form-label fw-bold" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'text-success' : 'text-danger'">
+                    <div class="mb-4 p-3 bg-light rounded border border-2" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'border-success' : 'border-danger'">
+                        <label class="form-label fw-bold" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'text-success' : 'text-danger'">
                             Valor a Liquidar Agora (€) <span class="text-danger">*</span>
                         </label>
                         <div class="input-group input-group-lg">
@@ -540,7 +549,7 @@
             </div>
             <div class="modal-footer bg-light border-0">
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                <button class="btn" [ngClass]="docParaConfirmar?.tipo === 'VENDA' ? 'btn-success' : 'btn-danger'"
+                <button class="btn" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'btn-success' : 'btn-danger'"
                         [disabled]="formConfirmacao.invalid || formConfirmacao.get('valorAPagar')?.value > (docParaConfirmar?.valorPendente || 0) || formConfirmacao.get('valorAPagar')?.value <= 0" 
                         (click)="confirmarTransacao()">
                     <i class="bi bi-check-lg me-1"></i> Confirmar Liquidação
@@ -555,7 +564,8 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-dark text-white">
                 <h5 class="modal-title fw-bold">
-                    <i class="bi bi-calendar-check me-2"></i>Novo Custo/Receita Fixo
+                    <i class="bi bi-calendar-check me-2"></i>
+                    {{ planoEmEdicaoId ? 'Editar Custo/Receita Fixo' : 'Novo Custo/Receita Fixo' }}
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -565,7 +575,7 @@
                     <div class="row g-3 mb-4">
                         <div class="col-md-8">
                             <label class="form-label small fw-bold">Descrição <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" formControlName="descricao" placeholder="Ex: Renda Escritório Sede">
+                            <input type="text" class="form-control" formControlName="descricao" placeholder="Ex: Renda Escritório Sede" [ngClass]="{'is-invalid': formPlaneamento.get('descricao')?.invalid && formPlaneamento.get('descricao')?.touched}">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Direção do Dinheiro <span class="text-danger">*</span></label>
@@ -576,55 +586,17 @@
                         </div>
                     </div>
 
-                    <div class="card border-0 shadow-sm mb-4">
-                        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
-                            <h6 class="fw-bold text-secondary mb-0"><i class="bi bi-diagram-3 me-2"></i>Contabilidade Analítica</h6>
-                        </div>
-                        <div class="card-body row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Centro de Custo <span class="text-danger">*</span></label>
-                                <select class="form-select" formControlName="centroCustoId">
-                                    <option [ngValue]="null" disabled>-- Selecione o Centro --</option>
-                                    <option *ngFor="let cc of centrosCusto" [ngValue]="cc.id">{{ cc.nome }}</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Secção Homogénea <span class="text-danger">*</span></label>
-                                <select class="form-select" formControlName="seccaoHomoId">
-                                    <option [ngValue]="null" disabled>-- Selecione a Secção --</option>
-                                    <option *ngFor="let sec of todasSeccoes" [ngValue]="sec.id">{{ sec.nome }}</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="row g-3 mb-4">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">Valor Base (€) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control fw-bold font-monospace" formControlName="valorBase">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Taxa IVA (%) <span class="text-danger">*</span></label>
-                            <select class="form-select" formControlName="taxaIva">
-                                <option [value]="23">23% (Normal)</option>
-                                <option [value]="13">13% (Intermédia)</option>
-                                <option [value]="6">6% (Reduzida)</option>
-                                <option [value]="0">Isento (0%)</option>
-                            </select>
+                            <input type="number" class="form-control fw-bold font-monospace" formControlName="valorBase" [ngClass]="{'is-invalid': formPlaneamento.get('valorBase')?.invalid && formPlaneamento.get('valorBase')?.touched}">
                         </div>
                         
-                        <div class="col-md-4" *ngIf="formPlaneamento.get('tipo')?.value === 'SAIDA'">
-                            <label class="form-label small fw-bold text-danger">Fornecedor <span class="text-danger">*</span></label>
-                            <select class="form-select border-danger border-opacity-50" formControlName="fornecedorId">
-                                <option [ngValue]="null" disabled>Quem pagamos?</option>
-                                <option *ngFor="let f of fornecedores" [ngValue]="f.id">{{ f.nome }}</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4" *ngIf="formPlaneamento.get('tipo')?.value === 'ENTRADA'">
-                            <label class="form-label small fw-bold text-success">Cliente <span class="text-danger">*</span></label>
-                            <select class="form-select border-success border-opacity-50" formControlName="clienteId">
-                                <option [ngValue]="null" disabled>Quem nos paga?</option>
-                                <option *ngFor="let c of clientes" [ngValue]="c.id">{{ c.nome }}</option>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Taxa IVA <span class="text-danger">*</span></label>
+                            <select class="form-select" formControlName="taxaIvaId" [ngClass]="{'is-invalid': formPlaneamento.get('taxaIvaId')?.invalid && formPlaneamento.get('taxaIvaId')?.touched}">
+                                <option [ngValue]="null" disabled>Selecione o IVA</option>
+                                <option *ngFor="let iva of taxasIva" [ngValue]="iva.id">{{ iva.descricao }}</option>
                             </select>
                         </div>
                     </div>
@@ -644,7 +616,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label small fw-bold">A Partir de <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" formControlName="dataInicio">
+                                <input type="date" class="form-control" formControlName="dataInicio" [ngClass]="{'is-invalid': formPlaneamento.get('dataInicio')?.invalid && formPlaneamento.get('dataInicio')?.touched}">
                             </div>
                             <div class="col-md-4" *ngIf="formPlaneamento.get('frequencia')?.value !== 'PONTUAL'">
                                 <label class="form-label small fw-bold">Até quando? (Opcional)</label>

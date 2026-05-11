@@ -58,6 +58,10 @@ public class Movimento extends Auditable {
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "documento_tesouraria_id")
+    private DocumentoTesouraria documentoTesouraria;
+
     public enum TipoMovimento {
         CREDITO,
         DEBITO
