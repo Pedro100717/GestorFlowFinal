@@ -34,6 +34,8 @@ public class CompraResponseDTO {
     private Long seccaoHomoId;
     private String seccaoHomoCodigo;
 
+    private Long planoOrigemId;
+
     private Long taxaIvaId;
     private BigDecimal taxaIvaValor;
 

@@ -7,15 +7,16 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class DocumentoPendenteDTO {
     private Long id;
-    private String tipo; // "VENDA" ou "COMPRA"
+    private String tipo;
     private LocalDateTime data;
     private String entidade;
     private BigDecimal total;
-
-    // 🚀 O CAMPO OBRIGATÓRIO PARA OS PARCIAIS
     private BigDecimal valorPendente;
+
+    // 🚀 O NOVO CAMPO QUE O ANGULAR ESTÁ À ESPERA!
+    private String descricao;
 }

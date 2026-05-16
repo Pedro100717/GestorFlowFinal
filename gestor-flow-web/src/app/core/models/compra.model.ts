@@ -39,4 +39,6 @@ export interface Compra {
 
     contaBancariaId?: number;
     contaBancariaNome?: string;
+
+    planoOrigemId?: number | null;
 }

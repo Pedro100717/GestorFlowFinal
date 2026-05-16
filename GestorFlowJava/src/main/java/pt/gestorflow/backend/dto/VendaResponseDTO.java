@@ -14,6 +14,9 @@ public class VendaResponseDTO {
     // 🚀 O NOVO CAMPO: Para o Angular saber quando a fatura vence
     private LocalDateTime dataVencimento;
 
+    // 🚀 RASTREABILIDADE: O elo que liga esta venda ao planeamento original
+    private Long planoOrigemId;
+
     private BigDecimal totalSemIva;
     private BigDecimal totalComIva;
     private String estadoPagamento;

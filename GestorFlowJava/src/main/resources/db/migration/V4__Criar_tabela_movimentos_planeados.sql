@@ -11,7 +11,7 @@ CREATE TABLE public.movimentos_planeados (
     data_fim date NULL,
     ativo bool NOT NULL DEFAULT true,
 
-    -- Ligações (exatamente com os nomes das tuas tabelas)
+    -- Ligações
     centro_custo_id int8 NOT NULL REFERENCES public.centro_custo(id),
     seccao_homo_id int8 NOT NULL REFERENCES public.seccao_homo(id),
     cliente_id int8 REFERENCES public.clientes(id),

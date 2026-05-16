@@ -164,4 +164,7 @@ export class TesourariaService {
         this.obterExtrato(this.contaAtivaId);
     }
   }
+  alterarDataPrevista(id: number, tipo: string, novaData: string): Observable<void> {
+    return this.http.patch<void>(`${this.API_URL}/previsao/${tipo}/${id}`, { novaData });
+  }
 }

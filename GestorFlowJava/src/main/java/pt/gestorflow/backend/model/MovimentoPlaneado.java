@@ -24,13 +24,16 @@ public class MovimentoPlaneado extends Auditable {
     @Column(nullable = false)
     private TipoMovimentoPlaneado tipo; // ENTRADA ou SAIDA
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id")
+    private Cliente cliente;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fornecedor_id")
+    private Fornecedor fornecedor;
+
     @Column(nullable = false, name = "valor_base")
     private BigDecimal valorBase;
-
-    // 🚀 LIGAÇÃO REAL AO IVA (Única obrigatória para os cálculos)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tx_iva_id", nullable = false)
-    private TxIva taxaIva;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -52,16 +55,15 @@ public class MovimentoPlaneado extends Auditable {
     @JoinColumn(name = "utilizador_id", nullable = false)
     private Utilizador utilizador;
 
-    // --- MÉTODOS MATEMÁTICOS ADAPTADOS ---
+    // --- MÉTODOS MATEMÁTICOS ADAPTADOS (Puro Cash Flow, sem IVA) ---
     public BigDecimal getValorComIva() {
-        if (valorBase == null || taxaIva == null || taxaIva.getValor() == null) return valorBase;
-        BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
-        return valorBase.multiply(fatorIva);
+        // Sem IVA, o valor planeado final é o próprio valor base projetado
+        return this.valorBase != null ? this.valorBase : BigDecimal.ZERO;
     }
 
     public BigDecimal getValorIva() {
-        if (valorBase == null || taxaIva == null || taxaIva.getValor() == null) return BigDecimal.ZERO;
-        return valorBase.multiply(taxaIva.getValor().divide(BigDecimal.valueOf(100)));
+        // Previsões de tesouraria pura não retêm ou somam IVA
+        return BigDecimal.ZERO;
     }
 
     @Override

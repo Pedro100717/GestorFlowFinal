@@ -27,6 +27,15 @@ public class DocumentoTesouraria {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "estado_pagamento")
     private EstadoPagamento estadoPagamento = EstadoPagamento.PENDENTE;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id")
+    private Cliente cliente;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fornecedor_id")
+    private Fornecedor fornecedor;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
     private Utilizador utilizador;

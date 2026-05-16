@@ -18,10 +18,10 @@ public class MovimentoPlaneadoDTO {
     private TipoMovimentoPlaneado tipo; // ENTRADA ou SAIDA
     private FrequenciaMovimento frequencia; // MENSAL, SEMANAL, etc.
 
-    private BigDecimal valorBase;
+    private Long clienteId;
+    private Long fornecedorId;
 
-    // 🚀 Apenas a ligação à Taxa de IVA se mantém
-    private Long taxaIvaId;
+    private BigDecimal valorBase;
 
     private LocalDate dataInicio;
     private LocalDate dataFim;

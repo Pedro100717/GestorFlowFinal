@@ -31,6 +31,7 @@ public class VendaService {
     private final CentroCustoRepository centroCustoRepository;
     private final SeccaoHomoRepository seccaoHomoRepository;
     private final LinhaVendaRepository linhaVendaRepository;
+    private final MovimentoPlaneadoRepository movimentoPlaneadoRepository; // 🚀 Injetado para abater os planos
 
     private final UtilizadorRepository utilizadorRepository;
     private final AuthService authService;
@@ -55,6 +56,9 @@ public class VendaService {
 
         // 🚀 MAPEAMENTO DO VENCIMENTO
         venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : venda.getDataVenda());
+
+        // 🚀 GRAVAR O ELO SECRETO DE RASTREABILIDADE
+        venda.setPlanoOrigemId(dto.getPlanoOrigemId());
 
         if (dto.getCentroCustoId() != null) {
             CentroCusto centro = centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId)
@@ -116,7 +120,34 @@ public class VendaService {
         venda.setTotalSemIva(totalGeralSemIva);
         venda.setTotalComIva(totalGeralComIva);
 
-        return converterParaDTO(vendaRepository.save(venda));
+        Venda vendaGuardada = vendaRepository.save(venda);
+
+        // =========================================================================================
+        // 🚀 O MOTOR DE ABATE DA TESOURARIA: Faz a linha fantasma desaparecer do mês corrente
+        // =========================================================================================
+        if (dto.getPlanoOrigemId() != null) {
+            movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
+                    .ifPresent(plano -> {
+                        java.time.LocalDate dataReferencia = plano.getDataUltimoProcessamento() != null
+                                ? plano.getDataUltimoProcessamento()
+                                : plano.getDataInicio();
+
+                        java.time.LocalDate novaData = switch (plano.getFrequencia()) {
+                            case SEMANAL -> dataReferencia.plusWeeks(1);
+                            case MENSAL -> dataReferencia.plusMonths(1);
+                            case TRIMESTRAL -> dataReferencia.plusMonths(3);
+                            case SEMESTRAL -> dataReferencia.plusMonths(6);
+                            case ANUAL -> dataReferencia.plusYears(1);
+                            case PONTUAL -> dataReferencia.plusYears(100);
+                        };
+
+                        plano.setDataUltimoProcessamento(novaData);
+                        movimentoPlaneadoRepository.save(plano);
+                    });
+        }
+        // =========================================================================================
+
+        return converterParaDTO(vendaGuardada);
     }
 
     @Transactional
@@ -274,8 +305,9 @@ public class VendaService {
         dto.setId(v.getId());
         dto.setDataVenda(v.getDataVenda());
 
-        // 🚀 RESPOSTA COM VENCIMENTO
+        // 🚀 RESPOSTA COM VENCIMENTO E RASTREABILIDADE
         dto.setDataVencimento(v.getDataVencimento());
+        dto.setPlanoOrigemId(v.getPlanoOrigemId());
 
         dto.setTotalSemIva(v.getTotalSemIva());
         dto.setTotalComIva(v.getTotalComIva());

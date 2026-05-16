@@ -25,6 +25,7 @@ public class CompraDTO {
 
     private Long centroCustoId;
     private Long seccaoHomoId;
+    private Long planoOrigemId;
 
     private LocalDate dataCompra;
 

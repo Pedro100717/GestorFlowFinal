@@ -2,12 +2,12 @@ import { Component, OnInit, ChangeDetectorRef, AfterViewInit } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router'; 
 
 import { TesourariaService } from '../../services/tesouraria.service';
 import { ClienteService } from '../../services/cliente.service'; 
 import { FornecedorService } from '../../services/fornecedor.service';
 import { PlaneamentoService } from '../../services/planeamento.service';
-import { IvaService } from '../../services/iva.service'; 
 
 import { 
   ContaBancaria, Movimento, DocumentoPendente, 
@@ -32,7 +32,7 @@ declare var bootstrap: any;
 export class TesourariaComponent implements OnInit, AfterViewInit {
 
   abaAtiva: 'contas' | 'pendentes' | 'simulador' = 'contas'; 
-  planoEmEdicaoId: number | null = null; // 🚀 NOVA VARIÁVEL: Para controlar se estamos a criar ou editar
+  planoEmEdicaoId: number | null = null; 
 
   // --- DADOS REAIS ---
   listaContas: ContaBancaria[] = [];
@@ -41,11 +41,10 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   listaPendentes: DocumentoPendente[] = []; 
   docParaConfirmar: DocumentoPendente | null = null; 
 
-  // --- DADOS DE PLANEAMENTO & IMPOSTOS ---
+  // --- DADOS DE PLANEAMENTO ---
   listaPlanos: MovimentoPlaneado[] = [];
   clientes: Cliente[] = [];
   fornecedores: Fornecedor[] = [];
-  taxasIva: any[] = [];
 
   // --- FORMULÁRIOS ---
   formConta!: FormGroup;
@@ -65,9 +64,9 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     private planeamentoService: PlaneamentoService,
     private clienteService: ClienteService,
     private fornecedorService: FornecedorService,
-    private ivaService: IvaService,
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -98,7 +97,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     this.tesourariaService.carregarContasDaAPI();
     this.carregarPendentes();
     this.carregarEntidades();
-    this.ivaService.listar().subscribe((res: any) => this.taxasIva = res.content || res);
     this.carregarPlanos();
   }
 
@@ -109,31 +107,28 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   carregarPlanos() {
     this.planeamentoService.listarPlanos().subscribe(planos => {
       this.listaPlanos = planos;
+      this.gerarTabelaSimulador(); 
       this.cd.detectChanges();
     });
   }
 
   abrirModalPlaneamento(plano?: MovimentoPlaneado) {
     if (plano) {
-      // 🚀 MODO EDIÇÃO: Preenche o formulário com os dados do plano
       this.planoEmEdicaoId = plano.id || null;
       this.formPlaneamento.patchValue({
         descricao: plano.descricao,
         tipo: plano.tipo,
         frequencia: plano.frequencia,
         valorBase: plano.valorBase,
-        taxaIvaId: plano.taxaIvaId,
         dataInicio: plano.dataInicio,
         dataFim: plano.dataFim
       });
     } else {
-      // 🚀 MODO CRIAÇÃO: Limpa o formulário
       this.planoEmEdicaoId = null;
       this.formPlaneamento.reset({
         tipo: TipoMovimentoPlaneado.SAIDA,
         frequencia: FrequenciaMovimento.MENSAL,
         valorBase: 0,
-        taxaIvaId: null,
         dataInicio: new Date().toISOString().split('T')[0]
       });
     }
@@ -146,7 +141,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    // 🚀 MAGIA: Se tem ID faz PUT (Atualizar), se não tem faz POST (Criar)
     const operacao = this.planoEmEdicaoId
       ? this.planeamentoService.atualizarPlano(this.planoEmEdicaoId, this.formPlaneamento.value)
       : this.planeamentoService.criarPlano(this.formPlaneamento.value);
@@ -155,8 +149,8 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       next: () => {
         Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Planeamento guardado!' });
         bootstrap.Modal.getInstance(document.getElementById('modalPlaneamento'))?.hide();
-        this.carregarSimulador();
         this.carregarPlanos();
+        this.carregarSimulador();
       },
       error: (e) => Swal.fire('Erro', 'Falha ao guardar o planeamento.', 'error')
     });
@@ -192,27 +186,31 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     });
   }
 
-  gerarFaturaDoPlano(plano: MovimentoPlaneado) {
-    if (!plano.id) return;
+  gerarFaturaDoPlano(linha: any) {
+    // 🚀 Extrai o plano E a data que estavam na linha!
+    const plano = linha.planoAssociado ? linha.planoAssociado : linha; 
+    const dataProjetada = linha.data ? linha.data : null; 
+
+    if (!plano || !plano.id) return;
+
+    const isEntrada = plano.tipo === 'ENTRADA';
+    const tipoFatura = isEntrada ? 'Venda (Receita)' : 'Compra (Despesa)';
+    const rota = isEntrada ? '/app/vendas' : '/app/compras'; 
 
     Swal.fire({
-      title: 'Efetivar Previsão?',
-      text: `Marcar "${plano.descricao}" como efetivada para este mês?`,
-      icon: 'question',
+      title: `Efetivar Previsão?`,
+      text: `Vamos encaminhar-te para o ecrã de nova ${tipoFatura} para registares "${plano.descricao}".`,
+      icon: 'info',
       showCancelButton: true,
-      confirmButtonText: 'Sim, Efetivar',
+      confirmButtonText: 'Avançar para Registo',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
-        this.planeamentoService.gerarFaturaPendente(plano.id!).subscribe({
-          next: () => {
-            Swal.fire('Sucesso!', 'Movimento efetivado.', 'success');
-            this.carregarPlanos();
-            this.carregarPendentes();
-            this.carregarSimulador();
-          },
-          error: (err: HttpErrorResponse) => {
-            Swal.fire('Erro', err.error?.message || 'Erro ao efetivar movimento.', 'error');
+        this.router.navigate([rota], {
+          state: {
+            planoOrigemId: plano.id,
+            descricao: plano.descricao,
+            dataProjetada: dataProjetada // 🚀 AGORA SIM! A data viaja na mala!
           }
         });
       }
@@ -227,7 +225,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   // =========================================================================
-  // --- 🚀 MOTOR GRÁFICO & SIMULADOR ---
+  // --- 🚀 MOTOR GRÁFICO & SIMULADOR COM PROJEÇÃO DE TEMPO ---
   // =========================================================================
   
   atualizarGraficoSimulador() {
@@ -278,23 +276,99 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   gerarTabelaSimulador() {
     this.saldoAtualTotal = this.listaContas.reduce((acc, c) => acc + c.saldo, 0);
-    this.linhasSimulador = [{ isAtual: true, descritivo: 'SALDO ATUAL', saldo: this.saldoAtualTotal }];
+    this.linhasSimulador = [{ isAtual: true, descritivo: 'SALDO ATUAL', saldo: this.saldoAtualTotal, dataObj: new Date() }];
 
-    const pendentesOrdenados = [...this.listaPendentes].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+    const itensReais = this.listaPendentes.map(doc => ({
+      isAtual: false, isProjecao: false,
+      dataObj: new Date(doc.data), data: doc.data,
+      
+      descritivo: doc.entidade,
+      // 🚀 AQUI ESTÁ! O TRANSPORTE DA DESCRIÇÃO PARA A PREVISÃO!
+      descricao: doc.descricao, 
+      
+      documento: doc,
+      receita: doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? doc.valorPendente : null,
+      despesa: doc.tipo === 'COMPRA' || doc.tipo === 'DESPESA' ? doc.valorPendente : null
+    }));
+
+    const projecoes: any[] = [];
+    const fimDoAno = new Date(new Date().getFullYear(), 11, 31);
+
+    this.listaPlanos.filter(p => p.ativo !== false).forEach(plano => {
+      let dataCursor = plano.dataUltimoProcessamento ? new Date(plano.dataUltimoProcessamento) : new Date(plano.dataInicio);
+      
+      if (plano.dataUltimoProcessamento) {
+        dataCursor = this.adicionarFrequencia(dataCursor, plano.frequencia as string);
+      }
+
+      const dataFimLimite = plano.dataFim ? new Date(plano.dataFim) : fimDoAno;
+      const limiteReal = dataFimLimite < fimDoAno ? dataFimLimite : fimDoAno;
+
+      while (dataCursor <= limiteReal) {
+        projecoes.push({
+          isAtual: false, isProjecao: true, planoAssociado: plano,
+          dataObj: new Date(dataCursor), data: dataCursor.toISOString(),
+          descritivo: plano.descricao + ' (Previsão)',
+          receita: plano.tipo === 'ENTRADA' ? plano.valorBase : null, 
+          despesa: plano.tipo === 'SAIDA' ? plano.valorBase : null
+        });
+
+        if (plano.frequencia === 'PONTUAL') break;
+        dataCursor = this.adicionarFrequencia(dataCursor, plano.frequencia as string);
+      }
+    });
+
+    const tudoMisturado = [...itensReais, ...projecoes].sort((a, b) => a.dataObj.getTime() - b.dataObj.getTime());
+
     let saldoCorrente = this.saldoAtualTotal;
-    
-    pendentesOrdenados.forEach(doc => {
-      // 🚀 ATUALIZADO: Agora aceita os nossos planos de tesouraria puros!
-      let receita = (doc.tipo === 'VENDA' || doc.tipo === 'RECEITA') ? doc.valorPendente : null;
-      let despesa = (doc.tipo === 'COMPRA' || doc.tipo === 'DESPESA') ? doc.valorPendente : null;
-      
-      if (receita) saldoCorrente += receita;
-      if (despesa) saldoCorrente -= despesa;
-      
-      this.linhasSimulador.push({
-        isAtual: false, data: doc.data, descritivo: doc.entidade,
-        receita, despesa, saldo: saldoCorrente, documento: doc 
-      });
+    tudoMisturado.forEach(linha => {
+      if (linha.receita) saldoCorrente += linha.receita;
+      if (linha.despesa) saldoCorrente -= linha.despesa;
+      linha.saldo = saldoCorrente;
+      this.linhasSimulador.push(linha);
+    });
+  }
+
+  private adicionarFrequencia(data: Date, frequencia: string): Date {
+    const novaData = new Date(data);
+    switch(frequencia) {
+      case 'SEMANAL': novaData.setDate(novaData.getDate() + 7); break;
+      case 'MENSAL': novaData.setMonth(novaData.getMonth() + 1); break;
+      case 'TRIMESTRAL': novaData.setMonth(novaData.getMonth() + 3); break;
+      case 'SEMESTRAL': novaData.setMonth(novaData.getMonth() + 6); break;
+      case 'ANUAL': novaData.setFullYear(novaData.getFullYear() + 1); break;
+    }
+    return novaData;
+  }
+
+  editarDataPagamento(linha: any) {
+    const dataAtual = linha.data.split('T')[0];
+
+    Swal.fire({
+      title: 'Alterar Previsão de Pagamento',
+      html: `
+        <p class="small text-muted mb-3">A data de emissão original será mantida para a contabilidade.</p>
+        <input type="date" id="nova-data" class="form-control swal2-input mx-auto" style="max-width: 250px;" value="${dataAtual}">
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Atualizar Gráfico',
+      cancelButtonText: 'Cancelar',
+      preConfirm: () => {
+        const novaData = (document.getElementById('nova-data') as HTMLInputElement).value;
+        if (!novaData) return Swal.showValidationMessage('Por favor, escolha uma data.');
+        return novaData;
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.tesourariaService.alterarDataPrevista(linha.documento.id, linha.documento.tipo, result.value).subscribe({
+          next: () => {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Data atualizada!', timer: 2000, showConfirmButton: false });
+            this.carregarPendentes();
+            this.carregarSimulador();
+          },
+          error: () => Swal.fire('Erro', 'Não foi possível alterar a previsão.', 'error')
+        });
+      }
     });
   }
 
@@ -331,13 +405,11 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       valorAPagar: [null, [Validators.required, Validators.min(0.01)]]
     });
 
-    // 🚀 FORMULÁRIO DE PLANEAMENTO LIMPO E MINIMALISTA
     this.formPlaneamento = this.fb.group({
       descricao: ['', Validators.required],
       tipo: [TipoMovimentoPlaneado.SAIDA, Validators.required],
       frequencia: [FrequenciaMovimento.MENSAL, Validators.required],
       valorBase: [0, [Validators.required, Validators.min(0.01)]],
-      taxaIvaId: [null, Validators.required],
       dataInicio: [new Date().toISOString().split('T')[0], Validators.required],
       dataFim: [null]
     });
@@ -346,7 +418,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   private configurarValidacoesDinamicas() {
-    // Mantém as regras apenas para o Movimento Manual
     this.formMovimento.get('tipo')?.valueChanges.subscribe(tipo => this.aplicarRegrasParceiro(this.formMovimento, tipo));
   }
 

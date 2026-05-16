@@ -1,13 +1,15 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router } from '@angular/router'; // 🚀 IMPORTANTE: Adicionado o Router
+
 import { CompraService } from '../../services/compra.service';
 import { ArtigoService } from '../../services/artigo.service';
 import { FornecedorService } from '../../services/fornecedor.service';
 import { AnaliticaService } from '../../services/analitica.service';
 import { TesourariaService } from '../../services/tesouraria.service'; 
 
-import { Compra, TaxaIva } from '../../core/models/compra.model'; // 🛡️ ADICIONADO TaxaIva
+import { Compra, TaxaIva } from '../../core/models/compra.model'; 
 import { Artigo } from '../../core/models/artigo.model';
 import { Fornecedor } from '../../core/models/fornecedor.model';
 import { CentroCusto, SeccaoHomo } from '../../core/models/analitica.model';
@@ -23,20 +25,24 @@ declare var bootstrap: any;
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './compras.html'
 })
-export class ComprasComponent implements OnInit {
+export class ComprasComponent implements OnInit, AfterViewInit {
 
   listaCompras: Compra[] = [];
   listaArtigos: Artigo[] = [];
   listaFornecedores: Fornecedor[] = [];
   listaCentros: CentroCusto[] = [];
   listaSeccoes: SeccaoHomo[] = [];
-  listaTaxasIva: TaxaIva[] = []; // 🛡️ MUDADO DE any[] para TaxaIva[]
+  listaTaxasIva: TaxaIva[] = []; 
 
   formCompra!: FormGroup;
   totalCalculado: number = 0;
   
-  // 🚀 A MEMÓRIA DO NOSSO COMPONENTE (Para sabermos se é Update ou Create)
   compraEmEdicao: Compra | null = null;
+
+  // 🚀 VARIÁVEIS INVISÍVEIS PARA RECEBER O PLANO DA TESOURARIA
+  planoOrigemId: number | null = null;
+  planoOrigemDescricao: string = '';
+  planoOrigemData: string | null = null;
 
   constructor(
     private compraService: CompraService,
@@ -45,12 +51,25 @@ export class ComprasComponent implements OnInit {
     private analiticaService: AnaliticaService,
     private tesourariaService: TesourariaService, 
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private router: Router // 🚀 Injetado
   ) {}
 
   ngOnInit() {
     this.inicializarFormulario();
     this.carregarTudo();
+
+    // 🚀 LER A BAGAGEM DA TESOURARIA
+    const state = history.state;
+    if (state && state.planoOrigemId) {
+      this.planoOrigemId = state.planoOrigemId;
+      this.planoOrigemDescricao = state.descricao;
+      this.planoOrigemData = state.dataProjetada || null; // 🚀 LÊ A DATA DA MALA
+      
+      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000 });
+      Toast.fire({ icon: 'info', title: 'A preparar despesa a partir do planeamento.' });
+    }
+
     this.formCompra.valueChanges.subscribe(() => this.calcularTotal());
 
     this.compraService.compras$.subscribe((comprasAtualizadas) => {
@@ -59,10 +78,17 @@ export class ComprasComponent implements OnInit {
     });
   }
 
+  // 🚀 ABRIR MODAL AUTOMATICAMENTE SE VIER DO SIMULADOR
+  ngAfterViewInit() {
+    if (this.planoOrigemId) {
+      setTimeout(() => this.abrirModalNovo(), 500); 
+    }
+  }
+
   inicializarFormulario() {
     this.formCompra = this.fb.group({
       dataCompra: [this.getDataAtual(), [Validators.required]],
-      dataVencimento: [this.getDataAtual(), [Validators.required]], // 🚀 NOVO CAMPO ADICIONADO!
+      dataVencimento: [this.getDataAtual(), [Validators.required]], 
       fornecedorId: [null, [Validators.required]],
       artigoId: [null, [Validators.required]],
       taxaIvaId: [null, [Validators.required]], 
@@ -81,7 +107,6 @@ export class ComprasComponent implements OnInit {
     return now.toISOString().slice(0, 16);
   }
 
-  // 🛡️ NOVO UTILITÁRIO: Para as datas não rebentarem ao editar
   formatarDataParaInput(dataIso: string | undefined): string {
     if (!dataIso) return this.getDataAtual();
     const d = new Date(dataIso);
@@ -114,7 +139,6 @@ export class ComprasComponent implements OnInit {
   }
 
   aoSelecionarArtigo() {
-    // Só limpar o preço se NÃO estivermos no meio de uma edição a preencher dados antigos!
     if (!this.compraEmEdicao) {
         this.formCompra.patchValue({ precoUnitario: null });
     }
@@ -134,25 +158,24 @@ export class ComprasComponent implements OnInit {
   }
 
   abrirModalNovo() {
-    this.compraEmEdicao = null; // 🚀 Garante que é uma fatura nova
-    this.formCompra.reset({ 
-        dataCompra: this.getDataAtual(), 
-        dataVencimento: this.getDataAtual(), // 🚀 NOVO CAMPO NO RESET
+    this.compraEmEdicao = null; // No venda.ts será this.vendaEmEdicao = null;
+    this.formCompra.reset({     // No venda.ts será this.formVenda.reset({
+        dataCompra: this.getDataAtual(), // Data de emissão fica a de hoje
+        
+        // 🚀 SE VIER DA TESOURARIA, USA A DATA DA PREVISÃO, SENÃO USA HOJE:
+        dataVencimento: this.planoOrigemData ? this.formatarDataParaInput(this.planoOrigemData) : this.getDataAtual(), 
+        
         quantidade: 1, 
-        precoUnitario: null,
-        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null
+        precoUnitario: null, // No venda.ts é 0
+        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null,
+        designacaoPersonalizada: this.planoOrigemDescricao 
     });
     this.totalCalculado = 0;
     const modal = new bootstrap.Modal(document.getElementById('modalCompra'));
     modal.show();
   }
 
-  // =========================================================================
-  // --- 🚀 NOVAS FUNÇÕES INDUSTRIAIS: EDITAR E ELIMINAR NO ECRÃ ---
-  // =========================================================================
-
   abrirModalEditar(compra: Compra) {
-    // 🛡️ A REGRA DO DINHEIRO TAMBÉM VIVE NO FRONTEND
     if (compra.estadoPagamento !== 'PENDENTE') {
       Swal.fire({ icon: 'warning', title: 'Operação Bloqueada', text: 'Não é possível editar uma fatura que já tenha sido paga. Estorne o pagamento na Tesouraria primeiro.', confirmButtonColor: '#0d6efd'});
       return;
@@ -160,10 +183,9 @@ export class ComprasComponent implements OnInit {
 
     this.compraEmEdicao = compra;
 
-    // Injetar os valores todos para dentro do formulário (Usando a nova formatação)
     this.formCompra.patchValue({
       dataCompra: this.formatarDataParaInput(compra.dataCompra),
-      dataVencimento: this.formatarDataParaInput(compra.dataVencimento), // 🚀 INJEÇÃO DO VENCIMENTO
+      dataVencimento: this.formatarDataParaInput(compra.dataVencimento), 
       fornecedorId: compra.fornecedorId,
       artigoId: compra.artigoId,
       taxaIvaId: compra.taxaIvaId,
@@ -201,7 +223,6 @@ export class ComprasComponent implements OnInit {
         this.compraService.eliminar(compra.id!).subscribe({
           next: () => {
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Compra eliminada e stock reposto!'});
-            // Opcional: Atualizar pendentes da tesouraria
             this.tesourariaService.notificarNovaTransacao(); 
           },
           error: (e) => {
@@ -218,10 +239,15 @@ export class ComprasComponent implements OnInit {
       return;
     }
 
-    // 🚀 O BOTÃO INTELIGENTE: Se tivermos compra em edição, é um UPDATE. Se não, é REGISTO.
+    // 🚀 ADICIONAR O ELO SECRETO AO PAYLOAD (COM BLINDAGEM TYPESCRIPT)
+    const payload = {
+        ...this.formCompra.value,
+        planoOrigemId: this.planoOrigemId ?? undefined 
+    };
+
     const operacao$ = this.compraEmEdicao 
-        ? this.compraService.atualizar(this.compraEmEdicao.id!, this.formCompra.value)
-        : this.compraService.registar(this.formCompra.value);
+        ? this.compraService.atualizar(this.compraEmEdicao.id!, payload)
+        : this.compraService.registar(payload);
     
     operacao$.subscribe({
       next: () => {
@@ -233,9 +259,12 @@ export class ComprasComponent implements OnInit {
             title: this.compraEmEdicao ? 'Fatura atualizada com sucesso!' : 'Compra registada com sucesso!' 
         });
         
-        // Se mudámos valores, a tesouraria precisa de saber!
         this.tesourariaService.notificarNovaTransacao();
         
+        // 🚀 LIMPA A MEMÓRIA INVISÍVEL
+        this.planoOrigemId = null;
+        this.planoOrigemDescricao = '';
+
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalCompra'));
         modal?.hide();
       },

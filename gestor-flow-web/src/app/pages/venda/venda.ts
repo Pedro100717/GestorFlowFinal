@@ -1,13 +1,15 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router } from '@angular/router'; // 🚀 Importado o Router
+
 import { VendaService } from '../../services/venda.service';
 import { ArtigoService } from '../../services/artigo.service';
 import { ClienteService } from '../../services/cliente.service';
 import { AnaliticaService } from '../../services/analitica.service';
 import { TesourariaService } from '../../services/tesouraria.service'; 
 
-import { Venda, TaxaIva } from '../../core/models/venda.model'; // 🛡️ Importado TaxaIva
+import { Venda, TaxaIva } from '../../core/models/venda.model'; 
 import { Artigo } from '../../core/models/artigo.model';
 import { Cliente } from '../../core/models/cliente.model';
 import { CentroCusto, SeccaoHomo } from '../../core/models/analitica.model';
@@ -23,12 +25,12 @@ declare var bootstrap: any;
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './venda.html'
 })
-export class VendasComponent implements OnInit {
+export class VendasComponent implements OnInit, AfterViewInit {
 
   listaVendas: Venda[] = [];
   listaArtigos: Artigo[] = [];
   listaClientes: Cliente[] = [];
-  listaTaxasIva: TaxaIva[] = []; // 🛡️ Tipagem corrigida!
+  listaTaxasIva: TaxaIva[] = []; 
   listaCentros: CentroCusto[] = [];
   listaSeccoes: SeccaoHomo[] = [];
 
@@ -38,6 +40,12 @@ export class VendasComponent implements OnInit {
   
   vendaEmEdicao: Venda | null = null;
 
+  // 🚀 VARIÁVEIS INVISÍVEIS PARA RECEBER O PLANO DA TESOURARIA
+  planoOrigemId: number | null = null;
+  planoOrigemDescricao: string = '';
+  planoOrigemData: string | null = null;
+
+
   constructor(
     private vendaService: VendaService,
     private artigoService: ArtigoService,
@@ -45,12 +53,25 @@ export class VendasComponent implements OnInit {
     private analiticaService: AnaliticaService,
     private tesourariaService: TesourariaService, 
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private router: Router // 🚀 Injetado
   ) {}
 
   ngOnInit() {
     this.inicializarFormulario();
     this.carregarTudo();
+
+    // 🚀 LER A BAGAGEM DA TESOURARIA
+    const state = history.state;
+    if (state && state.planoOrigemId) {
+      this.planoOrigemId = state.planoOrigemId;
+      this.planoOrigemDescricao = state.descricao;
+      this.planoOrigemData = state.dataProjetada || null; // 🚀 LÊ A DATA DA MALA
+      
+      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000 });
+      Toast.fire({ icon: 'info', title: 'A preparar despesa a partir do planeamento.' });
+    }
+
     this.formVenda.valueChanges.subscribe(() => this.calcularTotal());
     
     this.vendaService.vendas$.subscribe((vendasAtualizadas) => {
@@ -59,10 +80,16 @@ export class VendasComponent implements OnInit {
     });
   }
 
+  // 🚀 ABRIR MODAL AUTOMATICAMENTE SE VIER DO SIMULADOR
+  ngAfterViewInit() {
+    if (this.planoOrigemId) {
+      setTimeout(() => this.abrirModalNovo(), 500); 
+    }
+  }
+
   inicializarFormulario() {
     this.formVenda = this.fb.group({
       dataVenda: [this.getDataAtual(), [Validators.required]],
-      // 🚀 NOVO CAMPO: O Motor do Simulador
       dataVencimento: [this.getDataAtual(), [Validators.required]], 
       clienteId: [null, [Validators.required]],
       artigoId: [null, [Validators.required]],
@@ -81,7 +108,6 @@ export class VendasComponent implements OnInit {
     return now.toISOString().slice(0, 16);
   }
 
-  // 🛡️ Função utilitária para converter datas do Java para o formato do input HTML
   formatarDataParaInput(dataIso: string | undefined): string {
     if (!dataIso) return this.getDataAtual();
     const d = new Date(dataIso);
@@ -149,10 +175,14 @@ export class VendasComponent implements OnInit {
     this.vendaEmEdicao = null;
     this.formVenda.reset({ 
         dataVenda: this.getDataAtual(),
-        dataVencimento: this.getDataAtual(),
+        
+        // 🚀 A MAGIA DA DATA: Se a mala trouxer a data da previsão, usa-a. Senão, mete a de hoje!
+        dataVencimento: this.planoOrigemData ? this.formatarDataParaInput(this.planoOrigemData) : this.getDataAtual(),
+        
         quantidade: 1, 
         precoUnitario: 0,
-        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null
+        taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null,
+        designacaoPersonalizada: this.planoOrigemDescricao 
     });
     this.stockDisponivel = null;
     this.totalCalculado = 0;
@@ -177,7 +207,7 @@ export class VendasComponent implements OnInit {
 
     this.formVenda.patchValue({
       dataVenda: this.formatarDataParaInput(venda.dataVenda),
-      dataVencimento: this.formatarDataParaInput(venda.dataVencimento), // 🚀 Carrega o vencimento
+      dataVencimento: this.formatarDataParaInput(venda.dataVencimento), 
       clienteId: venda.clienteId,
       centroCustoId: venda.centroCustoId,
       seccaoHomoId: venda.seccaoHomoId,
@@ -233,10 +263,11 @@ export class VendasComponent implements OnInit {
     
     const payloadVenda = {
         dataVenda: formVal.dataVenda,
-        dataVencimento: formVal.dataVencimento, // 🚀 ENVIAR PARA O JAVA
+        dataVencimento: formVal.dataVencimento, 
         clienteId: formVal.clienteId,
         centroCustoId: formVal.centroCustoId,
         seccaoHomoId: formVal.seccaoHomoId,
+        planoOrigemId: this.planoOrigemId ?? undefined, // 🚀 BLINDAGEM TYPESCRIPT
         linhas: [
             {
                 artigoId: formVal.artigoId,
@@ -256,6 +287,11 @@ export class VendasComponent implements OnInit {
       next: () => {
         Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Guardado!' });
         this.tesourariaService.notificarNovaTransacao(); 
+        
+        // 🚀 Limpa o ID do plano da memória para não interferir em novas vendas manuais
+        this.planoOrigemId = null;
+        this.planoOrigemDescricao = '';
+        
         bootstrap.Modal.getInstance(document.getElementById('modalVenda'))?.hide();
       },
       error: (e: any) => Swal.fire('Erro', e.error?.message, 'error')

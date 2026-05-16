@@ -8,8 +8,6 @@ import pt.gestorflow.backend.dto.MovimentoPlaneadoDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,39 +17,12 @@ public class PlaneamentoService {
 
     private final MovimentoPlaneadoRepository planeamentoRepository;
     private final UtilizadorRepository utilizadorRepository;
-    private final TxIvaRepository txIvaRepository;
     private final AuthService authService;
-    private final DocumentoTesourariaRepository documentoTesourariaRepository;
+    private final ClienteRepository clienteRepository;
+    private final FornecedorRepository fornecedorRepository;
 
     // =========================================================================
-    // --- 🚀 O BOTÃO MÁGICO: EFETIVAR PLANEAMENTO (SEM COMPRAS/VENDAS) ---
-    // =========================================================================
-
-    @Transactional
-    public void gerarFaturaPendente(Long planoId) {
-        Long utilizadorId = authService.getUtilizadorAutenticadoId();
-        MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(planoId, utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
-
-        LocalDate hoje = LocalDate.now();
-        if (plano.getDataUltimoProcessamento() != null && plano.getDataUltimoProcessamento().getMonth() == hoje.getMonth() && plano.getDataUltimoProcessamento().getYear() == hoje.getYear()) {
-            throw new IllegalStateException("Este plano já foi processado no mês corrente.");
-        }
-
-        // 🚀 AQUI NASCE O DOCUMENTO PURO DE TESOURARIA
-        DocumentoTesouraria doc = new DocumentoTesouraria();
-        doc.setDescricao(plano.getDescricao());
-        doc.setTipo(plano.getTipo());
-        doc.setValorTotal(plano.getValorComIva()); // Usa a matemática do IVA!
-        doc.setDataEmissao(LocalDateTime.now());
-        doc.setUtilizador(plano.getUtilizador());
-        documentoTesourariaRepository.save(doc);
-
-        plano.setDataUltimoProcessamento(hoje);
-        planeamentoRepository.save(plano);
-    }
-    // =========================================================================
-    // --- GESTÃO CRUD SIMPLIFICADA (ESTILO EXCEL) ---
+    // --- GESTÃO CRUD SIMPLIFICADA (CASH FLOW PURO SEM IVA) ---
     // =========================================================================
 
     @Transactional
@@ -61,8 +32,8 @@ public class PlaneamentoService {
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
         MovimentoPlaneado plano = new MovimentoPlaneado();
-        mapearDtoParaEntidade(dto, plano, utilizadorId);
         plano.setUtilizador(user);
+        mapearDtoParaEntidade(dto, plano, utilizadorId);
 
         return mapearEntidadeParaDto(planeamentoRepository.save(plano));
     }
@@ -106,7 +77,7 @@ public class PlaneamentoService {
     }
 
     // =========================================================================
-    // --- MAPEAMENTOS (ZERO BUROCRACIA COMERCIAL) ---
+    // --- MAPEAMENTOS (BUG CORRIGIDO E SEM IVA) ---
     // =========================================================================
 
     private void mapearDtoParaEntidade(MovimentoPlaneadoDTO dto, MovimentoPlaneado plano, Long utilizadorId) {
@@ -118,11 +89,17 @@ public class PlaneamentoService {
         plano.setDataFim(dto.getDataFim());
         plano.setAtivo(dto.getAtivo() != null ? dto.getAtivo() : true);
 
-        // 🔗 Taxa de IVA: O único vínculo obrigatório para o cálculo
-        if (dto.getTaxaIvaId() != null) {
-            TxIva iva = txIvaRepository.findById(dto.getTaxaIvaId())
-                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA inválida."));
-            plano.setTaxaIva(iva);
+        // 🛡️ Os parceiros são mapeados à entrada
+        if (dto.getClienteId() != null) {
+            plano.setCliente(clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId).orElse(null));
+        } else {
+            plano.setCliente(null);
+        }
+
+        if (dto.getFornecedorId() != null) {
+            plano.setFornecedor(fornecedorRepository.findByIdAndUtilizadorId(dto.getFornecedorId(), utilizadorId).orElse(null));
+        } else {
+            plano.setFornecedor(null);
         }
     }
 
@@ -138,8 +115,11 @@ public class PlaneamentoService {
         dto.setAtivo(plano.getAtivo());
         dto.setDataUltimoProcessamento(plano.getDataUltimoProcessamento());
 
-        if (plano.getTaxaIva() != null) {
-            dto.setTaxaIvaId(plano.getTaxaIva().getId());
+        if (plano.getCliente() != null) {
+            dto.setClienteId(plano.getCliente().getId());
+        }
+        if (plano.getFornecedor() != null) {
+            dto.setFornecedorId(plano.getFornecedor().getId());
         }
 
         return dto;

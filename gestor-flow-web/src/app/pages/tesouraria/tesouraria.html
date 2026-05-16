@@ -5,6 +5,9 @@
             <button class="btn btn-outline-success me-2" (click)="novaTransferencia()">
                 <i class="bi bi-arrow-left-right me-2"></i>Transferência
             </button>
+            <button class="btn btn-outline-primary me-2" (click)="novoMovimento()">
+                <i class="bi bi-plus-slash-minus me-2"></i>Movimento Manual
+            </button>
             <button class="btn btn-primary" (click)="novaConta()">
                 <i class="bi bi-bank me-2"></i>Nova Conta
             </button>
@@ -164,7 +167,11 @@
                                 </span>
                             </td>
                             <td class="text-muted small">{{ doc.data | date:'dd/MM/yyyy HH:mm' }}</td>
-                            <td class="fw-bold text-dark">{{ doc.entidade }}</td>
+                            <td class="fw-bold text-dark">{{ doc.entidade }}
+                                <span *ngIf="doc.descricao" class="text-muted fw-normal d-block small mt-1">
+                                    <i class="bi bi-info-circle me-1"></i>{{ doc.descricao }}
+                                </span>
+                            </td>
                             <td class="text-end">
                                 <div class="fw-bold fs-6 text-dark">{{ doc.valorPendente | currency:'EUR' }}</div>
                                 <small class="text-muted fw-normal">de {{ doc.total | currency:'EUR' }}</small>
@@ -227,81 +234,12 @@
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-calendar-event me-2"></i>Custos Fixos / Planeamento Anual</h5>
-                        <small class="text-muted">Despesas ou receitas recorrentes a ser projetadas no gráfico acima.</small>
+                        <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-columns me-2"></i>Evolução do Saldo Real vs Previsões</h5>
+                        <small class="text-muted">Extrato futuro contendo faturas a pagamento e custos/receitas recorrentes.</small>
                     </div>
                     <button class="btn btn-sm btn-primary" (click)="abrirModalPlaneamento()">
-                        <i class="bi bi-plus me-1"></i>Novo Plano
+                        <i class="bi bi-plus me-1"></i>Novo Plano Fixo
                     </button>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 bg-white">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="ps-4 py-3 text-muted small uppercase" style="width: 60px;">Status</th>
-                                <th class="text-muted small uppercase">Descrição</th>
-                                <th class="text-muted small uppercase">Recorrência</th>
-                                <th class="text-muted small uppercase text-end">Valor Base</th>
-                                <th class="text-muted small uppercase text-center pe-4" style="width: 150px;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let plano of listaPlanos" [ngClass]="{'opacity-50': !plano.ativo}">
-                                <td class="ps-4 text-center">
-                                    <div class="form-check form-switch m-0 d-flex justify-content-center">
-                                        <input class="form-check-input mt-0" type="checkbox" role="switch" 
-                                               [checked]="plano.ativo" 
-                                               (change)="alternarStatusPlano(plano)" 
-                                               title="Ativar/Desativar Projeção" style="cursor: pointer;">
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge me-2" [ngClass]="plano.tipo === 'ENTRADA' ? 'bg-success' : 'bg-danger'">
-                                        {{ plano.tipo === 'ENTRADA' ? '+' : '-' }}
-                                    </span>
-                                    <span class="fw-bold text-dark">{{ plano.descricao }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
-                                        <i class="bi bi-arrow-repeat me-1"></i> {{ plano.frequencia }}
-                                    </span>
-                                </td>
-                                <td class="text-end fw-bold font-monospace" [ngClass]="plano.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'">
-                                    {{ plano.valorBase | currency:'EUR' }}
-                                </td>
-                                <td class="text-center pe-4">
-                                    <div class="d-flex justify-content-center gap-1">
-                                        <button class="btn btn-sm" 
-                                                [ngClass]="podeGerarFatura(plano) ? 'btn-outline-primary' : 'btn-secondary opacity-50'"
-                                                [disabled]="!podeGerarFatura(plano)"
-                                                (click)="gerarFaturaDoPlano(plano)" title="Efetivar Mês Atual">
-                                            <i class="bi" [ngClass]="podeGerarFatura(plano) ? 'bi-magic' : 'bi-check2-all'"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-secondary" (click)="abrirModalPlaneamento(plano)" title="Editar Plano">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger" (click)="apagarPlano(plano)" title="Apagar Plano">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr *ngIf="listaPlanos.length === 0">
-                                <td colspan="5" class="text-center py-5 text-muted">
-                                    <i class="bi bi-calendar-x fs-2 d-block mb-2 opacity-50"></i>
-                                    <span class="fw-bold">Nenhum custo fixo orçamentado.</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 mt-2">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3 border-0">
-                    <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-columns me-2"></i>Faturas Pendentes vs Saldo Real</h5>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover table-bordered align-middle mb-0 bg-white">
@@ -309,38 +247,72 @@
                             <tr>
                                 <th class="py-3 text-muted small uppercase" style="width: 120px;">Data</th>
                                 <th class="text-muted small uppercase">Descritivo</th>
-                                <th class="text-muted small uppercase text-end" style="width: 130px;">Receita</th>
-                                <th class="text-muted small uppercase text-end" style="width: 130px;">Despesa</th>
-                                <th class="text-dark fw-bold small uppercase text-end bg-light" style="width: 130px;">Saldo</th>
-                                <th class="text-muted small uppercase text-center" style="width: 100px;">Ação</th>
+                                <th class="text-muted small uppercase text-end" style="width: 130px;">Entrada (+)</th>
+                                <th class="text-muted small uppercase text-end" style="width: 130px;">Saída (-)</th>
+                                <th class="text-dark fw-bold small uppercase text-end bg-light" style="width: 130px;">Saldo Projetado</th>
+                                <th class="text-muted small uppercase text-center" style="width: 150px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let linha of linhasSimulador" [ngClass]="{'bg-light bg-opacity-50': linha.isAtual}">
-                                <td class="text-muted small ps-3">
-                                    <span *ngIf="!linha.isAtual">{{ linha.data | date:'dd/MM/yyyy' }}</span>
+                            <tr *ngFor="let linha of linhasSimulador" 
+                                [ngClass]="{'bg-light bg-opacity-50': linha.isAtual, 'fst-italic text-muted': linha.isProjecao}">
+                                
+                                <td class="small ps-3" 
+                                    (click)="!linha.isAtual && !linha.isProjecao ? editarDataPagamento(linha) : null" 
+                                    [style.cursor]="!linha.isAtual && !linha.isProjecao ? 'pointer' : 'default'">
+    
+                                    <span *ngIf="!linha.isAtual">
+                                        {{ linha.data | date:'dd/MM/yyyy' }}
+                                        <i class="bi bi-calendar-event ms-2 text-primary" 
+                                            *ngIf="!linha.isProjecao" 
+                                            title="Clique para alterar a previsão de cash flow"></i>
+                                    </span>
                                 </td>
-                                <td class="fw-bold" [ngClass]="linha.isAtual ? 'text-primary' : 'text-dark'">
+                                
+                                <td class="fw-bold" [ngClass]="linha.isAtual ? 'text-primary' : (linha.isProjecao ? 'text-secondary opacity-75' : 'text-dark')">
+                                    <i class="bi bi-magic me-2 text-warning" *ngIf="linha.isProjecao" title="Isto é uma previsão de um Plano Fixo"></i>
                                     {{ linha.descritivo }}
+                                    <span *ngIf="linha.descricao" class="text-muted fw-normal d-block small mt-1">
+                                        <i class="bi bi-info-circle me-1"></i>{{ linha.descricao }}
+                                    </span>
                                 </td>
-                                <td class="text-end text-success fw-bold font-monospace">
+                                
+                                <td class="text-end fw-bold font-monospace" [ngClass]="linha.isProjecao ? 'text-success opacity-50' : 'text-success'">
                                     <span *ngIf="linha.receita">{{ linha.receita | currency:'EUR' }}</span>
                                 </td>
-                                <td class="text-end text-danger fw-bold font-monospace">
+                                
+                                <td class="text-end fw-bold font-monospace" [ngClass]="linha.isProjecao ? 'text-danger opacity-50' : 'text-danger'">
                                     <span *ngIf="linha.despesa">{{ linha.despesa | currency:'EUR' }}</span>
                                 </td>
+                                
                                 <td class="text-end fw-bold font-monospace" 
                                     [ngClass]="linha.saldo >= 0 ? 'text-dark' : 'text-danger'"
                                     style="border-left: 2px solid #dee2e6; border-right: 2px solid #dee2e6; background-color: #f8f9fa;">
                                     {{ linha.saldo | currency:'EUR' }}
                                 </td>
+                                
                                 <td class="text-center pe-3">
-                                    <button *ngIf="!linha.isAtual" 
-                                            class="btn btn-sm btn-outline-primary rounded-pill fw-bold px-3 shadow-sm" 
-                                            title="Efetivar Transação"
+                                    <button *ngIf="!linha.isAtual && !linha.isProjecao" 
+                                            class="btn btn-sm btn-outline-dark rounded-pill fw-bold px-3 shadow-sm" 
+                                            title="Pagar/Receber agora"
                                             (click)="abrirModalConfirmacao(linha.documento)">
-                                        Efetivar
+                                        Liquidar
                                     </button>
+
+                                    <div class="d-flex justify-content-center gap-1" *ngIf="linha.isProjecao">
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                            (click)="gerarFaturaDoPlano(linha)" title="Efetivar esta previsão">
+                                            Efetivar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary border-0" 
+                                                (click)="abrirModalPlaneamento(linha.planoAssociado)" title="Editar Custo Fixo">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger border-0" 
+                                                (click)="apagarPlano(linha.planoAssociado)" title="Apagar Definitivamente">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -587,17 +559,9 @@
                     </div>
 
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Valor Base (€) <span class="text-danger">*</span></label>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Valor Base Projetado (€) <span class="text-danger">*</span></label>
                             <input type="number" class="form-control fw-bold font-monospace" formControlName="valorBase" [ngClass]="{'is-invalid': formPlaneamento.get('valorBase')?.invalid && formPlaneamento.get('valorBase')?.touched}">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Taxa IVA <span class="text-danger">*</span></label>
-                            <select class="form-select" formControlName="taxaIvaId" [ngClass]="{'is-invalid': formPlaneamento.get('taxaIvaId')?.invalid && formPlaneamento.get('taxaIvaId')?.touched}">
-                                <option [ngValue]="null" disabled>Selecione o IVA</option>
-                                <option *ngFor="let iva of taxasIva" [ngValue]="iva.id">{{ iva.descricao }}</option>
-                            </select>
                         </div>
                     </div>
 

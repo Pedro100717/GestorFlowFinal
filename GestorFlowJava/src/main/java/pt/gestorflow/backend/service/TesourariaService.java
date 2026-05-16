@@ -32,7 +32,7 @@ public class TesourariaService {
     private final DocumentoTesourariaRepository documentoTesourariaRepository;
 
     // =========================================================================
-    // --- 🚀 1. SIMULADOR DE TESOURARIA (MOTOR DE PROJEÇÃO INDUSTRIAL) ---
+    // --- 1. SIMULADOR DE TESOURARIA ---
     // =========================================================================
 
     @Transactional(readOnly = true)
@@ -54,10 +54,10 @@ public class TesourariaService {
         List<Venda> vendasPendentes = vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
         List<Compra> comprasPendentes = compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
 
-        // 🚀 PASSO 2: Injetar a Realidade (Faturas Pendentes por Data de Vencimento)
         for (Venda v : vendasPendentes) {
-            // 🛡️ Fallback para dataVenda se dataVencimento for nula
-            LocalDateTime dataAlvo = v.getDataVencimento() != null ? v.getDataVencimento() : v.getDataVenda();
+            LocalDateTime dataAlvo = v.getDataPrevistaPagamento() != null
+                    ? v.getDataPrevistaPagamento()
+                    : (v.getDataVencimento() != null ? v.getDataVencimento() : v.getDataVenda());
             YearMonth chave = YearMonth.from(dataAlvo);
 
             BigDecimal valorPendente = v.getTotalComIva().subtract(v.getValorPago());
@@ -65,15 +65,15 @@ public class TesourariaService {
         }
 
         for (Compra c : comprasPendentes) {
-            // 🛡️ Fallback para dataCompra se dataVencimento for nula
-            LocalDateTime dataAlvo = c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra();
+            LocalDateTime dataAlvo = c.getDataPrevistaPagamento() != null
+                    ? c.getDataPrevistaPagamento()
+                    : (c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra());
             YearMonth chave = YearMonth.from(dataAlvo);
 
             BigDecimal valorPendente = c.getTotal().subtract(c.getValorPago());
             fluxoMensal.put(chave, fluxoMensal.getOrDefault(chave, BigDecimal.ZERO).subtract(valorPendente));
         }
 
-        // 🚀 PASSO 3: O MOTOR MATEMÁTICO DE RECORRÊNCIA
         List<MovimentoPlaneado> planosAtivos = movimentoPlaneadoRepository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId);
 
         for (MovimentoPlaneado plan : planosAtivos) {
@@ -92,7 +92,6 @@ public class TesourariaService {
             }
         }
 
-        // 🚀 PASSO 4: Gerar os Pontos do Gráfico
         List<SimuladorTesourariaDTO.PontoSimulacao> pontos = new ArrayList<>();
         BigDecimal saldoAcumulado = saldoInicial;
         pontos.add(new SimuladorTesourariaDTO.PontoSimulacao("Atual", saldoInicial));
@@ -113,7 +112,6 @@ public class TesourariaService {
         if (mesAtual.isBefore(inicio) || mesAtual.isAfter(fim)) {
             return false;
         }
-
         long mesesPassados = ChronoUnit.MONTHS.between(inicio, mesAtual);
 
         return switch (plan.getFrequencia()) {
@@ -225,23 +223,40 @@ public class TesourariaService {
         List<DocumentoPendenteDTO> pendentes = new ArrayList<>();
         List<EstadoPagamento> estadosIncompletos = List.of(EstadoPagamento.PENDENTE, EstadoPagamento.PARCIALMENTE_PAGO);
 
+        // 🚀 VENDAS: Injeta a descrição da venda
         vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(v -> {
             BigDecimal pendente = v.getTotalComIva().subtract(v.getValorPago());
-            LocalDateTime dataFatura = v.getDataVencimento() != null ? v.getDataVencimento() : v.getDataVenda();
-            pendentes.add(new DocumentoPendenteDTO(v.getId(), "VENDA", dataFatura, v.getCliente().getNome(), v.getTotalComIva(), pendente));
+            LocalDateTime dataUsada = v.getDataPrevistaPagamento() != null
+                    ? v.getDataPrevistaPagamento()
+                    : (v.getDataVencimento() != null ? v.getDataVencimento() : v.getDataVenda());
+
+            String descricaoVenda = null;
+            if (v.getLinhas() != null && !v.getLinhas().isEmpty()) {
+                LinhaVenda primeiraLinha = v.getLinhas().get(0);
+                descricaoVenda = primeiraLinha.getDesignacaoPersonalizada() != null && !primeiraLinha.getDesignacaoPersonalizada().isBlank()
+                        ? primeiraLinha.getDesignacaoPersonalizada()
+                        : primeiraLinha.getArtigo().getNome();
+                if (v.getLinhas().size() > 1) {
+                    descricaoVenda += " (+" + (v.getLinhas().size() - 1) + " itens)";
+                }
+            }
+            pendentes.add(new DocumentoPendenteDTO(v.getId(), "VENDA", dataUsada, v.getCliente().getNome(), v.getTotalComIva(), pendente, descricaoVenda));
         });
 
+        // 🚀 COMPRAS: Injeta a descrição da compra
         compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(c -> {
             BigDecimal pendente = c.getTotal().subtract(c.getValorPago());
-            LocalDateTime dataFatura = c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra();
-            pendentes.add(new DocumentoPendenteDTO(c.getId(), "COMPRA", dataFatura, c.getFornecedor().getNome(), c.getTotal(), pendente));
+            LocalDateTime dataUsada = c.getDataPrevistaPagamento() != null
+                    ? c.getDataPrevistaPagamento()
+                    : (c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra());
+
+            pendentes.add(new DocumentoPendenteDTO(c.getId(), "COMPRA", dataUsada, c.getFornecedor().getNome(), c.getTotal(), pendente, c.getDesignacao()));
         });
 
         documentoTesourariaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(d -> {
             BigDecimal pendente = d.getValorTotal().subtract(d.getValorPago());
             String tipoDoc = d.getTipo() == TipoMovimentoPlaneado.ENTRADA ? "RECEITA" : "DESPESA";
-            // Envia a descrição (ex: "Salários") no lugar do nome do fornecedor!
-            pendentes.add(new DocumentoPendenteDTO(d.getId(), tipoDoc, d.getDataEmissao(), d.getDescricao(), d.getValorTotal(), pendente));
+            pendentes.add(new DocumentoPendenteDTO(d.getId(), tipoDoc, d.getDataEmissao(), d.getDescricao(), d.getValorTotal(), pendente, null));
         });
 
         pendentes.sort((a, b) -> a.getData().compareTo(b.getData()));
@@ -280,7 +295,6 @@ public class TesourariaService {
             conta.setSaldo(conta.getSaldo().subtract(valorPagamento));
 
         } else if ("RECEITA".equalsIgnoreCase(dto.getTipoDocumento()) || "DESPESA".equalsIgnoreCase(dto.getTipoDocumento())) {
-            // 🚀 O NOVO MOTOR GENÉRICO DE TESOURARIA (CASH FLOW PURO)
             DocumentoTesouraria doc = documentoTesourariaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Documento de Tesouraria não encontrado."));
 
@@ -331,6 +345,27 @@ public class TesourariaService {
             compraRepository.save(c);
         }
         movimentoRepository.delete(mov);
+    }
+
+    @Transactional
+    public void atualizarPrevisaoPagamento(Long id, String tipoDocumento, LocalDateTime novaData) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        if ("VENDA".equalsIgnoreCase(tipoDocumento)) {
+            Venda venda = vendaRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
+            venda.setDataPrevistaPagamento(novaData);
+            vendaRepository.save(venda);
+
+        } else if ("COMPRA".equalsIgnoreCase(tipoDocumento)) {
+            Compra compra = compraRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada."));
+            compra.setDataPrevistaPagamento(novaData);
+            compraRepository.save(compra);
+
+        } else {
+            throw new IllegalArgumentException("Para já, só editamos previsões de Compras e Vendas.");
+        }
     }
 
     private ContaBancariaResponseDTO converterContaParaDTO(ContaBancaria c) {

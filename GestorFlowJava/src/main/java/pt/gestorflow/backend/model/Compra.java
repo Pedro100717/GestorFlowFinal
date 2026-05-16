@@ -41,6 +41,12 @@ public class Compra extends Auditable {
     @Column(precision = 10, scale = 2)
     private BigDecimal valorPago = BigDecimal.ZERO;
 
+    @Column(name = "data_prevista_pagamento")
+    private LocalDateTime dataPrevistaPagamento;
+
+    @Column(name = "plano_origem_id")
+    private Long planoOrigemId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "estado_pagamento")
     private EstadoPagamento estadoPagamento = EstadoPagamento.PENDENTE;

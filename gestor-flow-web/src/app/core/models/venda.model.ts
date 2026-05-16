@@ -55,4 +55,6 @@ export interface Venda {
     precoUnitario?: number;
     taxaIvaId?: number;
     taxaIvaValor?: number;
+
+    planoOrigemId?: number | null;
 }

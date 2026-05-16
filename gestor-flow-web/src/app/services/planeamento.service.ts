@@ -35,9 +35,4 @@ export class PlaneamentoService {
   alternarStatus(id: number): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/${id}/toggle`, {});
   }
-
-  // 🚀 A CHAMADA PARA O BOTÃO MÁGICO (O que faltava para tirar o erro)
-  gerarFaturaPendente(id: number): Observable<void> {
-    return this.http.post<void>(`${this.API_URL}/${id}/gerar-fatura`, {});
-  }
 }

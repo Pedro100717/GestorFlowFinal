@@ -28,6 +28,7 @@ public class CompraService {
     private final SeccaoHomoRepository seccaoHomoRepository;
     private final TxIvaRepository txIvaRepository;
     private final MovimentoStockRepository movimentoStockRepository;
+    private final MovimentoPlaneadoRepository movimentoPlaneadoRepository; // 🚀 Injetado para abater os planos
 
     private final ArtigoService artigoService;
     private final UtilizadorRepository utilizadorRepository;
@@ -89,10 +90,7 @@ public class CompraService {
 
         Compra compra = new Compra();
         compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra().atStartOfDay() : LocalDateTime.now());
-
-        // 🚀 MAPEAMENTO DO VENCIMENTO
         compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : compra.getDataCompra());
-
         compra.setFornecedor(fornecedor);
         compra.setArtigo(artigo);
         compra.setUtilizador(user);
@@ -107,6 +105,9 @@ public class CompraService {
         compra.setEstadoPagamento(EstadoPagamento.PENDENTE);
         compra.setContaBancaria(null);
 
+        // 🚀 GRAVAR O ELO SECRETO DE RASTREABILIDADE (Se existir)
+        compra.setPlanoOrigemId(dto.getPlanoOrigemId());
+
         if (dto.getCentroCustoId() != null) {
             centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId).ifPresent(compra::setCentroCusto);
         }
@@ -114,7 +115,35 @@ public class CompraService {
             seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId).ifPresent(compra::setSeccaoHomo);
         }
 
-        return converterParaDTO(compraRepository.save(compra));
+        Compra compraGuardada = compraRepository.save(compra);
+
+        // =========================================================================================
+        // 🚀 O MOTOR DE ABATE DA TESOURARIA: Faz a linha fantasma desaparecer do mês corrente
+        // =========================================================================================
+        if (dto.getPlanoOrigemId() != null) {
+            movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
+                    .ifPresent(plano -> {
+                        // 🛡️ A CORREÇÃO FINAL: Usar estritamente LocalDate!
+                        java.time.LocalDate dataReferencia = plano.getDataUltimoProcessamento() != null
+                                ? plano.getDataUltimoProcessamento()
+                                : plano.getDataInicio();
+
+                        java.time.LocalDate novaData = switch (plano.getFrequencia()) {
+                            case SEMANAL -> dataReferencia.plusWeeks(1);
+                            case MENSAL -> dataReferencia.plusMonths(1);
+                            case TRIMESTRAL -> dataReferencia.plusMonths(3);
+                            case SEMESTRAL -> dataReferencia.plusMonths(6);
+                            case ANUAL -> dataReferencia.plusYears(1);
+                            case PONTUAL -> dataReferencia.plusYears(100);
+                        };
+
+                        plano.setDataUltimoProcessamento(novaData);
+                        movimentoPlaneadoRepository.save(plano);
+                    });
+        }
+        // =========================================================================================
+
+        return converterParaDTO(compraGuardada);
     }
 
     @Transactional
@@ -166,10 +195,7 @@ public class CompraService {
         BigDecimal totalComIva = totalSemIva.multiply(fatorIva);
 
         compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra().atStartOfDay() : compra.getDataCompra());
-
-        // 🚀 MAPEAMENTO DO VENCIMENTO NA EDIÇÃO
         compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : compra.getDataVencimento());
-
         compra.setFornecedor(fornecedor);
         compra.setArtigo(novoArtigo);
         compra.setTaxaIva(taxaIva);
@@ -242,16 +268,16 @@ public class CompraService {
         CompraResponseDTO dto = new CompraResponseDTO();
         dto.setId(c.getId());
         dto.setDataCompra(c.getDataCompra());
-
-        // 🚀 RESPOSTA COM VENCIMENTO
         dto.setDataVencimento(c.getDataVencimento());
-
         dto.setNumeroFaturaFornecedor(c.getNumeroFaturaFornecedor());
         dto.setDesignacao(c.getDesignacao());
         dto.setQuantidade(c.getQuantidade());
         dto.setPrecoUnitario(c.getPrecoUnitario());
         dto.setTotal(c.getTotal());
         dto.setEstadoPagamento(c.getEstadoPagamento().name());
+
+        // 🚀 MAPEAMENTO DA RASTREABILIDADE
+        dto.setPlanoOrigemId(c.getPlanoOrigemId());
 
         if (c.getFornecedor() != null) {
             dto.setFornecedorId(c.getFornecedor().getId());

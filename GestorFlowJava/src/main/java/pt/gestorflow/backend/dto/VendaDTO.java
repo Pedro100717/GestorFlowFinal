@@ -18,6 +18,9 @@ public class VendaDTO {
     // 🚀 O NOVO CAMPO PARA O SIMULADOR DE TESOURARIA
     private LocalDate dataVencimento;
 
+    // 🚀 O ELO SECRETO DA TESOURARIA
+    private Long planoOrigemId;
+
     private Long centroCustoId;
     private Long seccaoHomoId;
 

@@ -1,0 +1,1 @@
+ALTER TABLE movimentos_planeados DROP COLUMN tx_iva_id;

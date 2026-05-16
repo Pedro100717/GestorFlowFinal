@@ -29,6 +29,7 @@ export interface Movimento {
 export interface DocumentoPendente {
     id: number;
     tipo: 'VENDA' | 'COMPRA' | 'RECEITA' | 'DESPESA'; // 🚀 ATUALIZADO
+    descricao?: string;
     data: string;
     entidade: string;
     total: number;
