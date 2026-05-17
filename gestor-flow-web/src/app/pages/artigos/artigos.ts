@@ -3,11 +3,8 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ArtigoService } from '../../services/artigo.service';
 import { Artigo } from '../../core/models/artigo.model';
-
-// 1. IMPORTAR O SWEETALERT2
 import Swal from 'sweetalert2';
-
-declare var bootstrap: any;
+import * as bootstrap from 'bootstrap';
 
 @Component({
   selector: 'app-artigos',
@@ -21,6 +18,9 @@ export class ArtigosComponent implements OnInit {
   listaArtigos: Artigo[] = [];
   formArtigo!: FormGroup;
   idEmEdicao: number | null = null;
+  
+  // 🚀 A TRANCA DA PORTA (Impede Duplos Cliques)
+  isGuardando: boolean = false; 
 
   constructor(
     private artigoService: ArtigoService,
@@ -31,14 +31,11 @@ export class ArtigosComponent implements OnInit {
   ngOnInit() {
     this.inicializarFormulario();
     
-    // --- A MÁGICA REATIVA ---
-    // 1. O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
     this.artigoService.artigos$.subscribe(artigos => {
       this.listaArtigos = artigos;
       this.cd.detectChanges();
     });
 
-    // 2. Manda o serviço encher o cofre pela primeira vez
     this.artigoService.carregarArtigosDaAPI();
   }
 
@@ -46,7 +43,6 @@ export class ArtigosComponent implements OnInit {
     this.formArtigo = this.fb.group({
       nome: ['', [Validators.required, Validators.minLength(3)]],
       codigoBarras: [''],
-      // Lógica: True = Mercadoria (Stock), False = Serviço
       movimentaStock: [true],
     });
   }
@@ -58,8 +54,10 @@ export class ArtigosComponent implements OnInit {
     this.formArtigo.reset({
       nome: '',
       codigoBarras: '',
-      movimentaStock: true, // Por defeito criamos Mercadorias
+      movimentaStock: true, 
     });
+    // 🚀 Destranca o switch para novos artigos
+    this.formArtigo.get('movimentaStock')?.enable();
     this.abrirModal();
   }
 
@@ -69,26 +67,33 @@ export class ArtigosComponent implements OnInit {
     this.formArtigo.patchValue({
       nome: artigo.nome,
       codigoBarras: artigo.codigoBarras,
-      // Tradução: Se o tipo for MERCADORIA, o switch "movimentaStock" deve estar ON (true)
       movimentaStock: artigo.tipo === 'MERCADORIA',
       familiaId: artigo.familiaId
     });
+
+    // 🚀 Tranca o switch para impedir alterações à natureza do artigo!
+    this.formArtigo.get('movimentaStock')?.disable();
   
     this.abrirModal();
   }
 
   guardarArtigo() {
-    if (this.formArtigo.invalid) {
+    // 🚀 SE JÁ ESTIVER A GUARDAR, IGNORA OS CLIQUES EXTRA
+    if (this.formArtigo.invalid || this.isGuardando) {
       this.formArtigo.markAllAsTouched();
       return;
     }
-    const dados = this.formArtigo.value;
+    
+    this.isGuardando = true; // 🚀 FECHA A PORTA
+    
+    // 🚀 CRÍTICO: Usar getRawValue() para apanhar os dados dos campos que estão disabled (trancados)
+    const dados = this.formArtigo.getRawValue();
 
     if (this.idEmEdicao) {
       this.artigoService.atualizar(this.idEmEdicao, dados).subscribe({
         next: () => this.finalizarAcao('Artigo atualizado!'),
-        // 2. ERRO ELEGANTE AQUI
         error: (e) => {
+          this.isGuardando = false; // 🚀 ABRE A PORTA DE NOVO
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -100,8 +105,8 @@ export class ArtigosComponent implements OnInit {
     } else {
       this.artigoService.criar(dados).subscribe({
         next: () => this.finalizarAcao('Artigo criado! O stock começa a 0.'),
-        // 2. ERRO ELEGANTE AQUI
         error: (e) => {
+          this.isGuardando = false; // 🚀 ABRE A PORTA DE NOVO
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -114,18 +119,16 @@ export class ArtigosComponent implements OnInit {
   }
 
   eliminarArtigo(id: number) {
-    // 3. O FIM DO "confirm()" FEIO
     Swal.fire({
       title: 'Tem a certeza?',
       text: "Este artigo será apagado permanentemente!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#dc3545', // Vermelho
-      cancelButtonColor: '#6c757d',  // Cinzento
+      confirmButtonColor: '#dc3545', 
+      cancelButtonColor: '#6c757d',  
       confirmButtonText: 'Sim, eliminar!',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
-      
       if (result.isConfirmed) {
         this.artigoService.apagar(id).subscribe({
           next: () => {
@@ -140,7 +143,8 @@ export class ArtigosComponent implements OnInit {
   }
 
   finalizarAcao(msg: string) {
-    // 4. TOAST DE SUCESSO NO CANTO SUPERIOR
+    this.isGuardando = false; // 🚀 ABRE A PORTA PARA A PRÓXIMA AÇÃO
+
     const Toast = Swal.mixin({
       toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
     });

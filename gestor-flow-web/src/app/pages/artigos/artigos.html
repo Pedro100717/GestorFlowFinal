@@ -100,12 +100,16 @@
                       </div>
                   </div>
                   <div class="form-check form-switch">
-                      <input class="form-check-input" type="checkbox" formControlName="movimentaStock" id="checkStock" style="cursor: pointer;">
+                      <input class="form-check-input" type="checkbox" formControlName="movimentaStock" id="checkStock" [ngStyle]="{'cursor': idEmEdicao ? 'not-allowed' : 'pointer'}">
                   </div>
               </div>
 
-              <div class="mt-2 alert alert-info py-2 px-3 mb-0 small" *ngIf="f['movimentaStock'].value">
+              <div class="mt-2 alert alert-info py-2 px-3 mb-0 small" *ngIf="f['movimentaStock'].value && !idEmEdicao">
                   <i class="bi bi-info-circle me-1"></i> O stock inicial será 0. Use "Compras" para adicionar stock.
+              </div>
+
+              <div class="mt-2 text-danger small fw-bold" *ngIf="idEmEdicao">
+                  <i class="bi bi-lock me-1"></i> A natureza do artigo não pode ser alterada. Crie um novo se necessário.
               </div>
           </div>
 
@@ -114,8 +118,10 @@
       
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" [disabled]="formArtigo.invalid" (click)="guardarArtigo()">
-          <i class="bi bi-save me-2"></i> Guardar
+        <button type="button" class="btn btn-primary" [disabled]="formArtigo.invalid || isGuardando" (click)="guardarArtigo()">
+          <span *ngIf="isGuardando" class="spinner-border spinner-border-sm me-2"></span>
+          <i *ngIf="!isGuardando" class="bi bi-save me-2"></i> 
+          {{ isGuardando ? 'A Guardar...' : 'Guardar' }}
         </button>
       </div>
     </div>
