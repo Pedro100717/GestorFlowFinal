@@ -23,6 +23,20 @@ Chart.register(...registerables);
 
 declare var bootstrap: any;
 
+export interface LinhaSimulador {
+  isAtual: boolean;
+  isProjecao: boolean;
+  dataObj: Date;
+  data: string;
+  descritivo: string;
+  descricao?: string;
+  receita?: number | null;
+  despesa?: number | null;
+  saldo?: number;
+  planoAssociado?: MovimentoPlaneado; 
+  documento?: DocumentoPendente;      
+}
+
 @Component({
   selector: 'app-tesouraria',
   standalone: true,
@@ -55,8 +69,8 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   // --- SIMULADOR ---
   simulacaoAtual: SimuladorTesourariaDTO | null = null;
-  chartInstance: any;
-  linhasSimulador: any[] = [];
+  chartInstance: Chart | undefined;
+  linhasSimulador: LinhaSimulador[] = []; 
   saldoAtualTotal: number = 0;
 
   constructor(
@@ -158,8 +172,8 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   apagarPlano(plano: MovimentoPlaneado) {
     Swal.fire({
-      title: 'Apagar Plano?',
-      text: `Queres mesmo apagar "${plano.descricao}"? Isto vai recalcular o teu gráfico instantaneamente.`,
+      title: 'Apagar Plano Base?',
+      text: `Queres mesmo apagar a base "${plano.descricao}"?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sim, Apagar',
@@ -186,9 +200,168 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     });
   }
 
-  gerarFaturaDoPlano(linha: any) {
-    // 🚀 Extrai o plano E a data que estavam na linha!
-    const plano = linha.planoAssociado ? linha.planoAssociado : linha; 
+  // =========================================================================
+  // --- 🚀 A MÁQUINA DO TEMPO: EDIÇÕES E APAGÕES PONTUAIS NO SIMULADOR ---
+  // =========================================================================
+
+  apagarLinhaProjecao(linha: LinhaSimulador) { 
+    const planoOriginal = linha.planoAssociado!;
+    const dataProjetada = linha.data.split('T')[0];
+
+    if (planoOriginal.frequencia === 'PONTUAL') {
+      this.apagarPlano(planoOriginal);
+      return;
+    }
+
+    Swal.fire({
+      title: 'Apagar Previsão',
+      text: `Esta previsão faz parte do plano "${planoOriginal.descricao}". Queres apagar apenas o mês de ${this.formatarMesAno(dataProjetada)} ou cancelar o plano para sempre?`,
+      icon: 'warning',
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: 'Só este Mês',
+      denyButtonText: 'Para Sempre',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#0d6efd',
+      denyButtonColor: '#dc3545'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.planeamentoService.ignorarDataPlano(planoOriginal.id!, dataProjetada).subscribe({
+          next: () => {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Mês ignorado!', timer: 2000, showConfirmButton: false });
+            this.carregarPlanos();
+            this.carregarSimulador();
+          },
+          error: () => Swal.fire('Erro', 'Não foi possível ignorar a data.', 'error')
+        });
+      } else if (result.isDenied) {
+        this.apagarPlano(planoOriginal);
+      }
+    });
+  }
+
+  editarLinhaProjecao(linha: LinhaSimulador) { 
+    const planoOriginal = linha.planoAssociado!;
+    const dataProjetadaOriginal = linha.data.split('T')[0];
+    const valorAtual = planoOriginal.valorBase;
+    const descricaoAtual = planoOriginal.descricao;
+
+    Swal.fire({
+      title: 'Editar Previsão',
+      html: `
+        <div class="text-start px-3 mt-2">
+          <label class="form-label small fw-bold mb-1 text-muted">Descrição da Previsão</label>
+          <input type="text" id="nova-desc-plano" class="form-control mb-3 border-secondary" value="${descricaoAtual}">
+
+          <div class="row">
+              <div class="col-6">
+                  <label class="form-label small fw-bold mb-1 text-muted">Data Prevista</label>
+                  <input type="date" id="nova-data-plano" class="form-control border-secondary" value="${dataProjetadaOriginal}">
+              </div>
+              <div class="col-6">
+                  <label class="form-label small fw-bold mb-1 text-muted">Valor Projetado (€)</label>
+                  <input type="number" id="novo-valor-plano" class="form-control border-secondary" value="${valorAtual}" step="0.01">
+              </div>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Avançar',
+      cancelButtonText: 'Cancelar',
+      width: '32em',
+      preConfirm: () => {
+        const desc = (document.getElementById('nova-desc-plano') as HTMLInputElement).value;
+        const data = (document.getElementById('nova-data-plano') as HTMLInputElement).value;
+        const val = (document.getElementById('novo-valor-plano') as HTMLInputElement).value;
+
+        if (!desc) return Swal.showValidationMessage('A descrição não pode estar vazia.');
+        if (!data) return Swal.showValidationMessage('A data é obrigatória.');
+        if (!val || Number(val) <= 0) return Swal.showValidationMessage('Insira um valor maior que 0.');
+
+        return { descricao: desc, data: data, valor: Number(val) };
+      }
+    }).then((resultValor) => {
+      if (resultValor.isConfirmed) {
+        const dadosEditados = resultValor.value;
+
+        if (planoOriginal.frequencia === 'PONTUAL') {
+           const dto = { 
+               ...planoOriginal, 
+               descricao: dadosEditados.descricao, 
+               dataInicio: dadosEditados.data, 
+               valorBase: dadosEditados.valor 
+           };
+           this.planeamentoService.atualizarPlano(planoOriginal.id!, dto).subscribe(() => {
+             this.carregarPlanos();
+             this.carregarSimulador();
+           });
+           return;
+        }
+
+        Swal.fire({
+          title: 'Aplicar a alteração?',
+          text: `Queres que esta alteração seja aplicada APENAS nesta data (${this.formatarMesAno(dataProjetadaOriginal)}), ou queres alterar a regra base para todas as datas futuras?`,
+          icon: 'question',
+          showDenyButton: true,
+          showCancelButton: true,
+          confirmButtonText: 'Só nesta Data',
+          denyButtonText: 'Em Todas',
+          cancelButtonText: 'Cancelar',
+          confirmButtonColor: '#0d6efd',
+          denyButtonColor: '#198754'
+        }).then((resultAcao) => {
+          if (resultAcao.isConfirmed) {
+            
+            const dtoExcecao = { 
+                ...planoOriginal, 
+                descricao: dadosEditados.descricao, 
+                valorBase: dadosEditados.valor, 
+                dataInicio: dadosEditados.data 
+            };
+            
+            this.planeamentoService.criarExcecaoPlano(planoOriginal.id!, dataProjetadaOriginal, dtoExcecao as MovimentoPlaneado).subscribe({
+              next: () => {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Exceção criada com sucesso!', timer: 2000, showConfirmButton: false });
+                this.carregarPlanos();
+                this.carregarSimulador();
+              },
+              error: () => Swal.fire('Erro', 'Não foi possível criar a exceção.', 'error')
+            });
+
+          } else if (resultAcao.isDenied) {
+            
+            const dtoAtualizado = { 
+                ...planoOriginal, 
+                descricao: dadosEditados.descricao, 
+                valorBase: dadosEditados.valor, 
+                dataInicio: dadosEditados.data 
+            };
+            
+            this.planeamentoService.atualizarPlano(planoOriginal.id!, dtoAtualizado).subscribe({
+              next: () => {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano base atualizado!', timer: 2000, showConfirmButton: false });
+                this.carregarPlanos();
+                this.carregarSimulador();
+              },
+              error: () => Swal.fire('Erro', 'Não foi possível atualizar o plano.', 'error')
+            });
+          }
+        });
+      }
+    });
+  }
+
+  formatarMesAno(dataIso: string): string {
+    const data = new Date(dataIso);
+    return data.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+  }
+
+  // =========================================================================
+  // --- 🚀 EFETIVAÇÃO EM FATURAS ---
+  // =========================================================================
+
+  gerarFaturaDoPlano(linha: LinhaSimulador) { 
+    const plano = linha.planoAssociado!; 
     const dataProjetada = linha.data ? linha.data : null; 
 
     if (!plano || !plano.id) return;
@@ -210,7 +383,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
           state: {
             planoOrigemId: plano.id,
             descricao: plano.descricao,
-            dataProjetada: dataProjetada // 🚀 AGORA SIM! A data viaja na mala!
+            dataProjetada: dataProjetada 
           }
         });
       }
@@ -276,45 +449,79 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   gerarTabelaSimulador() {
     this.saldoAtualTotal = this.listaContas.reduce((acc, c) => acc + c.saldo, 0);
-    this.linhasSimulador = [{ isAtual: true, descritivo: 'SALDO ATUAL', saldo: this.saldoAtualTotal, dataObj: new Date() }];
+    this.linhasSimulador = [{ 
+      isAtual: true, 
+      isProjecao: false,
+      descritivo: 'SALDO ATUAL', 
+      saldo: this.saldoAtualTotal, 
+      dataObj: new Date(),
+      data: new Date().toISOString()
+    }];
 
-    const itensReais = this.listaPendentes.map(doc => ({
+    const itensReais: LinhaSimulador[] = this.listaPendentes.map(doc => ({
       isAtual: false, isProjecao: false,
       dataObj: new Date(doc.data), data: doc.data,
-      
       descritivo: doc.entidade,
-      // 🚀 AQUI ESTÁ! O TRANSPORTE DA DESCRIÇÃO PARA A PREVISÃO!
       descricao: doc.descricao, 
-      
       documento: doc,
       receita: doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? doc.valorPendente : null,
       despesa: doc.tipo === 'COMPRA' || doc.tipo === 'DESPESA' ? doc.valorPendente : null
     }));
 
-    const projecoes: any[] = [];
-    const fimDoAno = new Date(new Date().getFullYear(), 11, 31);
+    const projecoes: LinhaSimulador[] = []; 
+    
+    // 🚀 O HORIZONTE DE 1 ANO (Limpo e formatado com margem de segurança)
+    const hoje = new Date();
+    const limiteProjecao = new Date(hoje.getFullYear() + 1, hoje.getMonth(), hoje.getDate());
+    limiteProjecao.setHours(23, 59, 59, 999); // Fica sempre no último segundo do dia
 
     this.listaPlanos.filter(p => p.ativo !== false).forEach(plano => {
-      let dataCursor = plano.dataUltimoProcessamento ? new Date(plano.dataUltimoProcessamento) : new Date(plano.dataInicio);
       
+      let dataCursor = new Date(plano.dataInicio);
+      dataCursor.setHours(0, 0, 0, 0); // O cursor de data também começa sempre limpo
+      
+      const dataFimLimite = plano.dataFim ? new Date(plano.dataFim) : limiteProjecao;
+      dataFimLimite.setHours(23, 59, 59, 999);
+
+      // Descobre qual o verdadeiro limite, calculando o .getTime() puro das datas
+      const limiteReal = new Date(dataFimLimite.getTime() < limiteProjecao.getTime() ? dataFimLimite.getTime() : limiteProjecao.getTime());
+
+      let anoMesUltimoProcessamento = -1;
       if (plano.dataUltimoProcessamento) {
-        dataCursor = this.adicionarFrequencia(dataCursor, plano.frequencia as string);
+          const d = new Date(plano.dataUltimoProcessamento);
+          anoMesUltimoProcessamento = d.getFullYear() * 12 + d.getMonth();
       }
 
-      const dataFimLimite = plano.dataFim ? new Date(plano.dataFim) : fimDoAno;
-      const limiteReal = dataFimLimite < fimDoAno ? dataFimLimite : fimDoAno;
+      // 🚀 COMPARAÇÃO MATEMÁTICA SEGURA COM GETTIME()
+      while (dataCursor.getTime() <= limiteReal.getTime()) {
+        
+        // VACINA DO FUSO HORÁRIO: Formatamos o Ano, Mês e Dia manualmente, 
+        // para garantir a 100% que o dia da tabela é o dia escolhido.
+        const ano = dataCursor.getFullYear();
+        const mes = String(dataCursor.getMonth() + 1).padStart(2, '0');
+        const dia = String(dataCursor.getDate()).padStart(2, '0');
+        
+        const cursorDataString = `${ano}-${mes}-${dia}`;
+        const mesAnoCursorStr = `${ano}-${mes}`; 
+        const anoMesCursorVal = ano * 12 + dataCursor.getMonth();
 
-      while (dataCursor <= limiteReal) {
-        projecoes.push({
-          isAtual: false, isProjecao: true, planoAssociado: plano,
-          dataObj: new Date(dataCursor), data: dataCursor.toISOString(),
-          descritivo: plano.descricao + ' (Previsão)',
-          receita: plano.tipo === 'ENTRADA' ? plano.valorBase : null, 
-          despesa: plano.tipo === 'SAIDA' ? plano.valorBase : null
-        });
+        const jaProcessadoNaRegraAntiga = anoMesCursorVal <= anoMesUltimoProcessamento;
+        const estaIgnoradoNaMaquinaDoTempo = plano.datasIgnoradas?.some((d: string) => d.toString().startsWith(mesAnoCursorStr));
+
+        if (!jaProcessadoNaRegraAntiga && !estaIgnoradoNaMaquinaDoTempo) {
+          projecoes.push({
+            isAtual: false, isProjecao: true, planoAssociado: plano,
+            dataObj: new Date(dataCursor.getTime()), 
+            data: cursorDataString + 'T00:00:00', // Salvaguarda a Data formatada à prova de fuso
+            descritivo: plano.descricao + ' (Previsão)',
+            receita: plano.tipo === 'ENTRADA' ? plano.valorBase : null, 
+            despesa: plano.tipo === 'SAIDA' ? plano.valorBase : null
+          });
+        }
 
         if (plano.frequencia === 'PONTUAL') break;
         dataCursor = this.adicionarFrequencia(dataCursor, plano.frequencia as string);
+        dataCursor.setHours(0, 0, 0, 0); // Quando avança um mês, garante que continua às 00:00
       }
     });
 
@@ -330,7 +537,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   private adicionarFrequencia(data: Date, frequencia: string): Date {
-    const novaData = new Date(data);
+    const novaData = new Date(data.getTime());
     switch(frequencia) {
       case 'SEMANAL': novaData.setDate(novaData.getDate() + 7); break;
       case 'MENSAL': novaData.setMonth(novaData.getMonth() + 1); break;
@@ -341,7 +548,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     return novaData;
   }
 
-  editarDataPagamento(linha: any) {
+  editarDataPagamento(linha: LinhaSimulador) {
     const dataAtual = linha.data.split('T')[0];
 
     Swal.fire({
@@ -360,7 +567,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       }
     }).then((result) => {
       if (result.isConfirmed) {
-        this.tesourariaService.alterarDataPrevista(linha.documento.id, linha.documento.tipo, result.value).subscribe({
+        this.tesourariaService.alterarDataPrevista(linha.documento!.id, linha.documento!.tipo, result.value).subscribe({
           next: () => {
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Data atualizada!', timer: 2000, showConfirmButton: false });
             this.carregarPendentes();
@@ -442,8 +649,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   // =========================================================================
 
   carregarEntidades() {
-    this.clienteService.listar().subscribe((res: any) => this.clientes = res.content || res);
-    this.fornecedorService.listar().subscribe((res: any) => this.fornecedores = res.content || res);
+    this.clienteService.listar().subscribe((res: unknown) => {
+      const pageRes = res as { content?: Cliente[] };
+      this.clientes = pageRes.content ? pageRes.content : (res as Cliente[]);
+    });
+
+    this.fornecedorService.listar().subscribe((res: unknown) => {
+      const pageRes = res as { content?: Fornecedor[] };
+      this.fornecedores = pageRes.content ? pageRes.content : (res as Fornecedor[]);
+    });
   }
 
   carregarPendentes() {

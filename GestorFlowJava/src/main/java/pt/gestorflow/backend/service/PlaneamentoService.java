@@ -8,6 +8,7 @@ import pt.gestorflow.backend.dto.MovimentoPlaneadoDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -77,6 +78,48 @@ public class PlaneamentoService {
     }
 
     // =========================================================================
+    // --- MÁQUINA DO TEMPO: EXCEÇÕES (ESTILO GOOGLE CALENDAR) 🚀 ---
+    // =========================================================================
+
+    @Transactional
+    public void ignorarDataPlano(Long id, LocalDate dataAignorar) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
+
+        // Guarda a data na gaveta das exceções
+        plano.getDatasIgnoradas().add(dataAignorar);
+        planeamentoRepository.save(plano);
+    }
+
+    @Transactional
+    public MovimentoPlaneadoDTO criarExcecaoPlano(Long idOriginal, LocalDate dataOriginal, MovimentoPlaneadoDTO dtoNovo) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        // 1. Silencia o plano original APENAS naquela data
+        MovimentoPlaneado planoOriginal = planeamentoRepository.findByIdAndUtilizadorId(idOriginal, utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Plano original não encontrado."));
+
+        planoOriginal.getDatasIgnoradas().add(dataOriginal);
+        planeamentoRepository.save(planoOriginal);
+
+        // 2. Cria a nova exceção como um plano independente e PONTUAL
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        MovimentoPlaneado novoPlanoExcecao = new MovimentoPlaneado();
+        novoPlanoExcecao.setUtilizador(user);
+        mapearDtoParaEntidade(dtoNovo, novoPlanoExcecao, utilizadorId);
+
+        // Regra de Ferro: A exceção tem de ser pontual, senão criávamos um loop infinito de fantasmas!
+        novoPlanoExcecao.setFrequencia(FrequenciaMovimento.PONTUAL);
+        novoPlanoExcecao.setDataInicio(dtoNovo.getDataInicio());
+
+        return mapearEntidadeParaDto(planeamentoRepository.save(novoPlanoExcecao));
+    }
+
+
+    // =========================================================================
     // --- MAPEAMENTOS (BUG CORRIGIDO E SEM IVA) ---
     // =========================================================================
 
@@ -121,6 +164,9 @@ public class PlaneamentoService {
         if (plano.getFornecedor() != null) {
             dto.setFornecedorId(plano.getFornecedor().getId());
         }
+
+        // 🚀 AQUI ESTÁ A LINHA QUE TE FALTOU: Transportar as exceções para o Angular!
+        dto.setDatasIgnoradas(plano.getDatasIgnoradas());
 
         return dto;
     }

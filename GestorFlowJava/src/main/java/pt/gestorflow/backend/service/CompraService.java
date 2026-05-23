@@ -28,7 +28,7 @@ public class CompraService {
     private final SeccaoHomoRepository seccaoHomoRepository;
     private final TxIvaRepository txIvaRepository;
     private final MovimentoStockRepository movimentoStockRepository;
-    private final MovimentoPlaneadoRepository movimentoPlaneadoRepository; // 🚀 Injetado para abater os planos
+    private final MovimentoPlaneadoRepository movimentoPlaneadoRepository;
 
     private final ArtigoService artigoService;
     private final UtilizadorRepository utilizadorRepository;
@@ -118,26 +118,14 @@ public class CompraService {
         Compra compraGuardada = compraRepository.save(compra);
 
         // =========================================================================================
-        // 🚀 O MOTOR DE ABATE DA TESOURARIA: Faz a linha fantasma desaparecer do mês corrente
+        // 🚀 O NOVO MOTOR DE ABATE (MÁQUINA DO TEMPO)
+        // Coloca a data da compra diretamente na gaveta de ignorados do plano!
         // =========================================================================================
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
-                        // 🛡️ A CORREÇÃO FINAL: Usar estritamente LocalDate!
-                        java.time.LocalDate dataReferencia = plano.getDataUltimoProcessamento() != null
-                                ? plano.getDataUltimoProcessamento()
-                                : plano.getDataInicio();
-
-                        java.time.LocalDate novaData = switch (plano.getFrequencia()) {
-                            case SEMANAL -> dataReferencia.plusWeeks(1);
-                            case MENSAL -> dataReferencia.plusMonths(1);
-                            case TRIMESTRAL -> dataReferencia.plusMonths(3);
-                            case SEMESTRAL -> dataReferencia.plusMonths(6);
-                            case ANUAL -> dataReferencia.plusYears(1);
-                            case PONTUAL -> dataReferencia.plusYears(100);
-                        };
-
-                        plano.setDataUltimoProcessamento(novaData);
+                        java.time.LocalDate dataAIgnorar = dto.getDataCompra() != null ? dto.getDataCompra() : java.time.LocalDate.now();
+                        plano.getDatasIgnoradas().add(dataAIgnorar);
                         movimentoPlaneadoRepository.save(plano);
                     });
         }
@@ -275,8 +263,6 @@ public class CompraService {
         dto.setPrecoUnitario(c.getPrecoUnitario());
         dto.setTotal(c.getTotal());
         dto.setEstadoPagamento(c.getEstadoPagamento().name());
-
-        // 🚀 MAPEAMENTO DA RASTREABILIDADE
         dto.setPlanoOrigemId(c.getPlanoOrigemId());
 
         if (c.getFornecedor() != null) {

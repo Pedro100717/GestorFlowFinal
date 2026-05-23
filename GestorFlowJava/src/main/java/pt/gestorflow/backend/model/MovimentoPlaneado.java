@@ -48,6 +48,11 @@ public class MovimentoPlaneado extends Auditable {
     @Column(name = "data_ultimo_processamento")
     private LocalDate dataUltimoProcessamento;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "movimentos_planeados_excecoes", joinColumns = @JoinColumn(name = "movimento_planeado_id"))
+    @Column(name = "data_excecao")
+    private java.util.List<LocalDate> datasIgnoradas = new java.util.ArrayList<>();
+
     @Column(nullable = false)
     private Boolean ativo = true;
 

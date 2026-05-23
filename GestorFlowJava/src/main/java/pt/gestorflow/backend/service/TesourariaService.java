@@ -45,9 +45,15 @@ public class TesourariaService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Map<YearMonth, BigDecimal> fluxoMensal = new TreeMap<>();
+
+        // 🚀 O NOVO HORIZONTE NO BACKEND (Rolling Window de 12 meses)
         YearMonth mesCorrente = YearMonth.now();
-        for (int i = 0; i <= 12; i++) {
-            fluxoMensal.put(mesCorrente.plusMonths(i), BigDecimal.ZERO);
+        YearMonth limiteProjecao = mesCorrente.plusMonths(12);
+
+        YearMonth cursorMes = mesCorrente;
+        while (!cursorMes.isAfter(limiteProjecao)) {
+            fluxoMensal.put(cursorMes, BigDecimal.ZERO);
+            cursorMes = cursorMes.plusMonths(1);
         }
 
         List<EstadoPagamento> estadosPendentes = List.of(EstadoPagamento.PENDENTE, EstadoPagamento.PARCIALMENTE_PAGO);
@@ -112,6 +118,18 @@ public class TesourariaService {
         if (mesAtual.isBefore(inicio) || mesAtual.isAfter(fim)) {
             return false;
         }
+
+        // 🚀 A MÁQUINA DO TEMPO: Verifica se este mês está na lista de exceções!
+        if (plan.getDatasIgnoradas() != null) {
+            boolean mesIgnorado = plan.getDatasIgnoradas().stream()
+                    .map(YearMonth::from)
+                    .anyMatch(ym -> ym.equals(mesAtual));
+
+            if (mesIgnorado) {
+                return false; // Silencia o fantasma neste mês exato!
+            }
+        }
+
         long mesesPassados = ChronoUnit.MONTHS.between(inicio, mesAtual);
 
         return switch (plan.getFrequencia()) {

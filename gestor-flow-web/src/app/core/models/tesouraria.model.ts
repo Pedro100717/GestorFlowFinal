@@ -79,18 +79,16 @@ export enum FrequenciaMovimento {
 export interface MovimentoPlaneado {
     id?: number;
     descricao: string;
-    tipo: TipoMovimentoPlaneado | string;
-    frequencia: FrequenciaMovimento | string;
+    tipo: string; // ou TipoMovimentoPlaneado
+    frequencia: string; // ou FrequenciaMovimento
     valorBase: number;
-    
-    // 🚀 O ÚNICO LUGAR ONDE O RIGOR SE MANTÉM (Cálculos de IVA)
-    taxaIvaId: number; 
-    
-    dataInicio: string; // Formato 'YYYY-MM-DD'
-    dataFim?: string;   // Opcional
-    
+    dataInicio: string;
+    dataFim?: string;
     ativo?: boolean;
-
-    // 🚀 Para o Angular saber se desativa o botão de "Gerar"
-    dataUltimoProcessamento?: string; 
+    clienteId?: number;
+    fornecedorId?: number;
+    dataUltimoProcessamento?: string;
+    
+    // 🚀 A MÁQUINA DO TEMPO: O Angular agora já sabe que isto existe!
+    datasIgnoradas?: string[]; 
 }

@@ -5,9 +5,6 @@
             <button class="btn btn-outline-success me-2" (click)="novaTransferencia()">
                 <i class="bi bi-arrow-left-right me-2"></i>Transferência
             </button>
-            <button class="btn btn-outline-primary me-2" (click)="novoMovimento()">
-                <i class="bi bi-plus-slash-minus me-2"></i>Movimento Manual
-            </button>
             <button class="btn btn-primary" (click)="novaConta()">
                 <i class="bi bi-bank me-2"></i>Nova Conta
             </button>
@@ -258,8 +255,8 @@
                                 [ngClass]="{'bg-light bg-opacity-50': linha.isAtual, 'fst-italic text-muted': linha.isProjecao}">
                                 
                                 <td class="small ps-3" 
-                                    (click)="!linha.isAtual && !linha.isProjecao ? editarDataPagamento(linha) : null" 
-                                    [style.cursor]="!linha.isAtual && !linha.isProjecao ? 'pointer' : 'default'">
+                                    (click)="(!linha.isAtual && !linha.isProjecao) ? editarDataPagamento(linha) : false" 
+                                    [style.cursor]="(!linha.isAtual && !linha.isProjecao) ? 'pointer' : 'default'">
     
                                     <span *ngIf="!linha.isAtual">
                                         {{ linha.data | date:'dd/MM/yyyy' }}
@@ -286,7 +283,7 @@
                                 </td>
                                 
                                 <td class="text-end fw-bold font-monospace" 
-                                    [ngClass]="linha.saldo >= 0 ? 'text-dark' : 'text-danger'"
+                                    [ngClass]="(linha.saldo || 0) >= 0 ? 'text-dark' : 'text-danger'"
                                     style="border-left: 2px solid #dee2e6; border-right: 2px solid #dee2e6; background-color: #f8f9fa;">
                                     {{ linha.saldo | currency:'EUR' }}
                                 </td>
@@ -295,7 +292,7 @@
                                     <button *ngIf="!linha.isAtual && !linha.isProjecao" 
                                             class="btn btn-sm btn-outline-dark rounded-pill fw-bold px-3 shadow-sm" 
                                             title="Pagar/Receber agora"
-                                            (click)="abrirModalConfirmacao(linha.documento)">
+                                            (click)="abrirModalConfirmacao($any(linha.documento))">
                                         Liquidar
                                     </button>
 
@@ -305,11 +302,11 @@
                                             Efetivar
                                         </button>
                                         <button class="btn btn-sm btn-outline-secondary border-0" 
-                                                (click)="abrirModalPlaneamento(linha.planoAssociado)" title="Editar Custo Fixo">
+                                                (click)="editarLinhaProjecao(linha)" title="Editar Previsão">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger border-0" 
-                                                (click)="apagarPlano(linha.planoAssociado)" title="Apagar Definitivamente">
+                                                (click)="apagarLinhaProjecao(linha)" title="Apagar Previsão">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
@@ -522,7 +519,7 @@
             <div class="modal-footer bg-light border-0">
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                 <button class="btn" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'btn-success' : 'btn-danger'"
-                        [disabled]="formConfirmacao.invalid || formConfirmacao.get('valorAPagar')?.value > (docParaConfirmar?.valorPendente || 0) || formConfirmacao.get('valorAPagar')?.value <= 0" 
+                        [disabled]="formConfirmacao.invalid || (formConfirmacao.get('valorAPagar')?.value || 0) > (docParaConfirmar?.valorPendente || 0) || (formConfirmacao.get('valorAPagar')?.value || 0) <= 0" 
                         (click)="confirmarTransacao()">
                     <i class="bi bi-check-lg me-1"></i> Confirmar Liquidação
                 </button>

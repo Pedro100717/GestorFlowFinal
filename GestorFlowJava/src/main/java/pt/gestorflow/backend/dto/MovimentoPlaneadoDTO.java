@@ -7,6 +7,8 @@ import pt.gestorflow.backend.model.TipoMovimentoPlaneado;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -28,6 +30,9 @@ public class MovimentoPlaneadoDTO {
 
     private Boolean ativo;
 
-    // 🚀 Para o Frontend saber quando o botão deve estar desativado
+    // Para o Frontend saber quando o botão deve estar desativado
     private LocalDate dataUltimoProcessamento;
+
+    // 🚀 A MÁQUINA DO TEMPO: O Angular precisa disto para saber que meses não deve desenhar!
+    private List<LocalDate> datasIgnoradas = new ArrayList<>();
 }
