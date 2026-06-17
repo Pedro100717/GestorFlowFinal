@@ -2,15 +2,15 @@ package pt.gestorflow.backend.dto;
 
 import lombok.Data;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Data
 public class CompraResponseDTO {
     private Long id;
-    private LocalDateTime dataCompra;
+    private LocalDate dataCompra;
 
     // 🚀 O NOVO CAMPO: Para o Angular saber quando a fatura vence
-    private LocalDateTime dataVencimento;
+    private LocalDate dataVencimento;
 
     private String numeroFaturaFornecedor;
     private String designacao;

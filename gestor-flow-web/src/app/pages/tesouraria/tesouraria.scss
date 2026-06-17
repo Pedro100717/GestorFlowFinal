@@ -1,0 +1,44 @@
+// --- ESTILOS BASE DA TABELA DE EVOLUÇÃO DE SALDO ---
+
+.card-evolucao {
+    position: relative;
+    background: white;
+    z-index: 10;
+    overflow: hidden; // Garante que a tabela respeita os cantos arredondados em qualquer estado
+  
+    // Contentor interno da tabela em estado normal (grelha do Bootstrap)
+    .simulador-tabela-container {
+      max-height: 380px;
+      overflow-y: auto;
+      transition: max-height 0.4s ease;
+    }
+  
+    // 🚀 AJUSTE DINÂMICO PARA O ESTADO EXPANDIDO
+    // Quando o @angular/animations injeta o estado 'expandido' via inline styles (position: fixed),
+    // o contentor interno da tabela estica automaticamente para ocupar o ecrã inteiro disponível.
+    &[style*="position: fixed"] {
+      .simulador-tabela-container {
+        max-height: none;
+        flex-grow: 1;
+      }
+    }
+  
+    // Transições suaves para elementos de interação internos (botões, filtros)
+    .transition-all {
+      transition: all 0.3s ease;
+    }
+  }
+  
+  // --- AJUSTE GLOBAL DE SEGURANÇA PARA MODAIS E SWAL2 ---
+  // Mantém os modais do Bootstrap e alertas do SweetAlert2 sempre acima da tabela expandida
+  :global {
+    .modal-backdrop {
+      z-index: 2000 !important;
+    }
+    .modal {
+      z-index: 2001 !important;
+    }
+    .swal2-container {
+      z-index: 3000 !important;
+    }
+  }

@@ -23,11 +23,14 @@ public class PlaneamentoService {
     private final FornecedorRepository fornecedorRepository;
 
     // =========================================================================
-    // --- GESTÃO CRUD SIMPLIFICADA (CASH FLOW PURO SEM IVA) ---
+    // --- GESTÃO CRUD SIMPLIFICADA E BLINDADA ---
     // =========================================================================
 
     @Transactional
     public MovimentoPlaneadoDTO criarPlano(MovimentoPlaneadoDTO dto) {
+        // 🚀 O NOSSO GUARDIÃO: Valida as regras de negócio antes de fazer qualquer coisa!
+        validarPlano(dto);
+
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
@@ -41,6 +44,9 @@ public class PlaneamentoService {
 
     @Transactional
     public MovimentoPlaneadoDTO atualizarPlano(Long id, MovimentoPlaneadoDTO dto) {
+        // 🚀 O NOSSO GUARDIÃO: Valida as regras também na edição!
+        validarPlano(dto);
+
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
         MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
@@ -75,6 +81,27 @@ public class PlaneamentoService {
 
         plano.setAtivo(!plano.getAtivo());
         planeamentoRepository.save(plano);
+    }
+
+    // =========================================================================
+    // --- REGRAS DE NEGÓCIO (VALIDAÇÕES) ---
+    // =========================================================================
+
+    private void validarPlano(MovimentoPlaneadoDTO dto) {
+        // 1. SE NÃO FOR PONTUAL, A DATA DE FIM É OBRIGATÓRIA
+        if (dto.getFrequencia() != FrequenciaMovimento.PONTUAL && dto.getDataFim() == null) {
+            throw new IllegalArgumentException("A data de fim é obrigatória para movimentos recorrentes.");
+        }
+
+        // 2. SEGURANÇA EXTRA: Se for pontual, garante que ninguém injeta uma data de fim por malícia
+        if (dto.getFrequencia() == FrequenciaMovimento.PONTUAL && dto.getDataFim() != null) {
+            dto.setDataFim(null);
+        }
+
+        // BÓNUS: Validar se a data de fim não é anterior à data de início!
+        if (dto.getDataFim() != null && dto.getDataFim().isBefore(dto.getDataInicio())) {
+            throw new IllegalArgumentException("A data de término não pode ser anterior à data de início.");
+        }
     }
 
     // =========================================================================
@@ -114,6 +141,7 @@ public class PlaneamentoService {
         // Regra de Ferro: A exceção tem de ser pontual, senão criávamos um loop infinito de fantasmas!
         novoPlanoExcecao.setFrequencia(FrequenciaMovimento.PONTUAL);
         novoPlanoExcecao.setDataInicio(dtoNovo.getDataInicio());
+        novoPlanoExcecao.setDataFim(null); // Segurança: Pontual não tem fim
 
         return mapearEntidadeParaDto(planeamentoRepository.save(novoPlanoExcecao));
     }

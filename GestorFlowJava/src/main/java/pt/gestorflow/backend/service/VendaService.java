@@ -14,7 +14,7 @@ import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -52,12 +52,11 @@ public class VendaService {
 
         venda.setContaBancaria(null);
         venda.setEstadoPagamento(EstadoPagamento.PENDENTE);
-        venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda().atStartOfDay() : LocalDateTime.now());
 
-        // 🚀 MAPEAMENTO DO VENCIMENTO
-        venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : venda.getDataVenda());
+        // 🚀 CORRIGIDO: Atribuição direta de LocalDate puro, sem .atStartOfDay()
+        venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda() : LocalDate.now());
+        venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : venda.getDataVenda());
 
-        // 🚀 GRAVAR O ELO SECRETO DE RASTREABILIDADE
         venda.setPlanoOrigemId(dto.getPlanoOrigemId());
 
         if (dto.getCentroCustoId() != null) {
@@ -122,19 +121,14 @@ public class VendaService {
 
         Venda vendaGuardada = vendaRepository.save(venda);
 
-        // =========================================================================================
-        // 🚀 O NOVO MOTOR DE ABATE (MÁQUINA DO TEMPO)
-        // Coloca a data da venda diretamente na gaveta de ignorados do plano!
-        // =========================================================================================
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
-                        java.time.LocalDate dataAIgnorar = dto.getDataVenda() != null ? dto.getDataVenda() : java.time.LocalDate.now();
+                        LocalDate dataAIgnorar = dto.getDataVenda() != null ? dto.getDataVenda() : LocalDate.now();
                         plano.getDatasIgnoradas().add(dataAIgnorar);
                         movimentoPlaneadoRepository.save(plano);
                     });
         }
-        // =========================================================================================
 
         return converterParaDTO(vendaGuardada);
     }
@@ -155,10 +149,10 @@ public class VendaService {
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado."));
         venda.setCliente(cliente);
-        venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda().atStartOfDay() : venda.getDataVenda());
 
-        // 🚀 MAPEAMENTO DO VENCIMENTO NA EDIÇÃO
-        venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : venda.getDataVencimento());
+        // 🚀 CORRIGIDO: Atribuição direta na edição, remove o .atStartOfDay()
+        venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda() : venda.getDataVenda());
+        venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : venda.getDataVencimento());
 
         for (LinhaVenda linhaAntiga : venda.getLinhas()) {
             if (linhaAntiga.getArtigo() instanceof Mercadoria mercadoria) {
@@ -182,12 +176,12 @@ public class VendaService {
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
         for (VendaDTO.LinhaVendaDTO linhaDto : dto.getLinhas()) {
-            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
+            Artigo art = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado."));
             TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
                     .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
 
-            if (artigo instanceof Mercadoria mercadoria) {
+            if (art instanceof Mercadoria mercadoria) {
                 artigoService.removerStock(mercadoria.getId(), linhaDto.getQuantidade());
 
                 MovimentoStock mov = new MovimentoStock();
@@ -206,7 +200,7 @@ public class VendaService {
 
             LinhaVenda linha = new LinhaVenda();
             linha.setVenda(venda);
-            linha.setArtigo(artigo);
+            linha.setArtigo(art);
             linha.setTaxaIva(taxaIva);
             linha.setQuantidade(linhaDto.getQuantidade());
             linha.setPrecoUnitario(linhaDto.getPrecoUnitario());
@@ -293,11 +287,8 @@ public class VendaService {
         VendaResponseDTO dto = new VendaResponseDTO();
         dto.setId(v.getId());
         dto.setDataVenda(v.getDataVenda());
-
-        // 🚀 RESPOSTA COM VENCIMENTO E RASTREABILIDADE
         dto.setDataVencimento(v.getDataVencimento());
         dto.setPlanoOrigemId(v.getPlanoOrigemId());
-
         dto.setTotalSemIva(v.getTotalSemIva());
         dto.setTotalComIva(v.getTotalComIva());
         dto.setEstadoPagamento(v.getEstadoPagamento().name());

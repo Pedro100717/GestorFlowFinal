@@ -2,10 +2,10 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold text-secondary">Tesouraria</h3>
         <div>
-            <button class="btn btn-outline-success me-2" (click)="novaTransferencia()">
+            <button class="btn btn-outline-success me-2 fw-bold" (click)="novaTransferencia()">
                 <i class="bi bi-arrow-left-right me-2"></i>Transferência
             </button>
-            <button class="btn btn-primary" (click)="novaConta()">
+            <button class="btn btn-primary fw-bold" (click)="novaConta()">
                 <i class="bi bi-bank me-2"></i>Nova Conta
             </button>
         </div>
@@ -77,7 +77,7 @@
         </div>
 
         <div class="card shadow-sm border-0" *ngIf="contaSelecionada">
-            <div class="card-header bg-white py-3 border-0">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold text-secondary">Extrato: {{ contaSelecionada.nome }}</h5>
             </div>
             <div class="table-responsive">
@@ -196,124 +196,165 @@
 
     <div *ngIf="abaAtiva === 'simulador'" class="row g-4">
         
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 h-100 bg-primary bg-opacity-10 border border-primary border-opacity-25">
-                <div class="card-body">
-                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-piggy-bank me-2"></i>Saldo Real Hoje</h6>
-                    <h3 class="mb-0 fw-bold text-dark">{{ simulacaoAtual?.saldoAtual | currency:'EUR' }}</h3>
+        <div class="col-xl-6 col-lg-12">
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
+                    <div>
+                        <h5 class="mb-0 fw-bold text-dark">Projeção Bancária</h5>
+                        <small class="text-muted">Evolução do teu capital ao longo do tempo</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-primary bg-opacity-10 text-primary mb-1 rounded-pill px-3 py-1 fw-bold border border-primary border-opacity-25">
+                            Saldo Real Hoje
+                        </span>
+                        <h3 class="mb-0 fw-bolder text-dark">{{ simulacaoAtual?.saldoAtual | currency:'EUR' }}</h3>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <h6 class="fw-bold text-secondary mb-1">Visão Geral (Até 12 Meses)</h6>
-                    <p class="text-muted small mb-0">Esta simulação cruza o teu saldo bancário atual com faturas pendentes reais e custos fixos planeados (Rendas, Salários, Assinaturas).</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold text-secondary">Projeção Bancária</h5>
-                </div>
-                <div class="card-body">
-                    <div style="height: 350px; width: 100%;">
+                <div class="card-body p-4">
+                    <div style="height: 380px; width: 100%;">
                         <canvas id="graficoSimulador"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 mt-2">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+        <div class="col-xl-6 col-lg-12">
+            <div class="card shadow-sm border-0 h-100 d-flex flex-column rounded-4 card-evolucao" 
+                 [@expandirTabela]="isTableExpanded ? 'expandido' : 'normal'">
+                
+                <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
                     <div>
-                        <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-columns me-2"></i>Evolução do Saldo Real vs Previsões</h5>
-                        <small class="text-muted">Extrato futuro contendo faturas a pagamento e custos/receitas recorrentes.</small>
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="bi bi-list-columns me-2 text-primary"></i>
+                            Evolução de Saldo
+                        </h5>
+                        <small class="text-muted">
+                            Cruzamento de previsões com a tesouraria real.
+                        </small>
                     </div>
-                    <button class="btn btn-sm btn-primary" (click)="abrirModalPlaneamento()">
-                        <i class="bi bi-plus me-1"></i>Novo Plano Fixo
-                    </button>
+                    
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="btn btn-light text-secondary border-0 p-2 d-flex align-items-center justify-content-center transition-all"
+                                (click)="toggleExpand()" 
+                                [title]="isTableExpanded ? 'Encolher Tabela' : 'Expandir Tabela'">
+                            <i class="bi fs-5" [class.bi-arrows-fullscreen]="!isTableExpanded" [class.bi-fullscreen-exit]="isTableExpanded"></i>
+                        </button>
+                        
+                        <button class="btn btn-primary fw-bold shadow-sm rounded-pill px-4" 
+                                (click)="abrirModalPlaneamento()">
+                            <i class="bi bi-plus-lg me-1"></i> Novo Plano
+                        </button>
+                    </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered align-middle mb-0 bg-white">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="py-3 text-muted small uppercase" style="width: 120px;">Data</th>
-                                <th class="text-muted small uppercase">Descritivo</th>
-                                <th class="text-muted small uppercase text-end" style="width: 130px;">Entrada (+)</th>
-                                <th class="text-muted small uppercase text-end" style="width: 130px;">Saída (-)</th>
-                                <th class="text-dark fw-bold small uppercase text-end bg-light" style="width: 130px;">Saldo Projetado</th>
-                                <th class="text-muted small uppercase text-center" style="width: 150px;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let linha of linhasSimulador" 
-                                [ngClass]="{'bg-light bg-opacity-50': linha.isAtual, 'fst-italic text-muted': linha.isProjecao}">
-                                
-                                <td class="small ps-3" 
-                                    (click)="(!linha.isAtual && !linha.isProjecao) ? editarDataPagamento(linha) : false" 
-                                    [style.cursor]="(!linha.isAtual && !linha.isProjecao) ? 'pointer' : 'default'">
-    
-                                    <span *ngIf="!linha.isAtual">
-                                        {{ linha.data | date:'dd/MM/yyyy' }}
-                                        <i class="bi bi-calendar-event ms-2 text-primary" 
-                                            *ngIf="!linha.isProjecao" 
-                                            title="Clique para alterar a previsão de cash flow"></i>
-                                    </span>
-                                </td>
-                                
-                                <td class="fw-bold" [ngClass]="linha.isAtual ? 'text-primary' : (linha.isProjecao ? 'text-secondary opacity-75' : 'text-dark')">
-                                    <i class="bi bi-magic me-2 text-warning" *ngIf="linha.isProjecao" title="Isto é uma previsão de um Plano Fixo"></i>
-                                    {{ linha.descritivo }}
-                                    <span *ngIf="linha.descricao" class="text-muted fw-normal d-block small mt-1">
-                                        <i class="bi bi-info-circle me-1"></i>{{ linha.descricao }}
-                                    </span>
-                                </td>
-                                
-                                <td class="text-end fw-bold font-monospace" [ngClass]="linha.isProjecao ? 'text-success opacity-50' : 'text-success'">
-                                    <span *ngIf="linha.receita">{{ linha.receita | currency:'EUR' }}</span>
-                                </td>
-                                
-                                <td class="text-end fw-bold font-monospace" [ngClass]="linha.isProjecao ? 'text-danger opacity-50' : 'text-danger'">
-                                    <span *ngIf="linha.despesa">{{ linha.despesa | currency:'EUR' }}</span>
-                                </td>
-                                
-                                <td class="text-end fw-bold font-monospace" 
-                                    [ngClass]="(linha.saldo || 0) >= 0 ? 'text-dark' : 'text-danger'"
-                                    style="border-left: 2px solid #dee2e6; border-right: 2px solid #dee2e6; background-color: #f8f9fa;">
-                                    {{ linha.saldo | currency:'EUR' }}
-                                </td>
-                                
-                                <td class="text-center pe-3">
-                                    <button *ngIf="!linha.isAtual && !linha.isProjecao" 
-                                            class="btn btn-sm btn-outline-dark rounded-pill fw-bold px-3 shadow-sm" 
-                                            title="Pagar/Receber agora"
-                                            (click)="abrirModalConfirmacao($any(linha.documento))">
-                                        Liquidar
-                                    </button>
+                
+                <form [formGroup]="formFiltros" class="px-4 py-3 border-bottom m-0 transition-all"
+                      [ngClass]="isTableExpanded ? 'bg-light' : 'bg-white'">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <select class="form-select border-0 bg-white text-secondary fw-semibold shadow-sm" formControlName="fluxo" style="border-radius: 8px;">
+                                <option value="TUDO">Fluxo: Todos</option>
+                                <option value="ENTRADAS">Só Entradas (+)</option>
+                                <option value="SAIDAS">Só Saídas (-)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select border-0 bg-white text-secondary fw-semibold shadow-sm" formControlName="natureza" style="border-radius: 8px;">
+                                <option value="TUDO">Origem: Todas</option>
+                                <option value="REAIS">Faturas Reais</option>
+                                <option value="PLANOS">Planos Fixos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select border-0 bg-white text-secondary fw-semibold shadow-sm" formControlName="periodo" style="border-radius: 8px;">
+                                <option value="TUDO">Período: Completo</option>
+                                <option value="ESTE_MES">Até fim do Mês</option>
+                                <option value="TRES_MESES">Próximos 3 Meses</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
 
-                                    <div class="d-flex justify-content-center gap-1" *ngIf="linha.isProjecao">
-                                        <button class="btn btn-sm btn-outline-primary" 
-                                            (click)="gerarFaturaDoPlano(linha)" title="Efetivar esta previsão">
-                                            Efetivar
+                <div class="card-body p-0 flex-grow-1 simulador-tabela-container">
+                    <div class="table-responsive m-0">
+                        <table class="table table-hover align-middle mb-0 bg-white">
+                            <thead class="bg-white sticky-top shadow-sm" style="z-index: 1; top: 0;">
+                                <tr>
+                                    <th class="py-3 px-4 text-muted small uppercase border-bottom-0">Data</th>
+                                    <th class="text-muted small uppercase border-bottom-0">Movimento</th>
+                                    <th class="text-muted small uppercase text-end border-bottom-0">Valor</th>
+                                    <th class="text-dark fw-bold small uppercase text-end bg-light border-bottom-0">Saldo Conta</th>
+                                    <th class="text-muted small uppercase text-center border-bottom-0 pe-4">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let linha of linhasSimuladorFiltradas" 
+                                    [ngClass]="{'bg-light bg-opacity-50': linha.isAtual}">
+                                    
+                                    <td class="small px-4" 
+                                        (click)="(!linha.isAtual && !linha.isProjecao) ? editarDataPagamento(linha) : false" 
+                                        [style.cursor]="(!linha.isAtual && !linha.isProjecao) ? 'pointer' : 'default'">
+        
+                                        <span *ngIf="!linha.isAtual" class="fw-semibold text-secondary">
+                                            {{ linha.data | date:'dd/MM' }}
+                                            <span class="text-muted small d-block" style="font-size: 0.7rem;">{{ linha.data | date:'yyyy' }}</span>
+                                        </span>
+                                    </td>
+                                    
+                                    <td>
+                                        <div class="fw-bold" [ngClass]="linha.isAtual ? 'text-primary' : (linha.isProjecao ? 'text-secondary' : 'text-dark')">
+                                            <i class="bi bi-magic me-2 text-warning" *ngIf="linha.isProjecao" title="Previsão de Plano Fixo"></i>
+                                            {{ linha.descritivo }}
+                                            <i class="bi bi-calendar-event ms-2 text-primary small" *ngIf="!linha.isAtual && !linha.isProjecao" title="Fatura Pendente"></i>
+                                        </div>
+                                        <div *ngIf="linha.descricao" class="text-muted small mt-1">
+                                            {{ linha.descricao }}
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="text-end fw-bold font-monospace align-middle" style="white-space: nowrap;">
+                                        <span *ngIf="linha.receita" class="text-success bg-success bg-opacity-10 px-2 py-1 rounded" style="white-space: nowrap;">+{{ linha.receita | currency:'EUR' }}</span>
+                                        <span *ngIf="linha.despesa" class="text-danger bg-danger bg-opacity-10 px-2 py-1 rounded" style="white-space: nowrap;">-{{ linha.despesa | currency:'EUR' }}</span>
+                                    </td>
+                                    
+                                    <td class="text-end fw-bold font-monospace" 
+                                        [ngClass]="(linha.saldo || 0) >= 0 ? 'text-dark' : 'text-danger'"
+                                        style="background-color: #f8f9fa;">
+                                        {{ linha.saldo | currency:'EUR' }}
+                                    </td>
+                                    
+                                    <td class="text-center pe-4">
+                                        <button *ngIf="!linha.isAtual && !linha.isProjecao" 
+                                                class="btn btn-sm btn-dark rounded-pill fw-bold px-3" 
+                                                (click)="abrirModalConfirmacao($any(linha.documento))">
+                                            Liquidar
                                         </button>
-                                        <button class="btn btn-sm btn-outline-secondary border-0" 
-                                                (click)="editarLinhaProjecao(linha)" title="Editar Previsão">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger border-0" 
-                                                (click)="apagarLinhaProjecao(linha)" title="Apagar Previsão">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+    
+                                        <div class="d-flex justify-content-end gap-1" *ngIf="linha.isProjecao">
+                                            <button class="btn btn-sm btn-light text-primary fw-bold rounded-pill px-3" 
+                                                (click)="gerarFaturaDoPlano(linha)">
+                                                Efetivar
+                                            </button>
+                                            <button class="btn btn-sm btn-light text-secondary rounded-circle" 
+                                                    (click)="editarLinhaProjecao(linha)" style="width: 32px; height: 32px; padding: 0;">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-light text-danger rounded-circle" 
+                                                    (click)="apagarLinhaProjecao(linha)" style="width: 32px; height: 32px; padding: 0;">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr *ngIf="linhasSimuladorFiltradas.length === 0">
+                                    <td colspan="5" class="text-center py-5 text-muted bg-light">
+                                        <i class="bi bi-funnel fs-2 d-block mb-3 opacity-50"></i>
+                                        <span class="fw-semibold">Nenhum resultado encontrado para este filtro.</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -345,7 +386,7 @@
             </div>
             <div class="modal-footer bg-light">
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                <button class="btn btn-primary" (click)="guardarConta()">Criar Conta</button>
+                <button class="btn btn-primary fw-bold" (click)="guardarConta()">Criar Conta</button>
             </div>
         </div>
     </div>
@@ -354,10 +395,6 @@
 <div class="modal fade" id="modalMovimento" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold">Registar Movimento Manual</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
             <div class="modal-body p-4">
                 <form [formGroup]="formMovimento">
                     <div class="mb-3">
@@ -373,14 +410,14 @@
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label small fw-bold">Tipo</label>
-                            <select class="form-select" formControlName="tipo">
-                                <option value="DEBITO">Saída (-)</option>
-                                <option value="CREDITO">Entrada (+)</option>
+                            <select class="form-select fw-bold" formControlName="tipo">
+                                <option value="DEBITO" class="text-danger">Saída (-)</option>
+                                <option value="CREDITO" class="text-success">Entrada (+)</option>
                             </select>
                         </div>
                         <div class="col-6 mb-3">
                             <label class="form-label small fw-bold">Valor (€) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" formControlName="valor" [ngClass]="{'is-invalid': formMovimento.get('valor')?.invalid && formMovimento.get('valor')?.touched}">
+                            <input type="number" class="form-control fw-bold text-center" formControlName="valor" [ngClass]="{'is-invalid': formMovimento.get('valor')?.invalid && formMovimento.get('valor')?.touched}">
                         </div>
                     </div>
 
@@ -413,8 +450,8 @@
             </div>
             <div class="modal-footer bg-light">
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                <button class="btn btn-primary" [disabled]="formMovimento.invalid" (click)="registarMovimento()">
-                    Confirmar
+                <button class="btn btn-primary fw-bold" [disabled]="formMovimento.invalid" (click)="registarMovimento()">
+                    Confirmar Movimento
                 </button>
             </div>
         </div>
@@ -467,7 +504,7 @@
             </div>
             <div class="modal-footer bg-light">
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                <button class="btn btn-success" [disabled]="formTransferencia.invalid" (click)="realizarTransferencia()">
+                <button class="btn btn-success fw-bold" [disabled]="formTransferencia.invalid" (click)="realizarTransferencia()">
                     <i class="bi bi-check-circle me-1"></i>Confirmar Transferência
                 </button>
             </div>
@@ -488,7 +525,7 @@
                 <div class="text-center mb-4">
                     <p class="text-muted mb-1">{{ docParaConfirmar?.entidade }}</p>
                     <h4 class="fw-bold text-dark mb-0">Pendente: {{ docParaConfirmar?.valorPendente | currency:'EUR' }}</h4>
-                    <small class="text-muted">(Total: {{ docParaConfirmar?.total | currency:'EUR' }})</small>
+                    <small class="text-muted">(Total original: {{ docParaConfirmar?.total | currency:'EUR' }})</small>
                 </div>
                 <form [formGroup]="formConfirmacao">
                     <div class="mb-4 p-3 bg-light rounded border border-2" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'border-success' : 'border-danger'">
@@ -512,13 +549,13 @@
                     </div>
                     <div class="mb-1">
                         <label class="form-label small fw-bold">Data de Movimentação (Extrato)</label>
-                        <input type="datetime-local" class="form-control" formControlName="dataPagamento">
+                        <input type="date" class="form-control" formControlName="dataPagamento">
                     </div>
                 </form>
             </div>
             <div class="modal-footer bg-light border-0">
                 <button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                <button class="btn" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'btn-success' : 'btn-danger'"
+                <button class="btn fw-bold px-4" [ngClass]="docParaConfirmar?.tipo === 'VENDA' || docParaConfirmar?.tipo === 'RECEITA' ? 'btn-success' : 'btn-danger'"
                         [disabled]="formConfirmacao.invalid || (formConfirmacao.get('valorAPagar')?.value || 0) > (docParaConfirmar?.valorPendente || 0) || (formConfirmacao.get('valorAPagar')?.value || 0) <= 0" 
                         (click)="confirmarTransacao()">
                     <i class="bi bi-check-lg me-1"></i> Confirmar Liquidação
@@ -580,8 +617,10 @@
                                 <input type="date" class="form-control" formControlName="dataInicio" [ngClass]="{'is-invalid': formPlaneamento.get('dataInicio')?.invalid && formPlaneamento.get('dataInicio')?.touched}">
                             </div>
                             <div class="col-md-4" *ngIf="formPlaneamento.get('frequencia')?.value !== 'PONTUAL'">
-                                <label class="form-label small fw-bold">Até quando? (Opcional)</label>
-                                <input type="date" class="form-control" formControlName="dataFim" title="Deixar vazio se for para sempre">
+                                <label class="form-label small fw-bold">Até quando? <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" formControlName="dataFim" 
+                                       [ngClass]="{'is-invalid': formPlaneamento.get('dataFim')?.invalid && formPlaneamento.get('dataFim')?.touched}">
+                                <div class="invalid-feedback">A data de fim é obrigatória.</div>
                             </div>
                         </div>
                     </div>

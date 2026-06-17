@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public class DocumentoPendenteDTO {
     private Long id;
     private String tipo;
-    private LocalDateTime data;
+    private LocalDate data;
     private String entidade;
     private BigDecimal total;
     private BigDecimal valorPendente;

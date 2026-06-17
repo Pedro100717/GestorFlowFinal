@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,11 +20,11 @@ public class Venda extends Auditable {
     private Long id;
 
     @Column(nullable = false)
-    private LocalDateTime dataVenda;
+    private LocalDate dataVenda;
 
     // 🚀 O MOTOR DO SIMULADOR DE TESOURARIA
     @Column(name = "data_vencimento")
-    private LocalDateTime dataVencimento;
+    private LocalDate dataVencimento;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal totalSemIva;
@@ -37,7 +37,7 @@ public class Venda extends Auditable {
     private BigDecimal valorPago = BigDecimal.ZERO;
 
     @Column(name = "data_prevista_pagamento")
-    private LocalDateTime dataPrevistaPagamento;
+    private LocalDate dataPrevistaPagamento;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "estado_pagamento")
@@ -78,7 +78,7 @@ public class Venda extends Auditable {
 
     @PrePersist
     protected void onPrePersist() {
-        if (dataVenda == null) dataVenda = LocalDateTime.now();
+        if (dataVenda == null) dataVenda = LocalDate.now();
         if (valorPago == null) valorPago = BigDecimal.ZERO; // Dupla segurança
         // 🛡️ FALLBACK: Garante que faturas antigas não partem o simulador
         if (dataVencimento == null) dataVencimento = dataVenda;

@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router'; // 🚀 IMPORTANTE: Adicionado o Router
+import { Router } from '@angular/router'; 
 
 import { CompraService } from '../../services/compra.service';
 import { ArtigoService } from '../../services/artigo.service';
@@ -52,7 +52,7 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     private tesourariaService: TesourariaService, 
     private fb: FormBuilder,
     private cd: ChangeDetectorRef,
-    private router: Router // 🚀 Injetado
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -64,7 +64,7 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     if (state && state.planoOrigemId) {
       this.planoOrigemId = state.planoOrigemId;
       this.planoOrigemDescricao = state.descricao;
-      this.planoOrigemData = state.dataProjetada || null; // 🚀 LÊ A DATA DA MALA
+      this.planoOrigemData = state.dataProjetada || null; 
       
       const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000 });
       Toast.fire({ icon: 'info', title: 'A preparar despesa a partir do planeamento.' });
@@ -78,7 +78,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // 🚀 ABRIR MODAL AUTOMATICAMENTE SE VIER DO SIMULADOR
   ngAfterViewInit() {
     if (this.planoOrigemId) {
       setTimeout(() => this.abrirModalNovo(), 500); 
@@ -101,17 +100,19 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     });
   }
 
+  // 🚀 DETOX: Agora corta as horas! Formato YYYY-MM-DD
   getDataAtual(): string {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
+    return now.toISOString().slice(0, 10); 
   }
 
+  // 🚀 DETOX: O mesmo aqui para as edições
   formatarDataParaInput(dataIso: string | undefined): string {
     if (!dataIso) return this.getDataAtual();
     const d = new Date(dataIso);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
+    return d.toISOString().slice(0, 10); 
   }
 
   get f() { return this.formCompra.controls; }
@@ -158,15 +159,12 @@ export class ComprasComponent implements OnInit, AfterViewInit {
   }
 
   abrirModalNovo() {
-    this.compraEmEdicao = null; // No venda.ts será this.vendaEmEdicao = null;
-    this.formCompra.reset({     // No venda.ts será this.formVenda.reset({
-        dataCompra: this.getDataAtual(), // Data de emissão fica a de hoje
-        
-        // 🚀 SE VIER DA TESOURARIA, USA A DATA DA PREVISÃO, SENÃO USA HOJE:
+    this.compraEmEdicao = null; 
+    this.formCompra.reset({     
+        dataCompra: this.getDataAtual(), 
         dataVencimento: this.planoOrigemData ? this.formatarDataParaInput(this.planoOrigemData) : this.getDataAtual(), 
-        
         quantidade: 1, 
-        precoUnitario: null, // No venda.ts é 0
+        precoUnitario: null, 
         taxaIvaId: this.listaTaxasIva.length > 0 ? this.listaTaxasIva[0].id : null,
         designacaoPersonalizada: this.planoOrigemDescricao 
     });
@@ -239,7 +237,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    // 🚀 ADICIONAR O ELO SECRETO AO PAYLOAD (COM BLINDAGEM TYPESCRIPT)
     const payload = {
         ...this.formCompra.value,
         planoOrigemId: this.planoOrigemId ?? undefined 
@@ -261,7 +258,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
         
         this.tesourariaService.notificarNovaTransacao();
         
-        // 🚀 LIMPA A MEMÓRIA INVISÍVEL
         this.planoOrigemId = null;
         this.planoOrigemDescricao = '';
 

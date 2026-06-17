@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "compras")
@@ -17,11 +17,11 @@ public class Compra extends Auditable {
     private Long id;
 
     @Column(nullable = false)
-    private LocalDateTime dataCompra;
+    private LocalDate dataCompra;
 
     // 🚀 O MOTOR DO SIMULADOR DE TESOURARIA
     @Column(name = "data_vencimento")
-    private LocalDateTime dataVencimento;
+    private LocalDate dataVencimento;
 
     private String numeroFaturaFornecedor;
 
@@ -42,7 +42,7 @@ public class Compra extends Auditable {
     private BigDecimal valorPago = BigDecimal.ZERO;
 
     @Column(name = "data_prevista_pagamento")
-    private LocalDateTime dataPrevistaPagamento;
+    private LocalDate dataPrevistaPagamento;
 
     @Column(name = "plano_origem_id")
     private Long planoOrigemId;
@@ -84,7 +84,7 @@ public class Compra extends Auditable {
     @PrePersist
     protected void onPrePersist() {
         if (dataCompra == null) {
-            dataCompra = LocalDateTime.now();
+            dataCompra = LocalDate.now();
         }
         if (valorPago == null) {
             valorPago = BigDecimal.ZERO;

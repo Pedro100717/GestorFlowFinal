@@ -9,6 +9,7 @@ import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
@@ -32,7 +33,7 @@ public class TesourariaService {
     private final DocumentoTesourariaRepository documentoTesourariaRepository;
 
     // =========================================================================
-    // --- 1. SIMULADOR DE TESOURARIA ---
+    // --- 1. SIMULADOR DE TESOURARIA (HORIZONTE ELÁSTICO) ---
     // =========================================================================
 
     @Transactional(readOnly = true)
@@ -46,9 +47,21 @@ public class TesourariaService {
 
         Map<YearMonth, BigDecimal> fluxoMensal = new TreeMap<>();
 
-        // 🚀 O NOVO HORIZONTE NO BACKEND (Rolling Window de 12 meses)
+        // 🚀 HORIZONTE ELÁSTICO: Começa com mínimo de 12 meses
         YearMonth mesCorrente = YearMonth.now();
         YearMonth limiteProjecao = mesCorrente.plusMonths(12);
+
+        List<MovimentoPlaneado> planosAtivos = movimentoPlaneadoRepository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId);
+
+        // 🚀 Procura a Data de Fim mais longa para esticar o gráfico
+        for (MovimentoPlaneado plan : planosAtivos) {
+            if (plan.getDataFim() != null) {
+                YearMonth fimDoPlano = YearMonth.from(plan.getDataFim());
+                if (fimDoPlano.isAfter(limiteProjecao)) {
+                    limiteProjecao = fimDoPlano;
+                }
+            }
+        }
 
         YearMonth cursorMes = mesCorrente;
         while (!cursorMes.isAfter(limiteProjecao)) {
@@ -60,8 +73,9 @@ public class TesourariaService {
         List<Venda> vendasPendentes = vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
         List<Compra> comprasPendentes = compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
 
+        // 🚀 AGORA USA LOCALDATE (Sem horas a atrapalhar)
         for (Venda v : vendasPendentes) {
-            LocalDateTime dataAlvo = v.getDataPrevistaPagamento() != null
+            LocalDate dataAlvo = v.getDataPrevistaPagamento() != null
                     ? v.getDataPrevistaPagamento()
                     : (v.getDataVencimento() != null ? v.getDataVencimento() : v.getDataVenda());
             YearMonth chave = YearMonth.from(dataAlvo);
@@ -71,7 +85,7 @@ public class TesourariaService {
         }
 
         for (Compra c : comprasPendentes) {
-            LocalDateTime dataAlvo = c.getDataPrevistaPagamento() != null
+            LocalDate dataAlvo = c.getDataPrevistaPagamento() != null
                     ? c.getDataPrevistaPagamento()
                     : (c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra());
             YearMonth chave = YearMonth.from(dataAlvo);
@@ -79,8 +93,6 @@ public class TesourariaService {
             BigDecimal valorPendente = c.getTotal().subtract(c.getValorPago());
             fluxoMensal.put(chave, fluxoMensal.getOrDefault(chave, BigDecimal.ZERO).subtract(valorPendente));
         }
-
-        List<MovimentoPlaneado> planosAtivos = movimentoPlaneadoRepository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId);
 
         for (MovimentoPlaneado plan : planosAtivos) {
             for (Map.Entry<YearMonth, BigDecimal> mesHorizonte : fluxoMensal.entrySet()) {
@@ -119,14 +131,13 @@ public class TesourariaService {
             return false;
         }
 
-        // 🚀 A MÁQUINA DO TEMPO: Verifica se este mês está na lista de exceções!
         if (plan.getDatasIgnoradas() != null) {
             boolean mesIgnorado = plan.getDatasIgnoradas().stream()
                     .map(YearMonth::from)
                     .anyMatch(ym -> ym.equals(mesAtual));
 
             if (mesIgnorado) {
-                return false; // Silencia o fantasma neste mês exato!
+                return false;
             }
         }
 
@@ -142,7 +153,7 @@ public class TesourariaService {
     }
 
     // =========================================================================
-    // --- 2. GESTÃO DE CONTAS BANCÁRIAS ---
+    // --- 2. GESTÃO DE CONTAS BANCÁRIAS E MOVIMENTOS ---
     // =========================================================================
 
     @Transactional
@@ -170,10 +181,6 @@ public class TesourariaService {
                 .orElseThrow(() -> new EntityNotFoundException("Conta não encontrada."));
         return converterContaParaDTO(conta);
     }
-
-    // =========================================================================
-    // --- 3. MOVIMENTOS E TRANSFERÊNCIAS ---
-    // =========================================================================
 
     @Transactional
     public MovimentoResponseDTO registarMovimento(MovimentoDTO dto) {
@@ -241,10 +248,10 @@ public class TesourariaService {
         List<DocumentoPendenteDTO> pendentes = new ArrayList<>();
         List<EstadoPagamento> estadosIncompletos = List.of(EstadoPagamento.PENDENTE, EstadoPagamento.PARCIALMENTE_PAGO);
 
-        // 🚀 VENDAS: Injeta a descrição da venda
         vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(v -> {
             BigDecimal pendente = v.getTotalComIva().subtract(v.getValorPago());
-            LocalDateTime dataUsada = v.getDataPrevistaPagamento() != null
+
+            LocalDate dataUsada = v.getDataPrevistaPagamento() != null
                     ? v.getDataPrevistaPagamento()
                     : (v.getDataVencimento() != null ? v.getDataVencimento() : v.getDataVenda());
 
@@ -261,10 +268,10 @@ public class TesourariaService {
             pendentes.add(new DocumentoPendenteDTO(v.getId(), "VENDA", dataUsada, v.getCliente().getNome(), v.getTotalComIva(), pendente, descricaoVenda));
         });
 
-        // 🚀 COMPRAS: Injeta a descrição da compra
         compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(c -> {
             BigDecimal pendente = c.getTotal().subtract(c.getValorPago());
-            LocalDateTime dataUsada = c.getDataPrevistaPagamento() != null
+
+            LocalDate dataUsada = c.getDataPrevistaPagamento() != null
                     ? c.getDataPrevistaPagamento()
                     : (c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra());
 
@@ -274,7 +281,11 @@ public class TesourariaService {
         documentoTesourariaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(d -> {
             BigDecimal pendente = d.getValorTotal().subtract(d.getValorPago());
             String tipoDoc = d.getTipo() == TipoMovimentoPlaneado.ENTRADA ? "RECEITA" : "DESPESA";
-            pendentes.add(new DocumentoPendenteDTO(d.getId(), tipoDoc, d.getDataEmissao(), d.getDescricao(), d.getValorTotal(), pendente, null));
+
+            // 🚀 CORREÇÃO CIRÚRGICA: Extrai apenas o LocalDate do LocalDateTime do documento!
+            LocalDate dataPura = d.getDataEmissao() != null ? d.getDataEmissao().toLocalDate() : LocalDate.now();
+
+            pendentes.add(new DocumentoPendenteDTO(d.getId(), tipoDoc, dataPura, d.getDescricao(), d.getValorTotal(), pendente, null));
         });
 
         pendentes.sort((a, b) -> a.getData().compareTo(b.getData()));
@@ -289,7 +300,9 @@ public class TesourariaService {
 
         Movimento mov = new Movimento();
         mov.setConta(conta); mov.setUtilizador(user);
-        mov.setDataMovimento(dto.getDataPagamento() != null ? dto.getDataPagamento() : LocalDateTime.now());
+
+        mov.setDataMovimento(dto.getDataPagamento() != null ? dto.getDataPagamento().atStartOfDay() : LocalDateTime.now());
+
         BigDecimal valorPagamento = dto.getValorAPagar();
 
         if ("VENDA".equalsIgnoreCase(dto.getTipoDocumento())) {
@@ -366,7 +379,7 @@ public class TesourariaService {
     }
 
     @Transactional
-    public void atualizarPrevisaoPagamento(Long id, String tipoDocumento, LocalDateTime novaData) {
+    public void atualizarPrevisaoPagamento(Long id, String tipoDocumento, LocalDate novaData) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
         if ("VENDA".equalsIgnoreCase(tipoDocumento)) {

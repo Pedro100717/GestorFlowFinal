@@ -129,13 +129,13 @@
                   <label class="form-label small fw-bold text-secondary">
                       <i class="bi bi-calendar-event me-2"></i>Data da Compra
                   </label>
-                  <input type="datetime-local" class="form-control border-secondary" formControlName="dataCompra">
+                  <input type="date" class="form-control border-secondary" formControlName="dataCompra">
               </div>
               <div class="col-md-6 px-2">
                   <label class="form-label small fw-bold text-danger">
                       <i class="bi bi-calendar-x me-2"></i>Data de Vencimento
                   </label>
-                  <input type="datetime-local" class="form-control border-danger" formControlName="dataVencimento"
+                  <input type="date" class="form-control border-danger" formControlName="dataVencimento"
                          [ngClass]="{ 'is-invalid': f['dataVencimento'].touched && f['dataVencimento'].invalid }">
                   <small class="text-muted" style="font-size: 0.7rem;">Quando o dinheiro sai efetivamente da conta</small>
               </div>

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Data
 public class ConfirmarPagamentoDTO {
@@ -25,5 +25,5 @@ public class ConfirmarPagamentoDTO {
     private BigDecimal valorAPagar;
 
     // Mantemos sem validação, porque no teu Service tens lógica para assumir o "agora" se vier a null
-    private LocalDateTime dataPagamento;
+    private LocalDate dataPagamento;
 }

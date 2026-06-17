@@ -14,7 +14,7 @@ import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -89,8 +89,11 @@ public class CompraService {
         BigDecimal totalComIva = totalSemIva.multiply(fatorIva);
 
         Compra compra = new Compra();
-        compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra().atStartOfDay() : LocalDateTime.now());
-        compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : compra.getDataCompra());
+
+        // 🚀 CORRIGIDO: Atribuição direta de LocalDate puro, sem .atStartOfDay()
+        compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra() : LocalDate.now());
+        compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : compra.getDataCompra());
+
         compra.setFornecedor(fornecedor);
         compra.setArtigo(artigo);
         compra.setUtilizador(user);
@@ -105,7 +108,6 @@ public class CompraService {
         compra.setEstadoPagamento(EstadoPagamento.PENDENTE);
         compra.setContaBancaria(null);
 
-        // 🚀 GRAVAR O ELO SECRETO DE RASTREABILIDADE (Se existir)
         compra.setPlanoOrigemId(dto.getPlanoOrigemId());
 
         if (dto.getCentroCustoId() != null) {
@@ -118,18 +120,16 @@ public class CompraService {
         Compra compraGuardada = compraRepository.save(compra);
 
         // =========================================================================================
-        // 🚀 O NOVO MOTOR DE ABATE (MÁQUINA DO TEMPO)
-        // Coloca a data da compra diretamente na gaveta de ignorados do plano!
+        // 🚀 O MOTOR DE ABATE (MÁQUINA DO TEMPO) COM LOCALDATE PURO
         // =========================================================================================
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
-                        java.time.LocalDate dataAIgnorar = dto.getDataCompra() != null ? dto.getDataCompra() : java.time.LocalDate.now();
+                        LocalDate dataAIgnorar = dto.getDataCompra() != null ? dto.getDataCompra() : LocalDate.now();
                         plano.getDatasIgnoradas().add(dataAIgnorar);
                         movimentoPlaneadoRepository.save(plano);
                     });
         }
-        // =========================================================================================
 
         return converterParaDTO(compraGuardada);
     }
@@ -182,8 +182,10 @@ public class CompraService {
         BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
         BigDecimal totalComIva = totalSemIva.multiply(fatorIva);
 
-        compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra().atStartOfDay() : compra.getDataCompra());
-        compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento().atStartOfDay() : compra.getDataVencimento());
+        // 🚀 CORRIGIDO: Atribuição direta de LocalDate puro na edição, sem .atStartOfDay()
+        compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra() : compra.getDataCompra());
+        compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : compra.getDataVencimento());
+
         compra.setFornecedor(fornecedor);
         compra.setArtigo(novoArtigo);
         compra.setTaxaIva(taxaIva);

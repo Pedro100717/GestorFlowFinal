@@ -9,7 +9,6 @@ import pt.gestorflow.backend.dto.*;
 import pt.gestorflow.backend.service.TesourariaService;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -95,8 +94,8 @@ public class TesourariaController {
         // O Angular vai enviar um JSON simples: {"novaData": "2026-06-15"}
         String dataStr = payload.get("novaData");
 
-        // Convertêmos a data do calendário para LocalDateTime (às 00:00)
-        LocalDateTime novaData = LocalDate.parse(dataStr).atStartOfDay();
+        // 🚀 AGORA SIM: Parsing direto para LocalDate, sem horas!
+        LocalDate novaData = LocalDate.parse(dataStr);
 
         service.atualizarPrevisaoPagamento(id, tipoDocumento, novaData);
         return ResponseEntity.ok().build();

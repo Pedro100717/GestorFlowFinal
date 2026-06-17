@@ -4,6 +4,9 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router'; 
 
+// 🚀 IMPORTAÇÃO DO MOTOR DE ANIMAÇÕES NATIVO DO ANGULAR
+import { trigger, state, style, transition, animate } from '@angular/animations';
+
 import { TesourariaService } from '../../services/tesouraria.service';
 import { ClienteService } from '../../services/cliente.service'; 
 import { FornecedorService } from '../../services/fornecedor.service';
@@ -41,11 +44,55 @@ export interface LinhaSimulador {
   selector: 'app-tesouraria',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './tesouraria.html'
+  templateUrl: './tesouraria.html',
+  styleUrls: ['./tesouraria.scss'],
+  // 🚀 INFRAESTRUTURA DE ANIMAÇÕES: O Angular assume o controlo total do ciclo de vida e renderização do DOM
+  animations: [
+    trigger('expandirTabela', [
+      state('normal', style({
+        // Estado base (na grelha original)
+      })),
+      state('expandido', style({
+        position: 'fixed',
+        top: '80px', left: '260px', right: '20px', bottom: '20px',
+        zIndex: 1040,
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+        border: '2px solid #0d6efd',
+        borderRadius: '12px',
+        backgroundColor: 'white',
+        opacity: 1,
+        transform: 'scale(1) translateY(0)'
+      })),
+      
+      // 🚀 ABRIR: A animação elegante de "Pop In" que gostavas!
+      transition('normal => expandido', [
+        // 1. Salta para o centro invisível e ligeiramente mais pequeno/baixo
+        style({ 
+          position: 'fixed', top: '80px', left: '260px', right: '20px', bottom: '20px',
+          zIndex: 1040, backgroundColor: 'white',
+          opacity: 0, 
+          transform: 'scale(0.95) translateY(25px)' 
+        }),
+        // 2. Cresce suavemente para o tamanho final
+        animate('400ms cubic-bezier(0.25, 1, 0.5, 1)')
+      ]),
+
+      // 🚀 FECHAR: O encolhimento relâmpago para não piscar
+      transition('expandido => normal', [
+        animate('150ms ease-in-out', style({ 
+          opacity: 0, 
+          transform: 'scale(0.96) translateY(10px)' 
+        }))
+      ])
+    ])
+  ]
 })
 export class TesourariaComponent implements OnInit, AfterViewInit {
 
   abaAtiva: 'contas' | 'pendentes' | 'simulador' = 'contas'; 
+  
+  // 🚀 ESTADO DA UI LIMPO: Apenas o interruptor essencial. Sem hacks de temporizadores.
+  isTableExpanded: boolean = false;
   planoEmEdicaoId: number | null = null; 
 
   // --- DADOS REAIS ---
@@ -66,11 +113,18 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   formTransferencia!: FormGroup;
   formConfirmacao!: FormGroup; 
   formPlaneamento!: FormGroup; 
+  
+  // O FORMULÁRIO DE FILTROS
+  formFiltros!: FormGroup;
 
   // --- SIMULADOR ---
   simulacaoAtual: SimuladorTesourariaDTO | null = null;
   chartInstance: Chart | undefined;
   linhasSimulador: LinhaSimulador[] = []; 
+  
+  // O ARRAY QUE A TABELA VAI LER AGORA
+  linhasSimuladorFiltradas: LinhaSimulador[] = []; 
+  
   saldoAtualTotal: number = 0;
 
   constructor(
@@ -82,6 +136,12 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     private cd: ChangeDetectorRef,
     private router: Router
   ) {}
+
+  // 🚀 MÉTODOS DE UI PURIFICADO
+  toggleExpand() {
+    this.isTableExpanded = !this.isTableExpanded;
+    this.cd.detectChanges(); // Força a verificação imediata para disparar o gatilho da animação
+  }
 
   ngOnInit() {
     this.inicializarFormularios();
@@ -115,7 +175,18 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   // =========================================================================
-  // --- 🚀 MÓDULO DE PLANEAMENTO (CASH FLOW PURO) ---
+  // --- HELPER SEGURO DE DATAS ---
+  // =========================================================================
+  
+  private parseDataSegura(dataStr: string): Date {
+    if (!dataStr) return new Date();
+    const cleanStr = dataStr.split('T')[0];
+    const [y, m, d] = cleanStr.split('-');
+    return new Date(+y, +m - 1, +d, 0, 0, 0, 0); 
+  }
+
+  // =========================================================================
+  // --- MÓDULO DE PLANEAMENTO (CASH FLOW PURO) ---
   // =========================================================================
 
   carregarPlanos() {
@@ -143,7 +214,8 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
         tipo: TipoMovimentoPlaneado.SAIDA,
         frequencia: FrequenciaMovimento.MENSAL,
         valorBase: 0,
-        dataInicio: new Date().toISOString().split('T')[0]
+        dataInicio: new Date().toISOString().split('T')[0],
+        dataFim: null
       });
     }
     new bootstrap.Modal(document.getElementById('modalPlaneamento')).show();
@@ -201,11 +273,11 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   // =========================================================================
-  // --- 🚀 A MÁQUINA DO TEMPO: EDIÇÕES E APAGÕES PONTUAIS NO SIMULADOR ---
+  // --- A MÁQUINA DO TEMPO: EDIÇÕES E APAGÕES PONTUAIS NO SIMULADOR ---
   // =========================================================================
 
   apagarLinhaProjecao(linha: LinhaSimulador) { 
-    const planoOriginal = linha.planoAssociado!;
+    const planoOriginal = mergeLinhaPlano(linha);
     const dataProjetada = linha.data.split('T')[0];
 
     if (planoOriginal.frequencia === 'PONTUAL') {
@@ -241,7 +313,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   editarLinhaProjecao(linha: LinhaSimulador) { 
-    const planoOriginal = linha.planoAssociado!;
+    const planoOriginal = mergeLinhaPlano(linha);
     const dataProjetadaOriginal = linha.data.split('T')[0];
     const valorAtual = planoOriginal.valorBase;
     const descricaoAtual = planoOriginal.descricao;
@@ -252,7 +324,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
         <div class="text-start px-3 mt-2">
           <label class="form-label small fw-bold mb-1 text-muted">Descrição da Previsão</label>
           <input type="text" id="nova-desc-plano" class="form-control mb-3 border-secondary" value="${descricaoAtual}">
-
           <div class="row">
               <div class="col-6">
                   <label class="form-label small fw-bold mb-1 text-muted">Data Prevista</label>
@@ -311,14 +382,12 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
           denyButtonColor: '#198754'
         }).then((resultAcao) => {
           if (resultAcao.isConfirmed) {
-            
             const dtoExcecao = { 
                 ...planoOriginal, 
                 descricao: dadosEditados.descricao, 
                 valorBase: dadosEditados.valor, 
                 dataInicio: dadosEditados.data 
             };
-            
             this.planeamentoService.criarExcecaoPlano(planoOriginal.id!, dataProjetadaOriginal, dtoExcecao as MovimentoPlaneado).subscribe({
               next: () => {
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Exceção criada com sucesso!', timer: 2000, showConfirmButton: false });
@@ -327,19 +396,16 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
               },
               error: () => Swal.fire('Erro', 'Não foi possível criar a exceção.', 'error')
             });
-
           } else if (resultAcao.isDenied) {
-            
             const dtoAtualizado = { 
                 ...planoOriginal, 
                 descricao: dadosEditados.descricao, 
                 valorBase: dadosEditados.valor, 
                 dataInicio: dadosEditados.data 
             };
-            
             this.planeamentoService.atualizarPlano(planoOriginal.id!, dtoAtualizado).subscribe({
               next: () => {
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano base atualizado!', timer: 2000, showConfirmButton: false });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano base updated!', timer: 2000, showConfirmButton: false });
                 this.carregarPlanos();
                 this.carregarSimulador();
               },
@@ -352,17 +418,17 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   formatarMesAno(dataIso: string): string {
-    const data = new Date(dataIso);
+    const data = this.parseDataSegura(dataIso);
     return data.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
   }
 
   // =========================================================================
-  // --- 🚀 EFETIVAÇÃO EM FATURAS ---
+  // --- EFETIVAÇÃO EM FATURAS ---
   // =========================================================================
 
   gerarFaturaDoPlano(linha: LinhaSimulador) { 
-    const plano = linha.planoAssociado!; 
-    const dataProjetada = linha.data ? linha.data : null; 
+    const plano = mergeLinhaPlano(linha);
+    const dataProjetada = linha.data.split('T')[0]; 
 
     if (!plano || !plano.id) return;
 
@@ -390,15 +456,8 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     });
   }
 
-  podeGerarFatura(plano: MovimentoPlaneado): boolean {
-    if (!plano.dataUltimoProcessamento) return true;
-    const dataUltimo = new Date(plano.dataUltimoProcessamento);
-    const hoje = new Date();
-    return dataUltimo.getMonth() !== hoje.getMonth() || dataUltimo.getFullYear() !== hoje.getFullYear();
-  }
-
   // =========================================================================
-  // --- 🚀 MOTOR GRÁFICO & SIMULADOR COM PROJEÇÃO DE TEMPO ---
+  // --- MOTOR GRÁFICO & SIMULADOR COM HORIZONTE ELÁSTICO ---
   // =========================================================================
   
   atualizarGraficoSimulador() {
@@ -460,7 +519,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
     const itensReais: LinhaSimulador[] = this.listaPendentes.map(doc => ({
       isAtual: false, isProjecao: false,
-      dataObj: new Date(doc.data), data: doc.data,
+      dataObj: this.parseDataSegura(doc.data), data: doc.data,
       descritivo: doc.entidade,
       descricao: doc.descricao, 
       documento: doc,
@@ -470,49 +529,57 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
     const projecoes: LinhaSimulador[] = []; 
     
-    // 🚀 O HORIZONTE DE 1 ANO (Limpo e formatado com margem de segurança)
     const hoje = new Date();
-    const limiteProjecao = new Date(hoje.getFullYear() + 1, hoje.getMonth(), hoje.getDate());
-    limiteProjecao.setHours(23, 59, 59, 999); // Fica sempre no último segundo do dia
+    hoje.setHours(0,0,0,0);
+    let limiteProjecao = new Date(hoje.getFullYear() + 1, hoje.getMonth(), hoje.getDate());
+
+    this.listaPlanos.filter(p => p.ativo !== false).forEach(p => {
+      const dataIni = this.parseDataSegura(p.dataInicio);
+      if (dataIni > limiteProjecao) limiteProjecao = new Date(dataIni.getTime());
+
+      if (p.dataFim) {
+        const dataF = this.parseDataSegura(p.dataFim);
+        if (dataF > limiteProjecao) limiteProjecao = new Date(dataF.getTime());
+      }
+    });
+
+    const limiteMaximoSeguranca = new Date(hoje.getFullYear() + 10, hoje.getMonth(), hoje.getDate());
+    if (limiteProjecao > limiteMaximoSeguranca) {
+      limiteProjecao = limiteMaximoSeguranca;
+    }
 
     this.listaPlanos.filter(p => p.ativo !== false).forEach(plano => {
-      
-      let dataCursor = new Date(plano.dataInicio);
-      dataCursor.setHours(0, 0, 0, 0); // O cursor de data também começa sempre limpo
-      
-      const dataFimLimite = plano.dataFim ? new Date(plano.dataFim) : limiteProjecao;
-      dataFimLimite.setHours(23, 59, 59, 999);
+      const diaOriginal = this.parseDataSegura(plano.dataInicio).getDate(); 
+      let dataCursor = this.parseDataSegura(plano.dataInicio);
+      const dataFimLimite = plano.dataFim ? this.parseDataSegura(plano.dataFim) : limiteProjecao;
 
-      // Descobre qual o verdadeiro limite, calculando o .getTime() puro das datas
       const limiteReal = new Date(dataFimLimite.getTime() < limiteProjecao.getTime() ? dataFimLimite.getTime() : limiteProjecao.getTime());
 
-      let anoMesUltimoProcessamento = -1;
+      let dataUltimoProc = null;
       if (plano.dataUltimoProcessamento) {
-          const d = new Date(plano.dataUltimoProcessamento);
-          anoMesUltimoProcessamento = d.getFullYear() * 12 + d.getMonth();
+          dataUltimoProc = this.parseDataSegura(plano.dataUltimoProcessamento as unknown as string);
       }
 
-      // 🚀 COMPARAÇÃO MATEMÁTICA SEGURA COM GETTIME()
       while (dataCursor.getTime() <= limiteReal.getTime()) {
-        
-        // VACINA DO FUSO HORÁRIO: Formatamos o Ano, Mês e Dia manualmente, 
-        // para garantir a 100% que o dia da tabela é o dia escolhido.
         const ano = dataCursor.getFullYear();
         const mes = String(dataCursor.getMonth() + 1).padStart(2, '0');
         const dia = String(dataCursor.getDate()).padStart(2, '0');
+        const cursorDataString = `${ano}-${mes}-${dia}`; 
         
-        const cursorDataString = `${ano}-${mes}-${dia}`;
-        const mesAnoCursorStr = `${ano}-${mes}`; 
-        const anoMesCursorVal = ano * 12 + dataCursor.getMonth();
+        let jaProcessadoNaRegraAntiga = false;
+        if (dataUltimoProc) {
+           const anoMesCursorVal = ano * 12 + dataCursor.getMonth();
+           const anoMesUltimoProcessamento = dataUltimoProc.getFullYear() * 12 + dataUltimoProc.getMonth();
+           jaProcessadoNaRegraAntiga = anoMesCursorVal <= anoMesUltimoProcessamento;
+        }
 
-        const jaProcessadoNaRegraAntiga = anoMesCursorVal <= anoMesUltimoProcessamento;
-        const estaIgnoradoNaMaquinaDoTempo = plano.datasIgnoradas?.some((d: string) => d.toString().startsWith(mesAnoCursorStr));
+        const estaIgnoradoNaMaquinaDoTempo = plano.datasIgnoradas?.includes(cursorDataString);
 
         if (!jaProcessadoNaRegraAntiga && !estaIgnoradoNaMaquinaDoTempo) {
           projecoes.push({
             isAtual: false, isProjecao: true, planoAssociado: plano,
             dataObj: new Date(dataCursor.getTime()), 
-            data: cursorDataString + 'T00:00:00', // Salvaguarda a Data formatada à prova de fuso
+            data: cursorDataString, 
             descritivo: plano.descricao + ' (Previsão)',
             receita: plano.tipo === 'ENTRADA' ? plano.valorBase : null, 
             despesa: plano.tipo === 'SAIDA' ? plano.valorBase : null
@@ -520,8 +587,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
         }
 
         if (plano.frequencia === 'PONTUAL') break;
-        dataCursor = this.adicionarFrequencia(dataCursor, plano.frequencia as string);
-        dataCursor.setHours(0, 0, 0, 0); // Quando avança um mês, garante que continua às 00:00
+        dataCursor = this.adicionarFrequencia(dataCursor, plano.frequencia as string, diaOriginal); 
       }
     });
 
@@ -529,22 +595,39 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
     let saldoCorrente = this.saldoAtualTotal;
     tudoMisturado.forEach(linha => {
-      if (linha.receita) saldoCorrente += linha.receita;
-      if (linha.despesa) saldoCorrente -= linha.despesa;
+      if (linha.receita) saldoCorrente += inlineVal(linha.receita);
+      if (linha.despesa) saldoCorrente -= inlineVal(linha.despesa);
       linha.saldo = saldoCorrente;
       this.linhasSimulador.push(linha);
     });
+
+    this.aplicarFiltrosTabela(); 
   }
 
-  private adicionarFrequencia(data: Date, frequencia: string): Date {
-    const novaData = new Date(data.getTime());
-    switch(frequencia) {
-      case 'SEMANAL': novaData.setDate(novaData.getDate() + 7); break;
-      case 'MENSAL': novaData.setMonth(novaData.getMonth() + 1); break;
-      case 'TRIMESTRAL': novaData.setMonth(novaData.getMonth() + 3); break;
-      case 'SEMESTRAL': novaData.setMonth(novaData.getMonth() + 6); break;
-      case 'ANUAL': novaData.setFullYear(novaData.getFullYear() + 1); break;
+  private adicionarFrequencia(dataAtual: Date, frequencia: string, diaOriginal: number): Date {
+    const novaData = new Date(dataAtual.getTime());
+
+    if (frequencia === 'PONTUAL') return novaData;
+    if (frequencia === 'SEMANAL') {
+      novaData.setDate(novaData.getDate() + 7);
+      return novaData;
     }
+
+    let mesesASomar = 0;
+    switch(frequencia) {
+      case 'MENSAL': mesesASomar = 1; break;
+      case 'TRIMESTRAL': mesesASomar = 3; break;
+      case 'SEMESTRAL': mesesASomar = 6; break;
+      case 'ANUAL': mesesASomar = 12; break;
+    }
+
+    const mesAlvo = novaData.getMonth() + mesesASomar;
+    novaData.setMonth(mesAlvo, 1); 
+
+    const ultimoDiaDoMes = new Date(novaData.getFullYear(), novaData.getMonth() + 1, 0).getDate();
+    const diaCorreto = Math.min(diaOriginal, ultimoDiaDoMes);
+
+    novaData.setDate(diaCorreto);
     return novaData;
   }
 
@@ -580,7 +663,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   // =========================================================================
-  // --- GESTÃO DE FORMULÁRIOS & REGRAS ---
+  // --- GESTÃO DE FORMULÁRIOS E FILTROS ---
   // =========================================================================
 
   inicializarFormularios() {
@@ -618,7 +701,13 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       frequencia: [FrequenciaMovimento.MENSAL, Validators.required],
       valorBase: [0, [Validators.required, Validators.min(0.01)]],
       dataInicio: [new Date().toISOString().split('T')[0], Validators.required],
-      dataFim: [null]
+      dataFim: [null, Validators.required] 
+    });
+
+    this.formFiltros = this.fb.group({
+      fluxo: ['TUDO'],
+      natureza: ['TUDO'],
+      periodo: ['TUDO']
     });
 
     this.configurarValidacoesDinamicas();
@@ -626,6 +715,47 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   private configurarValidacoesDinamicas() {
     this.formMovimento.get('tipo')?.valueChanges.subscribe(tipo => this.aplicarRegrasParceiro(this.formMovimento, tipo));
+
+    this.formPlaneamento.get('frequencia')?.valueChanges.subscribe(freq => {
+      const ctrlDataFim = this.formPlaneamento.get('dataFim');
+      if (freq === 'PONTUAL') {
+        ctrlDataFim?.clearValidators();
+        ctrlDataFim?.setValue(null);
+      } else {
+        ctrlDataFim?.setValidators(Validators.required);
+      }
+      ctrlDataFim?.updateValueAndValidity();
+    });
+
+    this.formFiltros.valueChanges.subscribe(() => this.aplicarFiltrosTabela());
+  }
+
+  aplicarFiltrosTabela() {
+    if (!this.formFiltros) return;
+    
+    const filtros = this.formFiltros.value;
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const fimDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const fim3Meses = new Date(hoje.getFullYear(), hoje.getMonth() + 3, 0);
+
+    this.linhasSimuladorFiltradas = this.linhasSimulador.filter(linha => {
+      if (linha.isAtual) return true;
+
+      if (filtros.fluxo === 'ENTRADAS' && !linha.receita) return false;
+      if (filtros.fluxo === 'SAIDAS' && !linha.despesa) return false;
+
+      if (filtros.natureza === 'REAIS' && linha.isProjecao) return false;
+      if (filtros.natureza === 'PLANOS' && !linha.isProjecao) return false;
+
+      if (filtros.periodo !== 'TUDO') {
+        const dataLinha = new Date(linha.dataObj);
+        if (filtros.periodo === 'ESTE_MES' && dataLinha > fimDoMes) return false;
+        if (filtros.periodo === 'TRES_MESES' && dataLinha > fim3Meses) return false;
+      }
+
+      return true; 
+    });
   }
 
   private aplicarRegrasParceiro(form: FormGroup, tipo: string) {
@@ -756,6 +886,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   getDataAtual(): string {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
+    return now.toISOString().slice(0, 10);
   }
+}
+
+// Helpers puros fora da classe para manter o código limpo
+function mergeLinhaPlano(l: LinhaSimulador): MovimentoPlaneado {
+  return l.planoAssociado!;
+}
+
+function inlineVal(v: number | null | undefined): number {
+  return v || 0;
 }
