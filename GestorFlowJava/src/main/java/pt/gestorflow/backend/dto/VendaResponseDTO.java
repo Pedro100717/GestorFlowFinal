@@ -8,11 +8,11 @@ import java.util.List;
 @Data
 public class VendaResponseDTO {
     private Long id;
-    private String designacao;
     private LocalDate dataVenda;
 
     // 🚀 O NOVO CAMPO: Para o Angular saber quando a fatura vence
     private LocalDate dataVencimento;
+    private LocalDate dataPrevistaPagamento;
 
     // 🚀 RASTREABILIDADE: O elo que liga esta venda ao planeamento original
     private Long planoOrigemId;
@@ -24,28 +24,10 @@ public class VendaResponseDTO {
     private Long clienteId;
     private String clienteNome;
 
-    // 🛡️ A CORREÇÃO: O campo que faltava para a Conta Movimentada
+    // 🛡️ A CORREÇÃO MANTIDA: A Conta Movimentada
     private Long contaBancariaId;
     private String contaBancariaNome;
 
-    // 🛡️ Campos da Contabilidade Analítica
-    private Long centroCustoId;
-    private String centroCustoCodigo;
-    private Long seccaoHomoId;
-    private String seccaoHomoCodigo;
-
+    // 📦 A Lista de Artigos e Serviços que a fatura contém
     private List<LinhaVendaResponseDTO> linhas;
-
-    @Data
-    public static class LinhaVendaResponseDTO {
-        private Long id;
-        private Long artigoId;
-        private String artigoNome;
-        private BigDecimal quantidade;
-        private BigDecimal precoUnitario;
-        private BigDecimal totalLinhaSemIva;
-        private BigDecimal totalLinhaComIva;
-        private BigDecimal taxaIvaValor;
-        private String designacaoPersonalizada;
-    }
 }

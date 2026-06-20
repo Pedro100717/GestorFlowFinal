@@ -10,10 +10,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.VendaDTO;
 import pt.gestorflow.backend.dto.VendaResponseDTO;
+import pt.gestorflow.backend.dto.LinhaVendaDTO;
+import pt.gestorflow.backend.dto.LinhaVendaResponseDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +33,6 @@ public class VendaService {
     private final MovimentoStockRepository movimentoStockRepository;
     private final CentroCustoRepository centroCustoRepository;
     private final SeccaoHomoRepository seccaoHomoRepository;
-    private final LinhaVendaRepository linhaVendaRepository;
     private final MovimentoPlaneadoRepository movimentoPlaneadoRepository;
 
     private final UtilizadorRepository utilizadorRepository;
@@ -53,36 +55,23 @@ public class VendaService {
         venda.setContaBancaria(null);
         venda.setEstadoPagamento(EstadoPagamento.PENDENTE);
 
-        // 🚀 CORRIGIDO: Atribuição direta de LocalDate puro, sem .atStartOfDay()
         venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda() : LocalDate.now());
         venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : venda.getDataVenda());
 
         venda.setPlanoOrigemId(dto.getPlanoOrigemId());
 
-        if (dto.getCentroCustoId() != null) {
-            CentroCusto centro = centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId)
-                    .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
-            venda.setCentroCusto(centro);
-        }
-
-        if (dto.getSeccaoHomoId() != null) {
-            SeccaoHomo seccao = seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId)
-                    .orElseThrow(() -> new EntityNotFoundException("Secção Homogénea não encontrada ou acesso negado."));
-            venda.setSeccaoHomo(seccao);
-        }
-
         BigDecimal totalGeralSemIva = BigDecimal.ZERO;
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
-        if (venda.getLinhas() == null) venda.setLinhas(new ArrayList<>());
-
-        for (VendaDTO.LinhaVendaDTO linhaDto : dto.getLinhas()) {
+        // 🚀 PROCESSAMENTO LINHA A LINHA
+        for (LinhaVendaDTO linhaDto : dto.getLinhas()) {
             Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId()));
 
             TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
                     .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
 
+            // 1. Desconto de Stock (Se aplicável)
             if (artigo instanceof Mercadoria mercadoria) {
                 artigoService.removerStock(mercadoria.getId(), linhaDto.getQuantidade());
 
@@ -96,12 +85,12 @@ public class VendaService {
                 movimentoStockRepository.save(mov);
             }
 
+            // 2. Cálculos Financeiros
             BigDecimal totalLinhaSemIva = linhaDto.getPrecoUnitario().multiply(linhaDto.getQuantidade());
-            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP).add(BigDecimal.ONE);
-            BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva);
+            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).add(BigDecimal.ONE);
+            BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva).setScale(2, RoundingMode.HALF_UP);
 
             LinhaVenda linha = new LinhaVenda();
-            linha.setVenda(venda);
             linha.setArtigo(artigo);
             linha.setTaxaIva(taxaIva);
             linha.setQuantidade(linhaDto.getQuantidade());
@@ -110,7 +99,15 @@ public class VendaService {
             linha.setTotalLinhaComIva(totalLinhaComIva);
             linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
 
-            venda.getLinhas().add(linha);
+            // 3. Analítica na Linha
+            if (linhaDto.getCentroCustoId() != null) {
+                centroCustoRepository.findByIdAndUtilizadorId(linhaDto.getCentroCustoId(), utilizadorId).ifPresent(linha::setCentroCusto);
+            }
+            if (linhaDto.getSeccaoHomoId() != null) {
+                seccaoHomoRepository.findByIdAndUtilizadorId(linhaDto.getSeccaoHomoId(), utilizadorId).ifPresent(linha::setSeccaoHomo);
+            }
+
+            venda.addLinha(linha); // Sincroniza a relação bi-direcional
 
             totalGeralSemIva = totalGeralSemIva.add(totalLinhaSemIva);
             totalGeralComIva = totalGeralComIva.add(totalLinhaComIva);
@@ -121,6 +118,7 @@ public class VendaService {
 
         Venda vendaGuardada = vendaRepository.save(venda);
 
+        // O MOTOR DE ABATE (MÁQUINA DO TEMPO)
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
@@ -150,10 +148,10 @@ public class VendaService {
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado."));
         venda.setCliente(cliente);
 
-        // 🚀 CORRIGIDO: Atribuição direta na edição, remove o .atStartOfDay()
         venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda() : venda.getDataVenda());
         venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : venda.getDataVencimento());
 
+        // 1. Reverter stock das linhas antigas
         for (LinhaVenda linhaAntiga : venda.getLinhas()) {
             if (linhaAntiga.getArtigo() instanceof Mercadoria mercadoria) {
                 artigoService.adicionarStock(mercadoria.getId(), linhaAntiga.getQuantidade());
@@ -169,13 +167,14 @@ public class VendaService {
             }
         }
 
-        linhaVendaRepository.deleteAll(venda.getLinhas());
+        // 2. Limpar as linhas antigas (O JPA orphanRemoval trata da eliminação na base de dados)
         venda.getLinhas().clear();
 
         BigDecimal totalGeralSemIva = BigDecimal.ZERO;
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
-        for (VendaDTO.LinhaVendaDTO linhaDto : dto.getLinhas()) {
+        // 3. Aplicar novas linhas
+        for (LinhaVendaDTO linhaDto : dto.getLinhas()) {
             Artigo art = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado."));
             TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
@@ -195,20 +194,26 @@ public class VendaService {
             }
 
             BigDecimal totalLinhaSemIva = linhaDto.getPrecoUnitario().multiply(linhaDto.getQuantidade());
-            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP).add(BigDecimal.ONE);
-            BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva);
+            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).add(BigDecimal.ONE);
+            BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva).setScale(2, RoundingMode.HALF_UP);
 
-            LinhaVenda linha = new LinhaVenda();
-            linha.setVenda(venda);
-            linha.setArtigo(art);
-            linha.setTaxaIva(taxaIva);
-            linha.setQuantidade(linhaDto.getQuantidade());
-            linha.setPrecoUnitario(linhaDto.getPrecoUnitario());
-            linha.setTotalLinhaSemIva(totalLinhaSemIva);
-            linha.setTotalLinhaComIva(totalLinhaComIva);
-            linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
+            LinhaVenda novaLinha = new LinhaVenda();
+            novaLinha.setArtigo(art);
+            novaLinha.setTaxaIva(taxaIva);
+            novaLinha.setQuantidade(linhaDto.getQuantidade());
+            novaLinha.setPrecoUnitario(linhaDto.getPrecoUnitario());
+            novaLinha.setTotalLinhaSemIva(totalLinhaSemIva);
+            novaLinha.setTotalLinhaComIva(totalLinhaComIva);
+            novaLinha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
 
-            venda.getLinhas().add(linha);
+            if (linhaDto.getCentroCustoId() != null) {
+                centroCustoRepository.findByIdAndUtilizadorId(linhaDto.getCentroCustoId(), utilizadorId).ifPresent(novaLinha::setCentroCusto);
+            }
+            if (linhaDto.getSeccaoHomoId() != null) {
+                seccaoHomoRepository.findByIdAndUtilizadorId(linhaDto.getSeccaoHomoId(), utilizadorId).ifPresent(novaLinha::setSeccaoHomo);
+            }
+
+            venda.addLinha(novaLinha);
 
             totalGeralSemIva = totalGeralSemIva.add(totalLinhaSemIva);
             totalGeralComIva = totalGeralComIva.add(totalLinhaComIva);
@@ -216,18 +221,6 @@ public class VendaService {
 
         venda.setTotalSemIva(totalGeralSemIva);
         venda.setTotalComIva(totalGeralComIva);
-
-        if (dto.getCentroCustoId() != null) {
-            centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId).ifPresent(venda::setCentroCusto);
-        } else {
-            venda.setCentroCusto(null);
-        }
-
-        if (dto.getSeccaoHomoId() != null) {
-            seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId).ifPresent(venda::setSeccaoHomo);
-        } else {
-            venda.setSeccaoHomo(null);
-        }
 
         return converterParaDTO(vendaRepository.save(venda));
     }
@@ -288,6 +281,7 @@ public class VendaService {
         dto.setId(v.getId());
         dto.setDataVenda(v.getDataVenda());
         dto.setDataVencimento(v.getDataVencimento());
+        dto.setDataPrevistaPagamento(v.getDataPrevistaPagamento());
         dto.setPlanoOrigemId(v.getPlanoOrigemId());
         dto.setTotalSemIva(v.getTotalSemIva());
         dto.setTotalComIva(v.getTotalComIva());
@@ -299,22 +293,13 @@ public class VendaService {
         }
 
         if (v.getContaBancaria() != null) {
+            dto.setContaBancariaId(v.getContaBancaria().getId());
             dto.setContaBancariaNome(v.getContaBancaria().getNome());
-        }
-
-        if (v.getCentroCusto() != null) {
-            dto.setCentroCustoId(v.getCentroCusto().getId());
-            dto.setCentroCustoCodigo(v.getCentroCusto().getCodigo());
-        }
-
-        if (v.getSeccaoHomo() != null) {
-            dto.setSeccaoHomoId(v.getSeccaoHomo().getId());
-            dto.setSeccaoHomoCodigo(v.getSeccaoHomo().getCodigo());
         }
 
         if (v.getLinhas() != null) {
             dto.setLinhas(v.getLinhas().stream().map(linha -> {
-                VendaResponseDTO.LinhaVendaResponseDTO lDto = new VendaResponseDTO.LinhaVendaResponseDTO();
+                LinhaVendaResponseDTO lDto = new LinhaVendaResponseDTO();
                 lDto.setId(linha.getId());
                 lDto.setQuantidade(linha.getQuantidade());
                 lDto.setPrecoUnitario(linha.getPrecoUnitario());
@@ -327,11 +312,23 @@ public class VendaService {
                     lDto.setArtigoNome(linha.getArtigo().getNome());
                 }
                 if (linha.getTaxaIva() != null) {
+                    lDto.setTaxaIvaId(linha.getTaxaIva().getId());
                     lDto.setTaxaIvaValor(linha.getTaxaIva().getValor());
+                }
+                if (linha.getCentroCusto() != null) {
+                    lDto.setCentroCustoId(linha.getCentroCusto().getId());
+                    lDto.setCentroCustoCodigo(linha.getCentroCusto().getCodigo());
+                }
+                if (linha.getSeccaoHomo() != null) {
+                    lDto.setSeccaoHomoId(linha.getSeccaoHomo().getId());
+                    lDto.setSeccaoHomoCodigo(linha.getSeccaoHomo().getCodigo());
                 }
                 return lDto;
             }).collect(Collectors.toList()));
+        } else {
+            dto.setLinhas(new ArrayList<>());
         }
+
         return dto;
     }
 }

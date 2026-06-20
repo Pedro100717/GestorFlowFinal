@@ -15,12 +15,28 @@ import java.util.Optional;
 
 public interface VendaRepository extends JpaRepository<Venda, Long> {
 
-    // 🚀 OTIMIZADO: Traz o cliente, conta e as linhas todas de uma vez! (Zero N+1)
-    @EntityGraph(attributePaths = {"cliente", "contaBancaria", "linhas.artigo", "linhas.taxaIva"})
+    // 🚀 OTIMIZADO COM ANALÍTICA: Traz o cliente, conta, linhas e TUDO o que está dentro das linhas de uma vez! (Zero N+1)
+    @EntityGraph(attributePaths = {
+            "cliente",
+            "contaBancaria",
+            "linhas",
+            "linhas.artigo",
+            "linhas.taxaIva",
+            "linhas.centroCusto",
+            "linhas.seccaoHomo"
+    })
     Page<Venda> findAllByUtilizadorId(Long utilizadorId, Pageable pageable);
 
-    // 🛡️ Segurança IDOR para ver os detalhes de uma fatura específica
-    @EntityGraph(attributePaths = {"cliente", "contaBancaria", "linhas.artigo", "linhas.taxaIva"})
+    // 🛡️ Segurança IDOR com Entity Graph completo para os detalhes da fatura
+    @EntityGraph(attributePaths = {
+            "cliente",
+            "contaBancaria",
+            "linhas",
+            "linhas.artigo",
+            "linhas.taxaIva",
+            "linhas.centroCusto",
+            "linhas.seccaoHomo"
+    })
     Optional<Venda> findByIdAndUtilizadorId(Long id, Long utilizadorId);
 
     // -- DASHBOARDS --

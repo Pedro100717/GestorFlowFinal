@@ -28,27 +28,38 @@ public interface AnaliseRepository extends JpaRepository<Venda, Long> {
             (COALESCE(SUM(uniao.venda_iva), 0) - COALESCE(SUM(uniao.compra_iva), 0)) AS saldoIva
             
         FROM (
-            -- Vendas: Já temos os campos separados no modelo
+            -- 🚀 VENDAS: Tabela no plural (linhas_venda) e coluna tx_iva_id
             SELECT 
-                centro_custo_id, seccao_homo_id, 
-                total_sem_iva AS venda_base, 
-                (total_com_iva - total_sem_iva) AS venda_iva,
-                0 AS compra_base, 0 AS compra_iva
-            FROM vendas WHERE utilizador_id = :userId
+                lv.centro_custo_id, 
+                lv.seccao_homo_id, 
+                (lv.quantidade * lv.preco_unitario) AS venda_base, 
+                (lv.quantidade * lv.preco_unitario * (COALESCE(t.valor, 0) / 100.0)) AS venda_iva,
+                0 AS compra_base, 
+                0 AS compra_iva
+            FROM linhas_venda lv
+            JOIN vendas v ON lv.venda_id = v.id
+            LEFT JOIN tx_iva t ON lv.tx_iva_id = t.id
+            WHERE v.utilizador_id = :userId
             
             UNION ALL
             
-            -- Compras: Calculamos a base (qtd * preco) e o IVA (total - base)
+            -- 🚀 COMPRAS: Tabela no plural (linhas_compra) e coluna tx_iva_id
             SELECT 
-                centro_custo_id, seccao_homo_id, 
-                0 AS venda_base, 0 AS venda_iva,
-                (quantidade * preco_unitario) AS compra_base,
-                (total - (quantidade * preco_unitario)) AS compra_iva
-            FROM compras WHERE utilizador_id = :userId
+                lc.centro_custo_id, 
+                lc.seccao_homo_id, 
+                0 AS venda_base, 
+                0 AS venda_iva,
+                (lc.quantidade * lc.preco_unitario) AS compra_base,
+                (lc.quantidade * lc.preco_unitario * (COALESCE(t.valor, 0) / 100.0)) AS compra_iva
+            FROM linhas_compra lc
+            JOIN compras c ON lc.compra_id = c.id
+            LEFT JOIN tx_iva t ON lc.tx_iva_id = t.id
+            WHERE c.utilizador_id = :userId
         ) uniao
         LEFT JOIN centro_custo cc ON uniao.centro_custo_id = cc.id
         LEFT JOIN seccao_homo sh ON uniao.seccao_homo_id = sh.id
-        -- 🚀 ADICIONADO: Os nomes têm de ir para o GROUP BY
+        
+        -- 🚀 O GROUP BY recolhe os dados limpos
         GROUP BY cc.codigo, cc.nome, sh.codigo, sh.nome
         ORDER BY cc.codigo, sh.codigo
     """)

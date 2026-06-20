@@ -14,15 +14,31 @@ import java.util.Optional;
 
 public interface CompraRepository extends JpaRepository<Compra, Long> {
 
-    // Usamos o @EntityGraph para que o "buscarPorId" seja uma autêntica bala de performance.
-    @EntityGraph(attributePaths = {"fornecedor", "artigo", "contaBancaria", "centroCusto", "seccaoHomo", "taxaIva"})
+    // 🚀 O NOVO ENTITY GRAPH: Mapeia o cabeçalho e mergulha nas linhas para ir buscar tudo num único SELECT
+    @EntityGraph(attributePaths = {
+            "fornecedor",
+            "contaBancaria",
+            "linhas",
+            "linhas.artigo",
+            "linhas.taxaIva",
+            "linhas.centroCusto",
+            "linhas.seccaoHomo"
+    })
     Optional<Compra> findByIdAndUtilizadorId(Long id, Long utilizadorId);
 
-    //Vai buscar tudo numa so Query
-    @EntityGraph(attributePaths = {"fornecedor", "artigo", "contaBancaria", "centroCusto", "seccaoHomo", "taxaIva"})
+    // Vai buscar tudo numa só Query (Atenção: A paginação com coleções aninhadas é feita em memória, mas é suportada)
+    @EntityGraph(attributePaths = {
+            "fornecedor",
+            "contaBancaria",
+            "linhas",
+            "linhas.artigo",
+            "linhas.taxaIva",
+            "linhas.centroCusto",
+            "linhas.seccaoHomo"
+    })
     Page<Compra> findAllByUtilizadorId(Long utilizadorId, Pageable pageable);
 
-    //Soma total de compras da vida inteira
+    // Soma total de compras da vida inteira
     @Query("SELECT COALESCE(SUM(c.total), 0) FROM Compra c WHERE c.utilizador.id = :userId")
     BigDecimal totalGastos(Long userId);
 

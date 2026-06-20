@@ -11,12 +11,13 @@ import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.OrcamentoDTO;
 import pt.gestorflow.backend.dto.OrcamentoResponseDTO;
 import pt.gestorflow.backend.dto.VendaDTO;
+import pt.gestorflow.backend.dto.LinhaVendaDTO; // 🚀 A NOVA IMPORTAÇÃO
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,14 +39,11 @@ public class OrcamentoService {
     // --- 1. CRIAR ---
     @Transactional
     public OrcamentoResponseDTO criarOrcamento(OrcamentoDTO dto) {
-        // 🚀 1. ID Blindado
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🚀 2. Entidade do Utilizador para associar ao Orçamento
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
-        // 🛡️ PROTEÇÃO IDOR: Garante que o cliente é da própria empresa
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
 
@@ -56,7 +54,6 @@ public class OrcamentoService {
         orcamento.setNotas(dto.getNotas());
         orcamento.setEstado(Orcamento.EstadoOrcamento.RASCUNHO);
 
-        // 🛡️ Passamos o User ID para garantir a segurança nas linhas
         processarLinhasOrcamento(orcamento, dto, utilizadorId);
 
         return converterParaDTO(orcamentoRepository.save(orcamento));
@@ -88,7 +85,6 @@ public class OrcamentoService {
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
-    // 🛡️ CORREÇÃO IDOR: Adicionado o `Long userId` para validar os artigos das linhas
     private void processarLinhasOrcamento(Orcamento orcamento, OrcamentoDTO dto, Long userId) {
         BigDecimal totalCustoGeral = BigDecimal.ZERO;
         BigDecimal totalSemIvaGeral = BigDecimal.ZERO;
@@ -96,7 +92,6 @@ public class OrcamentoService {
 
         for (OrcamentoDTO.LinhaOrcamentoDTO linhaDto : dto.getLinhas()) {
 
-            // 🛡️ CORREÇÃO CRÍTICA: Bloquear injeção de IDs de artigos da concorrência
             Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), userId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado: ID " + linhaDto.getArtigoId()));
 
@@ -160,17 +155,18 @@ public class OrcamentoService {
             throw new RuntimeException("Este orçamento já foi processado anteriormente.");
         }
 
-        // 🛡️ 1. Criar o Cabeçalho da Venda (UM único documento)
+        // 🛡️ 1. Criar o Cabeçalho da Venda
         VendaDTO vendaDTO = new VendaDTO();
         vendaDTO.setClienteId(orcamento.getCliente().getId());
-        vendaDTO.setDataVenda(LocalDateTime.now().toLocalDate());
+        vendaDTO.setDataVenda(LocalDate.now());
+        vendaDTO.setDataVencimento(LocalDate.now()); // 🚀 Novo requisito do motor de Vendas
 
-        // 🛡️ 2. Preparar a lista de linhas
-        List<VendaDTO.LinhaVendaDTO> linhasVenda = new ArrayList<>();
+        // 🛡️ 2. Preparar a lista de linhas usando o DTO isolado
+        List<LinhaVendaDTO> linhasVenda = new ArrayList<>();
 
-        // 🛡️ 3. Transferir as Linhas do Orçamento para as Linhas da Venda
+        // 🛡️ 3. Transferir as Linhas
         for (LinhaOrcamento linha : orcamento.getLinhas()) {
-            VendaDTO.LinhaVendaDTO linhaDTO = new VendaDTO.LinhaVendaDTO();
+            LinhaVendaDTO linhaDTO = new LinhaVendaDTO();
             linhaDTO.setArtigoId(linha.getArtigo().getId());
             linhaDTO.setTaxaIvaId(linha.getTaxaIva().getId());
             linhaDTO.setQuantidade(linha.getQuantidade());
@@ -180,7 +176,6 @@ public class OrcamentoService {
             linhasVenda.add(linhaDTO);
         }
 
-        // 🛡️ 4. Anexar as linhas ao cabeçalho da Venda
         vendaDTO.setLinhas(linhasVenda);
 
         // 🛡️ 5. Registar a Venda

@@ -32,7 +32,7 @@ public class Venda extends Auditable {
     @Column(precision = 10, scale = 2)
     private BigDecimal totalComIva;
 
-    // 🚀 NOVO CAMPO: O que já foi efetivamente pago
+    // 🚀 O que já foi efetivamente pago
     @Column(precision = 10, scale = 2)
     private BigDecimal valorPago = BigDecimal.ZERO;
 
@@ -53,20 +53,12 @@ public class Venda extends Auditable {
     private List<LinhaVenda> linhas = new ArrayList<>();
 
     // ==========================================
-    // 🚀 OTIMIZAÇÃO EXTREMA: RELAÇÕES LAZY
+    // 🚀 RELAÇÕES DO CABEÇALHO
     // ==========================================
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "centro_custo_id")
-    private CentroCusto centroCusto;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seccao_homo_id")
-    private SeccaoHomo seccaoHomo;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conta_bancaria_id")
@@ -76,17 +68,23 @@ public class Venda extends Auditable {
     @JoinColumn(name = "utilizador_id", nullable = false)
     private Utilizador utilizador;
 
+    // --- Métodos Utilitários de Sincronização JPA ---
+    public void addLinha(LinhaVenda linha) {
+        linhas.add(linha);
+        linha.setVenda(this);
+    }
+
+    public void removeLinha(LinhaVenda linha) {
+        linhas.remove(linha);
+        linha.setVenda(null);
+    }
+
     @PrePersist
     protected void onPrePersist() {
         if (dataVenda == null) dataVenda = LocalDate.now();
-        if (valorPago == null) valorPago = BigDecimal.ZERO; // Dupla segurança
-        // 🛡️ FALLBACK: Garante que faturas antigas não partem o simulador
+        if (valorPago == null) valorPago = BigDecimal.ZERO;
         if (dataVencimento == null) dataVencimento = dataVenda;
     }
-
-    // ==========================================
-    // 🛡️ IDENTIDADE BLINDADA PARA O HIBERNATE
-    // ==========================================
 
     @Override
     public boolean equals(Object o) {

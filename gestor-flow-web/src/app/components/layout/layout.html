@@ -20,19 +20,17 @@
 
             <a class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold mt-2 px-4" 
                style="cursor: pointer;"
-               data-bs-toggle="collapse" 
-               data-bs-target="#menuAnalitica" 
-               role="button" aria-expanded="false" aria-controls="menuAnalitica">
+               (click)="menuParamAberto = !menuParamAberto">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <i class="bi bi-diagram-3"></i>
                         <span class="sidebar-text">Parametrização</span>
                     </div>
-                    <i class="bi bi-chevron-down small sidebar-text"></i>
+                    <i class="bi small sidebar-text" [ngClass]="menuParamAberto ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
                 </div>
             </a>
 
-            <div class="collapse" id="menuAnalitica">
+            <div *ngIf="menuParamAberto" [@animarSubmenu] class="list-group-submenu" id="menuAnalitica">
                 <a routerLink="/app/analitica/centros-custo" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-building"></i> <span class="sidebar-text">Centros Custo</span>
                 </a>
@@ -56,19 +54,17 @@
 
             <a class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold mt-2 px-4" 
                style="cursor: pointer;"
-               data-bs-toggle="collapse" 
-               data-bs-target="#menuContasCorrentes" 
-               role="button" aria-expanded="false" aria-controls="menuContasCorrentes">
+               (click)="menuContasAberto = !menuContasAberto">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <i class="bi bi-journal-check"></i>
                         <span class="sidebar-text">Contas Correntes</span>
                     </div>
-                    <i class="bi bi-chevron-down small sidebar-text"></i>
+                    <i class="bi small sidebar-text" [ngClass]="menuContasAberto ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
                 </div>
             </a>
 
-            <div class="collapse" id="menuContasCorrentes">
+            <div *ngIf="menuContasAberto" [@animarSubmenu] class="list-group-submenu" id="menuContasCorrentes">
                 <a routerLink="/app/contas-correntes/clientes" routerLinkActive="active-link" 
                    class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-arrow-down-left-circle text-success me-1"></i> <span class="sidebar-text">Clientes (Receber)</span>
@@ -86,7 +82,6 @@
                 <i class="bi bi-receipt"></i> <span class="sidebar-text">Vendas</span>
             </a>
 
-            <!-- ITENS RESTAURADOS -->
             <a routerLink="/app/patrimonio" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-buildings"></i> <span class="sidebar-text">Património</span>
             </a>

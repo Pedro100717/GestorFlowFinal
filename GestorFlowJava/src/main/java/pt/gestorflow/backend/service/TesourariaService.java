@@ -275,14 +275,25 @@ public class TesourariaService {
                     ? c.getDataPrevistaPagamento()
                     : (c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra());
 
-            pendentes.add(new DocumentoPendenteDTO(c.getId(), "COMPRA", dataUsada, c.getFornecedor().getNome(), c.getTotal(), pendente, c.getDesignacao()));
+            // 🚀 A CORREÇÃO: Extração do nome através da primeira linha
+            String descricaoCompra = null;
+            if (c.getLinhas() != null && !c.getLinhas().isEmpty()) {
+                LinhaCompra primeiraLinha = c.getLinhas().get(0);
+                descricaoCompra = primeiraLinha.getDesignacaoPersonalizada() != null && !primeiraLinha.getDesignacaoPersonalizada().isBlank()
+                        ? primeiraLinha.getDesignacaoPersonalizada()
+                        : primeiraLinha.getArtigo().getNome();
+                if (c.getLinhas().size() > 1) {
+                    descricaoCompra += " (+" + (c.getLinhas().size() - 1) + " itens)";
+                }
+            }
+
+            pendentes.add(new DocumentoPendenteDTO(c.getId(), "COMPRA", dataUsada, c.getFornecedor().getNome(), c.getTotal(), pendente, descricaoCompra));
         });
 
         documentoTesourariaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosIncompletos).forEach(d -> {
             BigDecimal pendente = d.getValorTotal().subtract(d.getValorPago());
             String tipoDoc = d.getTipo() == TipoMovimentoPlaneado.ENTRADA ? "RECEITA" : "DESPESA";
 
-            // 🚀 CORREÇÃO CIRÚRGICA: Extrai apenas o LocalDate do LocalDateTime do documento!
             LocalDate dataPura = d.getDataEmissao() != null ? d.getDataEmissao().toLocalDate() : LocalDate.now();
 
             pendentes.add(new DocumentoPendenteDTO(d.getId(), tipoDoc, dataPura, d.getDescricao(), d.getValorTotal(), pendente, null));

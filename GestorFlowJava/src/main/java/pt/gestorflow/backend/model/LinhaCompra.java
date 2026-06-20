@@ -6,18 +6,19 @@ import lombok.Setter;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "linhas_venda")
+@Table(name = "linhas_compra")
 @Getter
 @Setter
-public class LinhaVenda {
+public class LinhaCompra {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // A ligação de volta ao Cabeçalho
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "venda_id", nullable = false)
-    private Venda venda;
+    @JoinColumn(name = "compra_id", nullable = false)
+    private Compra compra;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artigo_id", nullable = false)
@@ -33,16 +34,9 @@ public class LinhaVenda {
     @Column(precision = 10, scale = 2, nullable = false)
     private BigDecimal precoUnitario;
 
-    @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal totalLinhaSemIva;
+    @Column(precision = 10, scale = 2)
+    private BigDecimal totalLinha;
 
-    @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal totalLinhaComIva;
-
-    @Column(name = "designacao_personalizada")
-    private String designacaoPersonalizada;
-
-    // 🚀 AS NOVAS COLUNAS ANALÍTICAS DA V14
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "centro_custo_id")
     private CentroCusto centroCusto;
@@ -51,11 +45,14 @@ public class LinhaVenda {
     @JoinColumn(name = "seccao_homo_id")
     private SeccaoHomo seccaoHomo;
 
+    @Column(name = "designacao_personalizada")
+    private String designacaoPersonalizada;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof LinhaVenda linhaVenda)) return false;
-        return id != null && id.equals(linhaVenda.getId());
+        if (!(o instanceof LinhaCompra linhaCompra)) return false;
+        return id != null && id.equals(linhaCompra.getId());
     }
 
     @Override

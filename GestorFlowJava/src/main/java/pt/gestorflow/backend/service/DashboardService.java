@@ -57,10 +57,8 @@ public class DashboardService {
         if (venda.getCliente() != null) {
             dto.setClienteId(venda.getCliente().getId());
             dto.setClienteNome(venda.getCliente().getNome());
-            dto.setDesignacao("Faturação #" + venda.getId() + " - " + venda.getCliente().getNome());
         } else {
             dto.setClienteNome("Consumidor Final");
-            dto.setDesignacao("Faturação #" + venda.getId() + " - Consumidor Final");
         }
 
         return dto;

@@ -1,13 +1,28 @@
 import { Component, OnInit } from '@angular/core'; 
-// 🚀 Não te esqueças de adicionar o NavigationEnd aqui nos imports!
+import { CommonModule } from '@angular/common'; 
 import { Router, NavigationEnd, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+// 🚀 IMPORTAR O MOTOR DE ANIMAÇÕES DO ANGULAR
+import { trigger, style, transition, animate } from '@angular/animations';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive], 
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive], 
   templateUrl: './layout.html',
-  styleUrl: './layout.scss'
+  styleUrl: './layout.scss',
+  // 🚀 INJETAR O TRIGGER DE DESLIZE PARA OS SUBMENUS
+  animations: [
+    trigger('animarSubmenu', [
+      transition(':enter', [
+        style({ height: '0', opacity: 0, overflow: 'hidden' }),
+        animate('250ms cubic-bezier(0.4, 0.0, 0.2, 1)', style({ height: '*', opacity: 1 }))
+      ]),
+      transition(':leave', [
+        style({ height: '*', opacity: 1, overflow: 'hidden' }),
+        animate('200ms cubic-bezier(0.4, 0.0, 0.2, 1)', style({ height: '0', opacity: 0 }))
+      ])
+    ])
+  ]
 })
 export class LayoutComponent implements OnInit {
 
@@ -15,12 +30,14 @@ export class LayoutComponent implements OnInit {
   emailUtilizador: string = ''; 
   isMobileMenuOpen: boolean = false;
 
+  // Variáveis de controlo reativo dos submenus
+  menuParamAberto: boolean = false;
+  menuContasAberto: boolean = false;
+
   constructor(private router: Router) {
-    // 🚀 A MAGIA DE UX: Fica "à escuta" da navegação
     this.router.events.subscribe((event) => {
-      // Sempre que a navegação para um ecrã novo terminar com sucesso...
       if (event instanceof NavigationEnd) {
-        this.isMobileMenuOpen = false; // ...força o menu de telemóvel a fechar!
+        this.isMobileMenuOpen = false; 
       }
     });
   }
@@ -42,7 +59,6 @@ export class LayoutComponent implements OnInit {
     localStorage.removeItem('token');
     localStorage.removeItem('userName'); 
     localStorage.removeItem('userEmail'); 
-    
     this.router.navigate(['/login']);
   }
 

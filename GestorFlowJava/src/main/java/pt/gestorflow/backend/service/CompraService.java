@@ -10,12 +10,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.CompraDTO;
 import pt.gestorflow.backend.dto.CompraResponseDTO;
+import pt.gestorflow.backend.dto.LinhaCompraDTO;
+import pt.gestorflow.backend.dto.LinhaCompraResponseDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,91 +42,65 @@ public class CompraService {
     @Transactional
     public CompraResponseDTO registarCompra(CompraDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
         Fornecedor fornecedor = fornecedorRepository.findByIdAndUtilizadorId(dto.getFornecedorId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
-        Artigo artigo = artigoRepository.findByIdAndUtilizadorId(dto.getArtigoId(), utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
-
-        TxIva taxaIva = txIvaRepository.findById(dto.getTaxaIvaId())
-                .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada."));
-
-        if (artigo instanceof Mercadoria mercadoria) {
-            BigDecimal stockAtual = mercadoria.getStockAtual() != null ? mercadoria.getStockAtual() : BigDecimal.ZERO;
-            BigDecimal custoAtual = artigo.getUltimoPrecoCusto() != null ? artigo.getUltimoPrecoCusto() : BigDecimal.ZERO;
-            BigDecimal qtdComprada = dto.getQuantidade();
-            BigDecimal precoCompra = dto.getPrecoUnitario();
-
-            BigDecimal valorStockExistente = stockAtual.multiply(custoAtual);
-            BigDecimal valorNovaCompra = qtdComprada.multiply(precoCompra);
-            BigDecimal novoStockTotal = stockAtual.add(qtdComprada);
-
-            if (novoStockTotal.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal precoMedioPonderado = valorStockExistente.add(valorNovaCompra)
-                        .divide(novoStockTotal, 4, java.math.RoundingMode.HALF_UP);
-                artigo.setUltimoPrecoCusto(precoMedioPonderado);
-            } else {
-                artigo.setUltimoPrecoCusto(precoCompra);
-            }
-
-            mercadoria.setStockAtual(novoStockTotal);
-            artigoRepository.save(artigo);
-
-            MovimentoStock mov = new MovimentoStock();
-            mov.setMercadoria(mercadoria);
-            mov.setUtilizador(user);
-            mov.setTipo(MovimentoStock.TipoMovimentoStock.ENTRADA);
-            mov.setQuantidade(qtdComprada);
-            mov.setStockAposMovimento(mercadoria.getStockAtual());
-            mov.setMotivo("Compra a Fornecedor: " + fornecedor.getNome());
-            movimentoStockRepository.save(mov);
-        } else {
-            artigo.setUltimoPrecoCusto(dto.getPrecoUnitario());
-            artigoRepository.save(artigo);
-        }
-
-        BigDecimal totalSemIva = dto.getQuantidade().multiply(dto.getPrecoUnitario());
-        BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
-        BigDecimal totalComIva = totalSemIva.multiply(fatorIva);
-
         Compra compra = new Compra();
-
-        // 🚀 CORRIGIDO: Atribuição direta de LocalDate puro, sem .atStartOfDay()
         compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra() : LocalDate.now());
         compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : compra.getDataCompra());
-
         compra.setFornecedor(fornecedor);
-        compra.setArtigo(artigo);
         compra.setUtilizador(user);
-        compra.setTaxaIva(taxaIva);
-        compra.setQuantidade(dto.getQuantidade());
-        compra.setPrecoUnitario(dto.getPrecoUnitario());
-        compra.setTotal(totalComIva);
         compra.setNumeroFaturaFornecedor(dto.getNumeroFaturaFornecedor());
-        compra.setDesignacao(dto.getDesignacaoPersonalizada() != null && !dto.getDesignacaoPersonalizada().isBlank()
-                ? dto.getDesignacaoPersonalizada() : artigo.getNome());
-
         compra.setEstadoPagamento(EstadoPagamento.PENDENTE);
-        compra.setContaBancaria(null);
-
         compra.setPlanoOrigemId(dto.getPlanoOrigemId());
 
-        if (dto.getCentroCustoId() != null) {
-            centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId).ifPresent(compra::setCentroCusto);
-        }
-        if (dto.getSeccaoHomoId() != null) {
-            seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId).ifPresent(compra::setSeccaoHomo);
+        BigDecimal totalFatura = BigDecimal.ZERO;
+
+        // 🚀 PROCESSAMENTO LINHA A LINHA
+        for (LinhaCompraDTO linhaDto : dto.getLinhas()) {
+            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId()));
+
+            TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada: " + linhaDto.getTaxaIvaId()));
+
+            // 1. Cálculos Financeiros da Linha
+            BigDecimal totalSemIva = linhaDto.getQuantidade().multiply(linhaDto.getPrecoUnitario());
+            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
+            BigDecimal totalLinhaComIva = totalSemIva.multiply(fatorIva).setScale(2, RoundingMode.HALF_UP);
+
+            totalFatura = totalFatura.add(totalLinhaComIva);
+
+            // 2. Gestão de Stock e Preço Médio
+            processarEntradaStock(artigo, linhaDto.getQuantidade(), linhaDto.getPrecoUnitario(), user, fornecedor.getNome());
+
+            // 3. Criação da Entidade LinhaCompra
+            LinhaCompra linha = new LinhaCompra();
+            linha.setArtigo(artigo);
+            linha.setTaxaIva(taxaIva);
+            linha.setQuantidade(linhaDto.getQuantidade());
+            linha.setPrecoUnitario(linhaDto.getPrecoUnitario());
+            linha.setTotalLinha(totalLinhaComIva);
+            linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
+
+            // Analítica da Linha
+            if (linhaDto.getCentroCustoId() != null) {
+                centroCustoRepository.findByIdAndUtilizadorId(linhaDto.getCentroCustoId(), utilizadorId).ifPresent(linha::setCentroCusto);
+            }
+            if (linhaDto.getSeccaoHomoId() != null) {
+                seccaoHomoRepository.findByIdAndUtilizadorId(linhaDto.getSeccaoHomoId(), utilizadorId).ifPresent(linha::setSeccaoHomo);
+            }
+
+            compra.addLinha(linha); // Liga a linha ao cabeçalho da fatura
         }
 
+        compra.setTotal(totalFatura);
         Compra compraGuardada = compraRepository.save(compra);
 
-        // =========================================================================================
-        // 🚀 O MOTOR DE ABATE (MÁQUINA DO TEMPO) COM LOCALDATE PURO
-        // =========================================================================================
+        // O MOTOR DE ABATE (MÁQUINA DO TEMPO)
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
@@ -149,59 +128,57 @@ public class CompraService {
 
         Fornecedor fornecedor = fornecedorRepository.findByIdAndUtilizadorId(dto.getFornecedorId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado."));
-        Artigo novoArtigo = artigoRepository.findByIdAndUtilizadorId(dto.getArtigoId(), utilizadorId)
-                .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado."));
-        TxIva taxaIva = txIvaRepository.findById(dto.getTaxaIvaId())
-                .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada."));
 
-        if (compra.getArtigo() instanceof Mercadoria mercAntiga) {
-            artigoService.removerStock(mercAntiga.getId(), compra.getQuantidade());
-            MovimentoStock movSaida = new MovimentoStock();
-            movSaida.setMercadoria(mercAntiga);
-            movSaida.setUtilizador(user);
-            movSaida.setTipo(MovimentoStock.TipoMovimentoStock.SAIDA);
-            movSaida.setQuantidade(compra.getQuantidade());
-            movSaida.setStockAposMovimento(mercAntiga.getStockAtual().subtract(compra.getQuantidade()));
-            movSaida.setMotivo("Edição Compra #" + compra.getId() + " (Estorno Antigo)");
-            movimentoStockRepository.save(movSaida);
+        // 1. Reverter o stock de todas as linhas antigas
+        for (LinhaCompra linhaAntiga : compra.getLinhas()) {
+            if (linhaAntiga.getArtigo() instanceof Mercadoria mercAntiga) {
+                artigoService.removerStock(mercAntiga.getId(), linhaAntiga.getQuantidade());
+                registarMovimentoStock(mercAntiga, user, MovimentoStock.TipoMovimentoStock.SAIDA,
+                        linhaAntiga.getQuantidade(), "Edição Compra #" + compra.getId() + " (Estorno Antigo)");
+            }
         }
 
-        if (novoArtigo instanceof Mercadoria mercNova) {
-            artigoService.adicionarStock(mercNova.getId(), dto.getQuantidade());
-            MovimentoStock movEntrada = new MovimentoStock();
-            movEntrada.setMercadoria(mercNova);
-            movEntrada.setUtilizador(user);
-            movEntrada.setTipo(MovimentoStock.TipoMovimentoStock.ENTRADA);
-            movEntrada.setQuantidade(dto.getQuantidade());
-            movEntrada.setStockAposMovimento(mercNova.getStockAtual().add(dto.getQuantidade()));
-            movEntrada.setMotivo("Edição Compra #" + compra.getId() + " (Nova Quantidade)");
-            movimentoStockRepository.save(movEntrada);
+        // 2. Limpar as linhas antigas (O JPA trata de apagar da base de dados graças ao orphanRemoval)
+        compra.getLinhas().clear();
+        BigDecimal totalFatura = BigDecimal.ZERO;
+
+        // 3. Aplicar as novas linhas
+        for (LinhaCompraDTO linhaDto : dto.getLinhas()) {
+            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
+                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado."));
+            TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada."));
+
+            BigDecimal totalSemIva = linhaDto.getQuantidade().multiply(linhaDto.getPrecoUnitario());
+            BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
+            BigDecimal totalLinhaComIva = totalSemIva.multiply(fatorIva).setScale(2, RoundingMode.HALF_UP);
+            totalFatura = totalFatura.add(totalLinhaComIva);
+
+            processarEntradaStock(artigo, linhaDto.getQuantidade(), linhaDto.getPrecoUnitario(), user, "Edição Compra #" + compra.getId());
+
+            LinhaCompra novaLinha = new LinhaCompra();
+            novaLinha.setArtigo(artigo);
+            novaLinha.setTaxaIva(taxaIva);
+            novaLinha.setQuantidade(linhaDto.getQuantidade());
+            novaLinha.setPrecoUnitario(linhaDto.getPrecoUnitario());
+            novaLinha.setTotalLinha(totalLinhaComIva);
+            novaLinha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
+
+            if (linhaDto.getCentroCustoId() != null) {
+                centroCustoRepository.findByIdAndUtilizadorId(linhaDto.getCentroCustoId(), utilizadorId).ifPresent(novaLinha::setCentroCusto);
+            }
+            if (linhaDto.getSeccaoHomoId() != null) {
+                seccaoHomoRepository.findByIdAndUtilizadorId(linhaDto.getSeccaoHomoId(), utilizadorId).ifPresent(novaLinha::setSeccaoHomo);
+            }
+
+            compra.addLinha(novaLinha);
         }
 
-        BigDecimal totalSemIva = dto.getQuantidade().multiply(dto.getPrecoUnitario());
-        BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
-        BigDecimal totalComIva = totalSemIva.multiply(fatorIva);
-
-        // 🚀 CORRIGIDO: Atribuição direta de LocalDate puro na edição, sem .atStartOfDay()
         compra.setDataCompra(dto.getDataCompra() != null ? dto.getDataCompra() : compra.getDataCompra());
         compra.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : compra.getDataVencimento());
-
         compra.setFornecedor(fornecedor);
-        compra.setArtigo(novoArtigo);
-        compra.setTaxaIva(taxaIva);
-        compra.setQuantidade(dto.getQuantidade());
-        compra.setPrecoUnitario(dto.getPrecoUnitario());
-        compra.setTotal(totalComIva);
         compra.setNumeroFaturaFornecedor(dto.getNumeroFaturaFornecedor());
-        compra.setDesignacao(dto.getDesignacaoPersonalizada() != null && !dto.getDesignacaoPersonalizada().isBlank()
-                ? dto.getDesignacaoPersonalizada() : novoArtigo.getNome());
-
-        if (dto.getCentroCustoId() != null) {
-            centroCustoRepository.findByIdAndUtilizadorId(dto.getCentroCustoId(), utilizadorId).ifPresent(compra::setCentroCusto);
-        }
-        if (dto.getSeccaoHomoId() != null) {
-            seccaoHomoRepository.findByIdAndUtilizadorId(dto.getSeccaoHomoId(), utilizadorId).ifPresent(compra::setSeccaoHomo);
-        }
+        compra.setTotal(totalFatura);
 
         return converterParaDTO(compraRepository.save(compra));
     }
@@ -219,17 +196,13 @@ public class CompraService {
             throw new IllegalStateException("Não podes apagar uma compra que já tem pagamentos registados.");
         }
 
-        if (compra.getArtigo() instanceof Mercadoria mercadoria) {
-            artigoService.removerStock(compra.getArtigo().getId(), compra.getQuantidade());
-
-            MovimentoStock mov = new MovimentoStock();
-            mov.setMercadoria(mercadoria);
-            mov.setUtilizador(user);
-            mov.setTipo(MovimentoStock.TipoMovimentoStock.SAIDA);
-            mov.setQuantidade(compra.getQuantidade());
-            mov.setStockAposMovimento(mercadoria.getStockAtual().subtract(compra.getQuantidade()));
-            mov.setMotivo("Anulação da Compra #" + compra.getId());
-            movimentoStockRepository.save(mov);
+        // Reverter stock de todas as linhas antes de apagar
+        for (LinhaCompra linha : compra.getLinhas()) {
+            if (linha.getArtigo() instanceof Mercadoria mercadoria) {
+                artigoService.removerStock(mercadoria.getId(), linha.getQuantidade());
+                registarMovimentoStock(mercadoria, user, MovimentoStock.TipoMovimentoStock.SAIDA,
+                        linha.getQuantidade(), "Anulação da Compra #" + compra.getId());
+            }
         }
 
         compraRepository.delete(compra);
@@ -254,15 +227,52 @@ public class CompraService {
         return txIvaRepository.findAll();
     }
 
+    // --- MÉTODOS AUXILIARES ---
+
+    private void processarEntradaStock(Artigo artigo, BigDecimal qtdComprada, BigDecimal precoCompra, Utilizador user, String motivo) {
+        if (artigo instanceof Mercadoria mercadoria) {
+            BigDecimal stockAtual = mercadoria.getStockAtual() != null ? mercadoria.getStockAtual() : BigDecimal.ZERO;
+            BigDecimal custoAtual = artigo.getUltimoPrecoCusto() != null ? artigo.getUltimoPrecoCusto() : BigDecimal.ZERO;
+
+            BigDecimal valorStockExistente = stockAtual.multiply(custoAtual);
+            BigDecimal valorNovaCompra = qtdComprada.multiply(precoCompra);
+            BigDecimal novoStockTotal = stockAtual.add(qtdComprada);
+
+            if (novoStockTotal.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal precoMedioPonderado = valorStockExistente.add(valorNovaCompra)
+                        .divide(novoStockTotal, 4, RoundingMode.HALF_UP);
+                artigo.setUltimoPrecoCusto(precoMedioPonderado);
+            } else {
+                artigo.setUltimoPrecoCusto(precoCompra);
+            }
+
+            mercadoria.setStockAtual(novoStockTotal);
+            artigoRepository.save(artigo);
+            registarMovimentoStock(mercadoria, user, MovimentoStock.TipoMovimentoStock.ENTRADA, qtdComprada, motivo);
+        } else {
+            artigo.setUltimoPrecoCusto(precoCompra);
+            artigoRepository.save(artigo);
+        }
+    }
+
+    private void registarMovimentoStock(Mercadoria mercadoria, Utilizador user, MovimentoStock.TipoMovimentoStock tipo, BigDecimal quantidade, String motivo) {
+        MovimentoStock mov = new MovimentoStock();
+        mov.setMercadoria(mercadoria);
+        mov.setUtilizador(user);
+        mov.setTipo(tipo);
+        mov.setQuantidade(quantidade);
+        mov.setStockAposMovimento(mercadoria.getStockAtual());
+        mov.setMotivo(motivo);
+        movimentoStockRepository.save(mov);
+    }
+
     private CompraResponseDTO converterParaDTO(Compra c) {
         CompraResponseDTO dto = new CompraResponseDTO();
         dto.setId(c.getId());
         dto.setDataCompra(c.getDataCompra());
         dto.setDataVencimento(c.getDataVencimento());
+        dto.setDataPrevistaPagamento(c.getDataPrevistaPagamento());
         dto.setNumeroFaturaFornecedor(c.getNumeroFaturaFornecedor());
-        dto.setDesignacao(c.getDesignacao());
-        dto.setQuantidade(c.getQuantidade());
-        dto.setPrecoUnitario(c.getPrecoUnitario());
         dto.setTotal(c.getTotal());
         dto.setEstadoPagamento(c.getEstadoPagamento().name());
         dto.setPlanoOrigemId(c.getPlanoOrigemId());
@@ -272,29 +282,43 @@ public class CompraService {
             dto.setFornecedorNome(c.getFornecedor().getNome());
         }
 
-        if (c.getArtigo() != null) {
-            dto.setArtigoId(c.getArtigo().getId());
-            dto.setArtigoNome(c.getArtigo().getNome());
-        }
-
-        if (c.getTaxaIva() != null) {
-            dto.setTaxaIvaId(c.getTaxaIva().getId());
-            dto.setTaxaIvaValor(c.getTaxaIva().getValor());
-        }
-
         if (c.getContaBancaria() != null) {
             dto.setContaBancariaId(c.getContaBancaria().getId());
             dto.setContaBancariaNome(c.getContaBancaria().getNome());
         }
 
-        if (c.getCentroCusto() != null) {
-            dto.setCentroCustoId(c.getCentroCusto().getId());
-            dto.setCentroCustoCodigo(c.getCentroCusto().getCodigo());
-        }
+        // Mapeamento das Linhas
+        if (c.getLinhas() != null) {
+            List<LinhaCompraResponseDTO> linhasDto = c.getLinhas().stream().map(linha -> {
+                LinhaCompraResponseDTO lDto = new LinhaCompraResponseDTO();
+                lDto.setId(linha.getId());
+                lDto.setQuantidade(linha.getQuantidade());
+                lDto.setPrecoUnitario(linha.getPrecoUnitario());
+                lDto.setTotalLinha(linha.getTotalLinha());
+                lDto.setDesignacaoPersonalizada(linha.getDesignacaoPersonalizada());
 
-        if (c.getSeccaoHomo() != null) {
-            dto.setSeccaoHomoId(c.getSeccaoHomo().getId());
-            dto.setSeccaoHomoCodigo(c.getSeccaoHomo().getCodigo());
+                if (linha.getArtigo() != null) {
+                    lDto.setArtigoId(linha.getArtigo().getId());
+                    lDto.setArtigoNome(linha.getArtigo().getNome());
+                }
+                if (linha.getTaxaIva() != null) {
+                    lDto.setTaxaIvaId(linha.getTaxaIva().getId());
+                    lDto.setTaxaIvaValor(linha.getTaxaIva().getValor());
+                }
+                if (linha.getCentroCusto() != null) {
+                    lDto.setCentroCustoId(linha.getCentroCusto().getId());
+                    lDto.setCentroCustoCodigo(linha.getCentroCusto().getCodigo());
+                }
+                if (linha.getSeccaoHomo() != null) {
+                    lDto.setSeccaoHomoId(linha.getSeccaoHomo().getId());
+                    lDto.setSeccaoHomoCodigo(linha.getSeccaoHomo().getCodigo());
+                }
+                return lDto;
+            }).collect(Collectors.toList());
+
+            dto.setLinhas(linhasDto);
+        } else {
+            dto.setLinhas(new ArrayList<>());
         }
 
         return dto;

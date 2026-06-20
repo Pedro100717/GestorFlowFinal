@@ -1,6 +1,5 @@
 package pt.gestorflow.backend.dto;
 
-
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -19,15 +18,12 @@ public class RegistoDTO {
     private String email;
 
     @NotBlank(message = "A senha é obrigatória")
-    // Explicação da Regex:
+    // Explicação da Regex Atualizada:
     // (?=.*[0-9]) -> Pelo menos um número
-    // (?=.*[a-z]) -> Pelo menos uma minúscula
     // (?=.*[A-Z]) -> Pelo menos uma maiúscula
-    // (?=.*[@#$%^&+=!]) -> Pelo menos um caracter especial
-    // (?=\S+$) -> Sem espaços em branco
     // .{8,} -> No mínimo 8 caracteres
-    @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$",
-            message = "A senha deve ser forte: min 8 caracteres, 1 maiúscula, 1 minúscula, 1 número e 1 especial")
+    // Permitimos espaços e caracteres especiais livremente para evitar erros de encoding no frontend
+    @Pattern(regexp = "^(?=.*[0-9])(?=.*[A-Z]).{8,}$",
+            message = "A senha deve ser forte: mínimo de 8 caracteres, contendo pelo menos 1 letra maiúscula e 1 número")
     private String senha;
 }
-

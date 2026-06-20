@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "compras")
@@ -25,15 +27,7 @@ public class Compra extends Auditable {
 
     private String numeroFaturaFornecedor;
 
-    @Column(nullable = false)
-    private String designacao;
-
-    @Column(precision = 10, scale = 3, nullable = false)
-    private BigDecimal quantidade;
-
-    @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal precoUnitario;
-
+    // O total global da fatura (Soma de todas as linhas)
     @Column(precision = 10, scale = 2)
     private BigDecimal total;
 
@@ -51,27 +45,17 @@ public class Compra extends Auditable {
     @Column(nullable = false, name = "estado_pagamento")
     private EstadoPagamento estadoPagamento = EstadoPagamento.PENDENTE;
 
-    // --- Relações ---
+    // --- Relações Master-Detail ---
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tx_iva_id", nullable = false)
-    private TxIva taxaIva;
+    // 🚀 A MÁGICA DO JPA: Cascade.ALL garante que ao gravar a compra, grava as linhas juntas
+    @OneToMany(mappedBy = "compra", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LinhaCompra> linhas = new ArrayList<>();
+
+    // --- Relações do Cabeçalho ---
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fornecedor_id", nullable = false)
     private Fornecedor fornecedor;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "artigo_id", nullable = false)
-    private Artigo artigo;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "centro_custo_id")
-    private CentroCusto centroCusto;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seccao_homo_id")
-    private SeccaoHomo seccaoHomo;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utilizador_id", nullable = false)
@@ -81,6 +65,18 @@ public class Compra extends Auditable {
     @JoinColumn(name = "conta_bancaria_id")
     private ContaBancaria contaBancaria;
 
+    // --- Métodos Utilitários (Obrigatório para sincronizar relações bidirecionais) ---
+
+    public void addLinha(LinhaCompra linha) {
+        linhas.add(linha);
+        linha.setCompra(this);
+    }
+
+    public void removeLinha(LinhaCompra linha) {
+        linhas.remove(linha);
+        linha.setCompra(null);
+    }
+
     @PrePersist
     protected void onPrePersist() {
         if (dataCompra == null) {
@@ -89,7 +85,6 @@ public class Compra extends Auditable {
         if (valorPago == null) {
             valorPago = BigDecimal.ZERO;
         }
-        // 🛡️ FALLBACK: Garante que faturas antigas não partem o simulador
         if (dataVencimento == null) {
             dataVencimento = dataCompra;
         }

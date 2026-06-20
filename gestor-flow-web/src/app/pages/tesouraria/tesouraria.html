@@ -290,10 +290,7 @@
                                 <tr *ngFor="let linha of linhasSimuladorFiltradas" 
                                     [ngClass]="{'bg-light bg-opacity-50': linha.isAtual}">
                                     
-                                    <td class="small px-4" 
-                                        (click)="(!linha.isAtual && !linha.isProjecao) ? editarDataPagamento(linha) : false" 
-                                        [style.cursor]="(!linha.isAtual && !linha.isProjecao) ? 'pointer' : 'default'">
-        
+                                    <td class="small px-4">
                                         <span *ngIf="!linha.isAtual" class="fw-semibold text-secondary">
                                             {{ linha.data | date:'dd/MM' }}
                                             <span class="text-muted small d-block" style="font-size: 0.7rem;">{{ linha.data | date:'yyyy' }}</span>
@@ -304,7 +301,7 @@
                                         <div class="fw-bold" [ngClass]="linha.isAtual ? 'text-primary' : (linha.isProjecao ? 'text-secondary' : 'text-dark')">
                                             <i class="bi bi-magic me-2 text-warning" *ngIf="linha.isProjecao" title="Previsão de Plano Fixo"></i>
                                             {{ linha.descritivo }}
-                                            <i class="bi bi-calendar-event ms-2 text-primary small" *ngIf="!linha.isAtual && !linha.isProjecao" title="Fatura Pendente"></i>
+                                            <i class="ms-2 text-primary small" *ngIf="!linha.isAtual && !linha.isProjecao" title="Fatura Pendente"></i>
                                         </div>
                                         <div *ngIf="linha.descricao" class="text-muted small mt-1">
                                             {{ linha.descricao }}
@@ -323,23 +320,28 @@
                                     </td>
                                     
                                     <td class="text-center pe-4">
-                                        <button *ngIf="!linha.isAtual && !linha.isProjecao" 
-                                                class="btn btn-sm btn-dark rounded-pill fw-bold px-3" 
-                                                (click)="abrirModalConfirmacao($any(linha.documento))">
-                                            Liquidar
-                                        </button>
+                                        <div class="d-flex justify-content-end gap-1" *ngIf="!linha.isAtual && !linha.isProjecao">
+                                            <button class="btn btn-sm btn-dark rounded-pill fw-bold px-3" 
+                                                    (click)="abrirModalConfirmacao($any(linha.documento))">
+                                                Liquidar
+                                            </button>
+                                            <button class="btn btn-sm btn-light text-primary rounded-circle shadow-sm border" 
+                                                    (click)="editarDataPagamento(linha)" style="width: 32px; height: 32px; padding: 0;" title="Editar Data de Vencimento">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </div>
     
                                         <div class="d-flex justify-content-end gap-1" *ngIf="linha.isProjecao">
-                                            <button class="btn btn-sm btn-light text-primary fw-bold rounded-pill px-3" 
+                                            <button class="btn btn-sm btn-light text-primary fw-bold rounded-pill px-3 shadow-sm border" 
                                                 (click)="gerarFaturaDoPlano(linha)">
                                                 Efetivar
                                             </button>
-                                            <button class="btn btn-sm btn-light text-secondary rounded-circle" 
-                                                    (click)="editarLinhaProjecao(linha)" style="width: 32px; height: 32px; padding: 0;">
+                                            <button class="btn btn-sm btn-light text-secondary rounded-circle shadow-sm border" 
+                                                    (click)="editarLinhaProjecao(linha)" style="width: 32px; height: 32px; padding: 0;" title="Editar Plano Fixo">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-light text-danger rounded-circle" 
-                                                    (click)="apagarLinhaProjecao(linha)" style="width: 32px; height: 32px; padding: 0;">
+                                            <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm border" 
+                                                    (click)="apagarLinhaProjecao(linha)" style="width: 32px; height: 32px; padding: 0;" title="Apagar Plano Fixo">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>

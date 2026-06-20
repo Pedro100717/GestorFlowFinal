@@ -8,13 +8,15 @@
         <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ erroGeral }}
       </div>
       
-      <form (ngSubmit)="fazerRegisto()">
+      <form #formRegisto="ngForm" (ngSubmit)="fazerRegisto()">
         
         <div class="mb-3">
           <label class="form-label fw-bold small">Nome Completo</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0"><i class="bi bi-person"></i></span>
-            <input type="text" class="form-control border-start-0 ps-0" [ngClass]="{'is-invalid': erros.nomeUtilizador}" [(ngModel)]="nome" name="nome" placeholder="Seu Nome" required>
+            <input type="text" class="form-control border-start-0 ps-0" 
+                   [ngClass]="{'is-invalid': erros.nomeUtilizador}" 
+                   [(ngModel)]="nome" name="nome" placeholder="Seu Nome" required>
           </div>
           <div class="text-danger small mt-1 fw-semibold" *ngIf="erros.nomeUtilizador">
             {{ erros.nomeUtilizador }}
@@ -25,7 +27,9 @@
           <label class="form-label fw-bold small">Email</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0"><i class="bi bi-envelope"></i></span>
-            <input type="email" class="form-control border-start-0 ps-0" [ngClass]="{'is-invalid': erros.email}" [(ngModel)]="email" name="email" placeholder="email@exemplo.com" required>
+            <input type="email" class="form-control border-start-0 ps-0" 
+                   [ngClass]="{'is-invalid': erros.email}" 
+                   [(ngModel)]="email" name="email" placeholder="email@exemplo.com" required email>
           </div>
           <div class="text-danger small mt-1 fw-semibold" *ngIf="erros.email">
             {{ erros.email }}
@@ -36,15 +40,24 @@
           <label class="form-label fw-bold small">Senha</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0"><i class="bi bi-lock"></i></span>
-            <input type="password" class="form-control border-start-0 ps-0" [ngClass]="{'is-invalid': erros.senha}" [(ngModel)]="senha" name="senha" placeholder="******" required>
+            <input type="password" class="form-control border-start-0 ps-0" 
+                   [ngClass]="{'is-invalid': erros.senha || (senhaCtrl.invalid && senhaCtrl.touched)}" 
+                   [(ngModel)]="senha" name="senha" #senhaCtrl="ngModel"
+                   pattern="^(?=.*[0-9])(?=.*[A-Z]).{8,}$" 
+                   placeholder="******" required>
           </div>
           <div class="text-danger small mt-1 fw-semibold" *ngIf="erros.senha">
             {{ erros.senha }}
           </div>
+          <div class="text-danger small mt-1 fw-semibold" *ngIf="senhaCtrl.errors?.['pattern'] && senhaCtrl.touched && !erros.senha">
+            A senha deve ter no mínimo 8 caracteres, 1 letra maiúscula e 1 número.
+          </div>
         </div>
 
         <div class="d-grid gap-2">
-          <button type="submit" class="btn btn-primary btn-lg shadow-sm">Criar Conta Grátis</button>
+          <button type="submit" class="btn btn-primary btn-lg shadow-sm" [disabled]="formRegisto.invalid">
+            Criar Conta Grátis
+          </button>
         </div>
       </form>
 

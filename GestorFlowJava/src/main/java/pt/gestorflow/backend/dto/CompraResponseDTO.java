@@ -3,6 +3,7 @@ package pt.gestorflow.backend.dto;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 public class CompraResponseDTO {
@@ -11,35 +12,24 @@ public class CompraResponseDTO {
 
     // 🚀 O NOVO CAMPO: Para o Angular saber quando a fatura vence
     private LocalDate dataVencimento;
+    private LocalDate dataPrevistaPagamento;
 
     private String numeroFaturaFornecedor;
-    private String designacao;
-    private BigDecimal quantidade;
-    private BigDecimal precoUnitario;
-    private BigDecimal total;
+    private BigDecimal total; // Soma de todas as linhas
 
-    // 🛡️ Estado do Pagamento (PENDENTE ou PAGO)
+    // 🛡️ Estado do Pagamento (PENDENTE, PARCIALMENTE_PAGO, PAGO)
     private String estadoPagamento;
 
-    // --- Flat Fields (Campos Planos) ---
+    // --- Flat Fields do Cabeçalho ---
     private Long fornecedorId;
     private String fornecedorNome;
 
-    private Long artigoId;
-    private String artigoNome;
-
-    private Long centroCustoId;
-    private String centroCustoCodigo;
-
-    private Long seccaoHomoId;
-    private String seccaoHomoCodigo;
-
     private Long planoOrigemId;
 
-    private Long taxaIvaId;
-    private BigDecimal taxaIvaValor;
-
-    // 🛡️ A CORREÇÃO: Faltavam os campos da Conta Bancária!
+    // 🛡️ A CORREÇÃO MANTIDA: Campos da Conta Bancária
     private Long contaBancariaId;
     private String contaBancariaNome;
+
+    // 📦 A Lista de Artigos que a fatura contém
+    private List<LinhaCompraResponseDTO> linhas;
 }
