@@ -19,7 +19,7 @@
               <th class="border-0 text-muted small uppercase">Estado</th>
               <th class="border-0 text-muted small uppercase">Conta Movimentada</th>
               <th class="border-0 text-muted small uppercase">C. Custo</th>
-              <th class="border-0 text-muted small uppercase">Secção</th>
+              <th class="border-0 text-muted small uppercase">Secção Hom.</th> 
               <th class="border-0 text-muted small uppercase text-end">Total Fatura</th>
               <th class="border-0 text-muted small uppercase text-center pe-4">Ações</th>
             </tr>
@@ -69,17 +69,19 @@
                 </td>
                 
                 <td>
-                    <span *ngIf="c.linhas && c.linhas.length > 0 && c.linhas[0].centroCustoCodigo" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" title="{{c.linhas[0].centroCustoCodigo}}">
-                        {{ c.linhas[0].centroCustoCodigo }}
+                    <span class="badge bg-light text-primary border border-primary-subtle" 
+                          *ngIf="c.linhas && c.linhas.length > 0 && c.linhas[0].centroCustoNome; else semCC">
+                        {{ c.linhas[0].centroCustoNome }}
                     </span>
-                    <span *ngIf="!c.linhas || c.linhas.length === 0 || !c.linhas[0].centroCustoCodigo" class="text-muted small">-</span>
+                    <ng-template #semCC><span class="text-muted small">-</span></ng-template>
                 </td>
-                
+
                 <td>
-                    <span *ngIf="c.linhas && c.linhas.length > 0 && c.linhas[0].seccaoHomoCodigo" class="text-secondary small fw-bold">
-                        {{ c.linhas[0].seccaoHomoCodigo }}
+                    <span class="badge bg-light text-secondary border border-secondary-subtle" 
+                          *ngIf="c.linhas && c.linhas.length > 0 && c.linhas[0].seccaoHomoNome; else semSeccao">
+                        {{ c.linhas[0].seccaoHomoNome }}
                     </span>
-                    <span *ngIf="!c.linhas || c.linhas.length === 0 || !c.linhas[0].seccaoHomoCodigo" class="text-muted small">-</span>
+                    <ng-template #semSeccao><span class="text-muted small">-</span></ng-template>
                 </td>
                 
                 <td class="text-end fw-bold text-primary">{{ c.total | currency:'EUR' }}</td>
@@ -128,8 +130,9 @@
                                   "{{ linha.designacaoPersonalizada }}"
                                 </div>
                               </td>
-                              <td><span class="badge bg-light text-dark border">{{ linha.centroCustoCodigo || '-' }}</span></td>
-                              <td><span class="text-muted">{{ linha.seccaoHomoCodigo || '-' }}</span></td>
+                              <td><span class="badge bg-light text-dark border">{{ linha.centroCustoNome || '-' }}</span></td>
+                              <td><span class="text-muted">{{ linha.seccaoHomoNome || '-' }}</span></td>
+                              
                               <td class="text-end font-monospace fw-bold text-muted">{{ linha.quantidade }}</td>
                               <td class="text-end font-monospace">{{ linha.precoUnitario | currency:'EUR' }}</td>
                               <td class="text-end text-muted font-monospace">{{ linha.taxaIvaValor }}%</td>
@@ -241,6 +244,15 @@
                                 <option [ngValue]="null" disabled>Selecione...</option>
                                 <option *ngFor="let a of listaArtigos" [ngValue]="a.id">{{ a.nome }}</option>
                             </select>
+                            
+                            <ng-container *ngIf="linha.get('artigoId')?.value">
+                                <div *ngFor="let a of listaArtigos">
+                                    <div *ngIf="a.id === linha.get('artigoId')?.value && a.movimentaStock" class="form-text mt-1 text-primary fw-bold">
+                                        <i class="bi bi-box-seam me-1"></i> Stock Atual: {{ a.stockAtual || 0 }}
+                                    </div>
+                                </div>
+                            </ng-container>
+
                         </div>
                     </div>
         

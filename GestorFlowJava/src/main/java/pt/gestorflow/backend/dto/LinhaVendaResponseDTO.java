@@ -23,10 +23,12 @@ public class LinhaVendaResponseDTO {
 
     private String designacaoPersonalizada;
 
-    // 🚀 A Contabilidade Analítica assumiu o seu lugar correto aqui
+    // 🚀 Contabilidade Analítica - Agora com Códigos e Nomes!
     private Long centroCustoId;
     private String centroCustoCodigo;
+    private String centroCustoNome; // <-- NOVO
 
     private Long seccaoHomoId;
     private String seccaoHomoCodigo;
+    private String seccaoHomoNome; // <-- NOVO
 }

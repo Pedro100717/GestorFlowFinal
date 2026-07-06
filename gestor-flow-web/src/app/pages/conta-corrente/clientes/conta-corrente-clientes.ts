@@ -4,7 +4,7 @@ import { ContaCorrenteService } from '../../../services/conta-corrente.service';
 import { ContaCorrenteResumo, ContaCorrenteExtrato } from '../../../core/models/conta-corrente.model';
 import Swal from 'sweetalert2';
 
-// 🚀 1. DECLARAÇÃO GLOBAL (Obrigatório, igual aos Centros de Custo)
+// 🚀 DECLARAÇÃO GLOBAL (Obrigatório, igual aos Centros de Custo)
 declare var bootstrap: any;
 
 @Component({
@@ -40,7 +40,7 @@ export class ContaCorrenteClientesComponent implements OnInit {
 
   constructor(
     private ccService: ContaCorrenteService,
-    private cd: ChangeDetectorRef // 🚀 2. INJEÇÃO PARA ACORDAR O ANGULAR
+    private cd: ChangeDetectorRef // 🚀 INJEÇÃO PARA ACORDAR O ANGULAR
   ) {}
 
   ngOnInit(): void {
@@ -63,6 +63,7 @@ export class ContaCorrenteClientesComponent implements OnInit {
       error: (err) => {
         console.error(err);
         this.carregando = false;
+        Swal.fire('Erro', 'Não foi possível carregar os dados de resumo dos clientes.', 'error');
       }
     });
   }
@@ -78,7 +79,7 @@ export class ContaCorrenteClientesComponent implements OnInit {
     this.carregandoExtrato = true;
     this.extratoCliente = []; 
 
-    // 🚀 3. SET TIMEOUT PARA EVITAR ATROPELAMENTOS
+    // 🚀 SET TIMEOUT PARA EVITAR ATROPELAMENTOS NO DOM
     setTimeout(() => {
       const offcanvasEl = document.getElementById('offcanvasExtrato');
       if (offcanvasEl) {
@@ -97,6 +98,34 @@ export class ContaCorrenteClientesComponent implements OnInit {
       error: (err) => {
         console.error(err);
         this.carregandoExtrato = false;
+        this.cd.detectChanges();
+        Swal.fire('Erro', 'Não foi possível carregar o extrato do cliente selecionado.', 'error');
+      }
+    });
+  }
+
+  // 🚀 MÉTODO ATUALIZADO PARA EXPORTAR O EXTRATO EM PDF
+  exportarExtratoPdf(): void {
+    if (!this.clienteSelecionado || !this.clienteSelecionado.clienteId) {
+      Swal.fire('Aviso', 'Nenhum cliente selecionado para exportação.', 'warning');
+      return;
+    }
+
+    this.carregandoExtrato = true; 
+    this.cd.detectChanges();
+
+    this.ccService.extrairPdfExtratoCliente(this.clienteSelecionado.clienteId).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        this.carregandoExtrato = false;
+        this.cd.detectChanges();
+      },
+      error: (err) => {
+        console.error('Erro ao exportar PDF:', err);
+        this.carregandoExtrato = false;
+        this.cd.detectChanges();
+        Swal.fire('Erro', 'Não foi possível gerar o extrato em PDF. Verifica o estado do servidor.', 'error');
       }
     });
   }

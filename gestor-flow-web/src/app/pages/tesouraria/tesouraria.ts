@@ -46,12 +46,9 @@ export interface LinhaSimulador {
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './tesouraria.html',
   styleUrls: ['./tesouraria.scss'],
-  // 🚀 INFRAESTRUTURA DE ANIMAÇÕES: O Angular assume o controlo total do ciclo de vida e renderização do DOM
   animations: [
     trigger('expandirTabela', [
-      state('normal', style({
-        // Estado base (na grelha original)
-      })),
+      state('normal', style({})),
       state('expandido', style({
         position: 'fixed',
         top: '80px', left: '260px', right: '20px', bottom: '20px',
@@ -64,20 +61,16 @@ export interface LinhaSimulador {
         transform: 'scale(1) translateY(0)'
       })),
       
-      // 🚀 ABRIR: A animação elegante de "Pop In" que gostavas!
       transition('normal => expandido', [
-        // 1. Salta para o centro invisível e ligeiramente mais pequeno/baixo
         style({ 
           position: 'fixed', top: '80px', left: '260px', right: '20px', bottom: '20px',
           zIndex: 1040, backgroundColor: 'white',
           opacity: 0, 
           transform: 'scale(0.95) translateY(25px)' 
         }),
-        // 2. Cresce suavemente para o tamanho final
         animate('400ms cubic-bezier(0.25, 1, 0.5, 1)')
       ]),
 
-      // 🚀 FECHAR: O encolhimento relâmpago para não piscar
       transition('expandido => normal', [
         animate('150ms ease-in-out', style({ 
           opacity: 0, 
@@ -91,7 +84,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   abaAtiva: 'contas' | 'pendentes' | 'simulador' = 'contas'; 
   
-  // 🚀 ESTADO DA UI LIMPO: Apenas o interruptor essencial. Sem hacks de temporizadores.
   isTableExpanded: boolean = false;
   planoEmEdicaoId: number | null = null; 
 
@@ -113,16 +105,12 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   formTransferencia!: FormGroup;
   formConfirmacao!: FormGroup; 
   formPlaneamento!: FormGroup; 
-  
-  // O FORMULÁRIO DE FILTROS
   formFiltros!: FormGroup;
 
   // --- SIMULADOR ---
   simulacaoAtual: SimuladorTesourariaDTO | null = null;
   chartInstance: Chart | undefined;
   linhasSimulador: LinhaSimulador[] = []; 
-  
-  // O ARRAY QUE A TABELA VAI LER AGORA
   linhasSimuladorFiltradas: LinhaSimulador[] = []; 
   
   saldoAtualTotal: number = 0;
@@ -137,10 +125,9 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     private router: Router
   ) {}
 
-  // 🚀 MÉTODOS DE UI PURIFICADO
   toggleExpand() {
     this.isTableExpanded = !this.isTableExpanded;
-    this.cd.detectChanges(); // Força a verificação imediata para disparar o gatilho da animação
+    this.cd.detectChanges();
   }
 
   ngOnInit() {
@@ -174,10 +161,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     this.carregarPlanos();
   }
 
-  // =========================================================================
-  // --- HELPER SEGURO DE DATAS ---
-  // =========================================================================
-  
   private parseDataSegura(dataStr: string): Date {
     if (!dataStr) return new Date();
     const cleanStr = dataStr.split('T')[0];
@@ -186,7 +169,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   // =========================================================================
-  // --- MÓDULO DE PLANEAMENTO (CASH FLOW PURO) ---
+  // --- MÓDULO DE PLANEAMENTO ---
   // =========================================================================
 
   carregarPlanos() {
@@ -271,10 +254,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       this.carregarSimulador();
     });
   }
-
-  // =========================================================================
-  // --- A MÁQUINA DO TEMPO: EDIÇÕES E APAGÕES PONTUAIS NO SIMULADOR ---
-  // =========================================================================
 
   apagarLinhaProjecao(linha: LinhaSimulador) { 
     const planoOriginal = mergeLinhaPlano(linha);
@@ -422,13 +401,9 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     return data.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
   }
 
-  // =========================================================================
-  // --- EFETIVAÇÃO EM FATURAS ---
-  // =========================================================================
-
   gerarFaturaDoPlano(linha: LinhaSimulador) { 
     const plano = mergeLinhaPlano(linha);
-    const dataProjetada = linha.data.split('T')[0]; 
+    const dataProjetada = inlineDataString(linha); 
 
     if (!plano || !plano.id) return;
 
@@ -457,7 +432,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   // =========================================================================
-  // --- MOTOR GRÁFICO & SIMULADOR COM HORIZONTE ELÁSTICO ---
+  // --- MOTOR GRÁFICO & SIMULADOR ---
   // =========================================================================
   
   atualizarGraficoSimulador() {
@@ -531,7 +506,10 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
-    let limiteProjecao = new Date(hoje.getFullYear() + 1, hoje.getMonth(), hoje.getDate());
+    
+    // 🚀 ALTERADO: O limite de projeção base passa a gerar até 5 anos (Filtro Máximo) 
+    // para garantir que os planos infinitos povoam a tabela quando o utilizador escolhe prazos largos.
+    let limiteProjecao = new Date(hoje.getFullYear() + 5, hoje.getMonth(), hoje.getDate());
 
     this.listaPlanos.filter(p => p.ativo !== false).forEach(p => {
       const dataIni = this.parseDataSegura(p.dataInicio);
@@ -652,7 +630,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       if (result.isConfirmed) {
         this.tesourariaService.alterarDataPrevista(linha.documento!.id, linha.documento!.tipo, result.value).subscribe({
           next: () => {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Data atualizada!', timer: 2000, showConfirmButton: false });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Data updated!', timer: 2000, showConfirmButton: false });
             this.carregarPendentes();
             this.carregarSimulador();
           },
@@ -730,14 +708,13 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     this.formFiltros.valueChanges.subscribe(() => this.aplicarFiltrosTabela());
   }
 
+  // 🚀 MODIFICADO: Sistema de filtragem recalibrado para os novos horizontes estratégicos
   aplicarFiltrosTabela() {
     if (!this.formFiltros) return;
     
     const filtros = this.formFiltros.value;
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
-    const fimDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
-    const fim3Meses = new Date(hoje.getFullYear(), hoje.getMonth() + 3, 0);
 
     this.linhasSimuladorFiltradas = this.linhasSimulador.filter(linha => {
       if (linha.isAtual) return true;
@@ -748,13 +725,57 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       if (filtros.natureza === 'REAIS' && linha.isProjecao) return false;
       if (filtros.natureza === 'PLANOS' && !linha.isProjecao) return false;
 
+      // Cálculo dinâmico das novas balizas do horizonte temporal
       if (filtros.periodo !== 'TUDO') {
         const dataLinha = new Date(linha.dataObj);
-        if (filtros.periodo === 'ESTE_MES' && dataLinha > fimDoMes) return false;
-        if (filtros.periodo === 'TRES_MESES' && dataLinha > fim3Meses) return false;
+        
+        if (filtros.periodo === '6_MESES') {
+          const limite = new Date(hoje.getFullYear(), hoje.getMonth() + 6, hoje.getDate());
+          if (dataLinha > limite) return false;
+        }
+        else if (filtros.periodo === '1_ANO') {
+          const limite = new Date(hoje.getFullYear() + 1, hoje.getMonth(), hoje.getDate());
+          if (dataLinha > limite) return false;
+        }
+        else if (filtros.periodo === '2_ANOS') {
+          const limite = new Date(hoje.getFullYear() + 2, hoje.getMonth(), hoje.getDate());
+          if (dataLinha > limite) return false;
+        }
+        else if (filtros.periodo === '3_ANOS') {
+          const limite = new Date(hoje.getFullYear() + 3, hoje.getMonth(), hoje.getDate());
+          if (dataLinha > limite) return false;
+        }
+        else if (filtros.periodo === '5_ANOS') {
+          const limite = new Date(hoje.getFullYear() + 5, hoje.getMonth(), hoje.getDate());
+          if (dataLinha > limite) return false;
+        }
       }
 
       return true; 
+    });
+  }
+
+  exportarEvolucaoPdf() {
+    const filtros = this.formFiltros.value;
+    const params = `?fluxo=${filtros.fluxo}&natureza=${filtros.natureza}&periodo=${filtros.periodo}`;
+
+    Swal.fire({
+      title: 'A gerar documento...',
+      text: 'A compilar a linha do tempo e a calcular saldos.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    this.tesourariaService.extrairEvolucaoPdf(params).subscribe({
+      next: (blob: Blob) => {
+        Swal.close();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: (err) => {
+        console.error('Erro ao gerar PDF:', err);
+        Swal.fire('Erro', 'Não foi possível extrair a evolução em PDF.', 'error');
+      }
     });
   }
 
@@ -773,10 +794,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     cli?.updateValueAndValidity();
     fornc?.updateValueAndValidity();
   }
-
-  // =========================================================================
-  // --- ACÇÕES FINANCEIRAS CORE ---
-  // =========================================================================
 
   carregarEntidades() {
     this.clienteService.listar().subscribe((res: unknown) => {
@@ -890,11 +907,14 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 }
 
-// Helpers puros fora da classe para manter o código limpo
 function mergeLinhaPlano(l: LinhaSimulador): MovimentoPlaneado {
   return l.planoAssociado!;
 }
 
 function inlineVal(v: number | null | undefined): number {
   return v || 0;
+}
+
+function inlineDataString(l: LinhaSimulador): string {
+  return l.data.split('T')[0];
 }

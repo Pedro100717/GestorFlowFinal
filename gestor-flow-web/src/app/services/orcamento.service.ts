@@ -60,7 +60,6 @@ export class OrcamentoService {
   converterEmVenda(id: number, contaBancariaId: number): Observable<void> {
     return this.http.post<void>(`${this.API_URL}/${id}/converter?contaBancariaId=${contaBancariaId}`, {}).pipe(
       tap(() => {
-        // Atualiza a memória na hora
         const lista = this.orcamentosSubject.getValue();
         this.orcamentosSubject.next(lista.map(o => {
           if (o.id === id) {
@@ -79,5 +78,11 @@ export class OrcamentoService {
         this.orcamentosSubject.next(lista.filter(o => o.id !== id));
       })
     );
+  }
+
+  // 🚀 NOVO MÉTODO: Extração do PDF
+  abrirPdfOrcamento(id: number): Observable<Blob> {
+    // responseType 'blob' é fundamental para receber ficheiros em vez de JSON
+    return this.http.get(`${environment.apiUrl}/reports/orcamento/pdf/${id}`, { responseType: 'blob' });
   }
 }

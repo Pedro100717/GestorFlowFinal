@@ -5,17 +5,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pt.gestorflow.backend.model.EstadoPagamento;
 import pt.gestorflow.backend.model.Venda;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 public interface VendaRepository extends JpaRepository<Venda, Long> {
 
-    // 🚀 OTIMIZADO COM ANALÍTICA: Traz o cliente, conta, linhas e TUDO o que está dentro das linhas de uma vez! (Zero N+1)
     @EntityGraph(attributePaths = {
             "cliente",
             "contaBancaria",
@@ -27,7 +27,6 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
     })
     Page<Venda> findAllByUtilizadorId(Long utilizadorId, Pageable pageable);
 
-    // 🛡️ Segurança IDOR com Entity Graph completo para os detalhes da fatura
     @EntityGraph(attributePaths = {
             "cliente",
             "contaBancaria",
@@ -39,15 +38,29 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
     })
     Optional<Venda> findByIdAndUtilizadorId(Long id, Long utilizadorId);
 
+    // ==========================================
     // -- DASHBOARDS --
-    @Query("SELECT COALESCE(SUM(v.totalComIva), 0) FROM Venda v WHERE v.utilizador.id = :userId")
-    BigDecimal totalVendasReais(Long userId);
+    // ==========================================
 
-    List<Venda> findTop5ByUtilizadorIdOrderByDataVendaDesc(Long utilizadorId);
+    @Query("SELECT COALESCE(SUM(v.totalComIva), 0) FROM Venda v " +
+            "WHERE v.utilizador.id = :userId " +
+            "AND v.dataVenda >= :inicio AND v.dataVenda <= :fim")
+    BigDecimal totalVendasReais(@Param("userId") Long userId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT COALESCE(SUM(v.totalSemIva), 0) FROM Venda v " +
+            "WHERE v.utilizador.id = :userId " +
+            "AND v.dataVenda >= :inicio AND v.dataVenda <= :fim")
+    BigDecimal totalVendasBase(@Param("userId") Long userId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @EntityGraph(attributePaths = {"linhas", "linhas.artigo"})
+    @Query("SELECT v FROM Venda v " +
+            "WHERE v.utilizador.id = :userId " +
+            "AND v.dataVenda >= :inicio AND v.dataVenda <= :fim " +
+            "ORDER BY v.dataVenda DESC")
+    List<Venda> findRecentVendas(@Param("userId") Long userId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim, Pageable pageable);
 
     @Query("SELECT COALESCE(SUM(v.totalComIva), 0) FROM Venda v WHERE v.utilizador.id = :userId AND v.dataVenda BETWEEN :inicio AND :fim")
-    BigDecimal totalVendasPorPeriodo(Long userId, LocalDateTime inicio, LocalDateTime fim);
+    BigDecimal totalVendasPorPeriodo(Long userId, LocalDate inicio, LocalDate fim);
 
-    // 🚀 A MUDANÇA INDUSTRIAL FINAL: 'In' no nome do método para suportar PENDENTE e PARCIALMENTE_PAGO
     List<Venda> findAllByUtilizadorIdAndEstadoPagamentoIn(Long utilizadorId, List<EstadoPagamento> estados);
 }

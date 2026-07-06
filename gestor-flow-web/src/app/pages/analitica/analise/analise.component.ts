@@ -159,4 +159,21 @@ export class AnaliseComponent implements OnInit {
       this.totalGeralSaldoIva += g.subtotalSaldoIva;
     });
   }
+
+  gerarPdfDashboard() {
+    this.carregando = true; // Feedback visual opcional
+    this.analiticaService.extrairPdfDashboard().subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        this.carregando = false;
+      },
+      error: (err) => {
+        console.error('Erro na exportação:', err);
+        this.carregando = false;
+        // Se usares SweetAlert, podes adicionar aqui:
+        // Swal.fire('Erro', 'Não foi possível gerar o PDF.', 'error');
+      }
+    });
+  }
 }

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Evolução de Saldo (Tesouraria)</title>
+    <style>
+        /* Configurações de Página para PDF */
+        @page {
+            size: A4 portrait;
+            margin: 15mm 20mm 20mm 20mm;
+            @bottom-center {
+                content: element(footer);
+            }
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #333333;
+            margin: 0;
+        }
+
+        /* Utilitários */
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .fw-bold { font-weight: bold; }
+        .text-danger { color: #dc2626; }
+        .text-success { color: #16a34a; }
+        .text-muted { color: #64748b; }
+
+        /* Cabeçalho */
+        .header-table { width: 100%; border-bottom: 2px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px; }
+        .empresa-nome { font-size: 14px; font-weight: bold; color: #0f172a; margin: 0 0 4px 0; }
+        .empresa-info { font-size: 9px; color: #475569; margin: 2px 0; }
+        .doc-title { font-size: 20px; font-weight: bold; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase; }
+
+        /* Bloco de Resumo (Saldos) */
+        .info-table { width: 100%; margin-bottom: 25px; }
+        .info-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 12px; }
+        .info-label { font-size: 9px; color: #64748b; text-transform: uppercase; margin: 0 0 4px 0; font-weight: bold; }
+        .saldo-valor { font-size: 18px; font-weight: bold; margin: 0; }
+        .filtro-label { font-size: 10px; color: #4F46E5; font-weight: bold; margin-top: 10px; padding: 5px; background-color: #e0e7ff; border-radius: 3px; display: inline-block; }
+
+        /* Tabela de Movimentos */
+        .movimentos-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .movimentos-table th {
+            background-color: #1e293b; color: #ffffff;
+            font-size: 10px; font-weight: bold; text-transform: uppercase;
+            padding: 8px; text-align: left;
+        }
+        .movimentos-table th.right { text-align: right; }
+
+        .movimentos-table td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px; vertical-align: middle;
+        }
+
+        .movimentos-table tr:nth-child(even) { background-color: #f8fafc; }
+
+        /* Estilo para Linhas de Projeção (Previsões) */
+        .projecao-row { color: #64748b; font-style: italic; }
+        .badge-projecao { background-color: #fef08a; color: #854d0e; padding: 2px 4px; border-radius: 2px; font-size: 8px; font-weight: bold; margin-left: 5px; font-style: normal; text-transform: uppercase;}
+
+        .desc-principal { font-weight: bold; font-size: 11px; margin: 0; }
+
+        /* Rodapé Fixo no PDF */
+        .footer {
+            position: running(footer);
+            width: 100%; text-align: center;
+            font-size: 8px; color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 5px;
+        }
+        .page-number:before { content: counter(page); }
+        .page-count:before { content: counter(pages); }
+    </style>
+</head>
+<body>
+
+<table class="header-table">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            <p class="empresa-nome" th:text="${empresaNome}">Nome da Empresa</p>
+            <p class="empresa-info">NIF: <span th:text="${empresaNif}"></span></p>
+            <p class="empresa-info" th:text="${empresaMorada}"></p>
+        </td>
+        <td style="width: 50%; vertical-align: top; text-align: right;">
+            <h1 class="doc-title">Evolução de Saldo</h1>
+            <p class="empresa-info"><strong>Data de Extração:</strong> <span th:text="${dataExtracao}"></span></p>
+            <p class="empresa-info"><strong>Moeda Base:</strong> EUR (€)</p>
+        </td>
+    </tr>
+</table>
+
+<div class="filtro-label" th:text="${filtroLabel}">Filtros Ativos: TUDO</div>
+
+<table class="info-table" style="margin-top: 15px;">
+    <tr>
+        <td class="info-box text-center" style="width: 48%;">
+            <p class="info-label">Saldo Atual (Início da Timeline)</p>
+            <h2 class="saldo-valor text-muted" th:text="${saldoInicial}">€ 0.00</h2>
+        </td>
+        <td style="width: 4%;"></td>
+        <td class="info-box text-center" style="width: 48%;">
+            <p class="info-label">Saldo Final (Após Movimentos)</p>
+            <h2 class="saldo-valor text-primary" th:text="${saldoFinal}">€ 0.00</h2>
+        </td>
+    </tr>
+</table>
+
+<table class="movimentos-table">
+    <thead>
+    <tr>
+        <th style="width: 12%;">DATA</th>
+        <th style="width: 40%;">DESCRIÇÃO DO MOVIMENTO</th>
+        <th style="width: 16%;" class="right">SAÍDAS</th>
+        <th style="width: 16%;" class="right">ENTRADAS</th>
+        <th style="width: 16%;" class="right">SALDO ROLANTE</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="linha : ${linhas}" th:classappend="${linha.isProjecao == 'true'} ? 'projecao-row' : ''">
+        <td th:text="${linha.data}">01/01/2026</td>
+        <td>
+            <span class="desc-principal" th:text="${linha.descricao}">Pagamento Fatura</span>
+            <span th:if="${linha.isProjecao == 'true'}" class="badge-projecao">Previsão</span>
+        </td>
+        <td class="text-right text-danger" th:text="${linha.debito}">-</td>
+        <td class="text-right text-success" th:text="${linha.credito}">-</td>
+        <td class="text-right fw-bold" th:text="${linha.saldo}">-</td>
+    </tr>
+
+    <tr th:if="${#lists.isEmpty(linhas)}">
+        <td colspan="5" class="text-center text-muted" style="padding: 40px 10px;">
+            Não existem movimentos reais nem previsões para os filtros selecionados.
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<div class="footer">
+    Documento processado via GestorFlow | Extraído a <span th:text="${dataExtracao}"></span> | Página <span class="page-number"></span> de <span class="page-count"></span>
+</div>
+
+</body>
+</html>

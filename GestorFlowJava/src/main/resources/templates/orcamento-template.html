@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Orçamento</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .header-table td {
+            border: none;
+            padding: 0;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .bold { font-weight: bold; }
+        .bg-gray { background-color: #f2f2f2; }
+        .section-title {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: center;
+            font-size: 12px;
+            padding: 5px;
+            border: 1px solid #000;
+        }
+        .no-border-bottom { border-bottom: none; }
+        .no-border-top { border-top: none; }
+    </style>
+</head>
+<body>
+
+<table class="header-table" style="margin-bottom: 20px;">
+    <tr>
+        <td style="width: 30%;">
+            <h2 style="color: #4F46E5; margin: 0;">GESTOR<span style="color: #94A3B8; font-weight: 300;">FLOW</span></h2>
+        </td>
+        <td style="width: 70%; text-align: right; line-height: 1.4;">
+            <span class="bold" style="font-size: 14px;" th:text="${empresaNome}">Nome da Empresa, Lda</span><br/>
+            NIF: <span th:text="${empresaNif}"></span><br/>
+            <span th:text="${empresaMorada}"></span>
+        </td>
+    </tr>
+</table>
+
+<table>
+    <tr>
+        <td class="text-center">Orçamento nº: <span class="bold" th:text="${orcamento.numero}">15</span></td>
+        <td class="text-center">Emitido em: <span class="bold" th:text="${orcamento.dataEmissao}">01/01/2026</span></td>
+        <td class="text-center">Válido até: <span class="bold" th:text="${orcamento.dataValidade}">31/01/2026</span></td>
+    </tr>
+</table>
+
+<div class="section-title">DADOS DO CLIENTE</div>
+<table>
+    <tr>
+        <td style="width: 15%;" class="bold">CLIENTE</td>
+        <td colspan="3" th:text="${cliente.nome}">Pedro Santos</td>
+    </tr>
+    <tr>
+        <td class="bold">TELEFONE</td>
+        <td style="width: 35%;" th:text="${cliente.telefone}">919 999 999</td>
+        <td style="width: 15%;" class="bold">EMAIL</td>
+        <td style="width: 35%;" th:text="${cliente.email}">cliente@gmail.com</td>
+    </tr>
+    <tr>
+        <td class="bold">NIF</td>
+        <td th:text="${cliente.nif}">999 999 999</td>
+        <td class="bold">DISTRITO</td>
+        <td th:text="${cliente.distrito}">Porto</td>
+    </tr>
+    <tr>
+        <td class="bold">ENDEREÇO</td>
+        <td colspan="3" th:text="${cliente.endereco} + ' | ' + ${cliente.codigoPostal} + ' ' + ${cliente.cidade}">Rua do Cliente, nº 1000 | 4000-123 Porto</td>
+    </tr>
+</table>
+
+<div class="section-title" style="margin-top: 10px;">ORÇAMENTO</div>
+<table>
+    <thead>
+    <tr class="bg-gray text-center bold">
+        <th style="width: 10%;">ITEM</th>
+        <th style="width: 45%;">PRODUTO/SERVIÇO</th>
+        <th style="width: 15%;">QUANT.</th>
+        <th style="width: 15%;">VALOR UNIT.</th>
+        <th style="width: 15%;">SUB-TOTAL</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="item, iterStat : ${itens}" class="text-center">
+        <td th:text="${iterStat.count}">1</td>
+        <td class="text-left" th:text="${item.descricao}">Serviço 1</td>
+        <td th:text="${item.quantidade}">1</td>
+        <td th:text="${item.valorUnitario} + ' €'">1.000,00 €</td>
+        <td th:text="${item.subTotal} + ' €'">1.000,00 €</td>
+    </tr>
+    </tbody>
+</table>
+
+<table>
+    <tr class="text-center bold">
+        <td style="width: 33%;">SUB-TOTAL GERAL:<br/><span th:text="${orcamento.subTotalGeral} + ' €'">8.915,99 €</span></td>
+        <td style="width: 34%;">DESCONTO:<br/><span th:text="${orcamento.desconto} + ' €'">0,00 €</span></td>
+        <td style="width: 33%; background-color: #f2f2f2;">TOTAL GERAL:<br/><span th:text="${orcamento.totalGeral} + ' €'">8.915,99 €</span></td>
+    </tr>
+</table>
+
+<div class="section-title" style="margin-top: 10px;">OBSERVAÇÕES</div>
+<table style="margin-bottom: 40px;">
+    <tr>
+        <td style="height: 60px; vertical-align: top;">
+            <span class="bold">FORMA DE PAGAMENTO:</span> <span th:text="${orcamento.formaPagamento}">Pronto Pagamento</span><br/><br/>
+            <span th:text="${orcamento.observacoes}">Aqui estão as observações para este pedido.</span>
+        </td>
+    </tr>
+</table>
+
+<table class="header-table">
+    <tr>
+        <td class="text-center" style="width: 50%;">
+            ___________________________________________________<br/>
+            <span th:text="${empresaNome}">Minha Empresa, Lda</span>
+        </td>
+        <td class="text-center" style="width: 50%;">
+            ___________________________________________________<br/>
+            <span th:text="${cliente.nome}">Pedro Santos</span>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>

@@ -28,6 +28,8 @@ public class VendaResponseDTO {
     private Long contaBancariaId;
     private String contaBancariaNome;
 
+    private String designacao;
+
     // 📦 A Lista de Artigos e Serviços que a fatura contém
     private List<LinhaVendaResponseDTO> linhas;
 }

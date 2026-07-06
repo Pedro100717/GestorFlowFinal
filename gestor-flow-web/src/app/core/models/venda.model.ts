@@ -26,8 +26,11 @@ export interface LinhaVenda {
     // 🚀 Analítica (Mudou-se para aqui!)
     centroCustoId?: number;
     centroCustoCodigo?: string;
+    centroCustoNome?: string;
+
     seccaoHomoId?: number;
     seccaoHomoCodigo?: string;
+    seccaoHomoNome?: string;
 
     designacaoPersonalizada?: string;
 }

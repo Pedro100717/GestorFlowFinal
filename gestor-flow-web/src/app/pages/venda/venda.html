@@ -19,6 +19,7 @@
                 <th class="border-0 text-muted small uppercase">Estado</th>
                 <th class="border-0 text-muted small uppercase">Conta Movimentada</th>
                 <th class="border-0 text-muted small uppercase">C. Custo</th>
+                <th class="border-0 text-muted small uppercase">Secção Hom.</th>
                 <th class="border-0 text-muted small uppercase text-end">Total da Venda</th>
                 <th class="border-0 text-muted small uppercase text-center pe-4">Ações</th>
               </tr>
@@ -67,10 +68,19 @@
                   </td>
                   
                   <td>
-                      <span *ngIf="v.linhas && v.linhas.length > 0 && v.linhas[0].centroCustoCodigo" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" title="{{v.linhas[0].seccaoHomoCodigo}}">
-                          {{ v.linhas[0].centroCustoCodigo }}
+                      <span class="badge bg-light text-primary border border-primary-subtle" 
+                            *ngIf="v.linhas && v.linhas.length > 0 && v.linhas[0].centroCustoNome; else semCC">
+                          {{ v.linhas[0].centroCustoNome }}
                       </span>
-                      <span *ngIf="!v.linhas || v.linhas.length === 0 || !v.linhas[0].centroCustoCodigo" class="text-muted small">-</span>
+                      <ng-template #semCC><span class="text-muted small">-</span></ng-template>
+                  </td>
+
+                  <td>
+                      <span class="badge bg-light text-secondary border border-secondary-subtle" 
+                            *ngIf="v.linhas && v.linhas.length > 0 && v.linhas[0].seccaoHomoNome; else semSeccao">
+                          {{ v.linhas[0].seccaoHomoNome }}
+                      </span>
+                      <ng-template #semSeccao><span class="text-muted small">-</span></ng-template>
                   </td>
                   
                   <td class="text-end fw-bold text-success">{{ v.totalComIva | currency:'EUR' }}</td>
@@ -92,7 +102,7 @@
                 </tr>
             
                 <tr *ngIf="faturasExpandidas.has(v.id!)" class="bg-light bg-opacity-50">
-                  <td colspan="9" class="p-3">
+                  <td colspan="10" class="p-3">
                     <div class="card border border-secondary border-opacity-25 shadow-sm mx-3">
                       <div class="card-header bg-white py-2 small fw-bold text-secondary text-uppercase">
                         <i class="bi bi-list-nested me-2"></i>Descriminação dos Itens da Fatura #{{ v.id }}
@@ -118,8 +128,9 @@
                                   "{{ linha.designacaoPersonalizada }}"
                                 </div>
                               </td>
-                              <td><span class="badge bg-light text-dark border">{{ linha.centroCustoCodigo || '-' }}</span></td>
-                              <td><span class="text-muted">{{ linha.seccaoHomoCodigo || '-' }}</span></td>
+                              <td><span class="badge bg-light text-dark border">{{ linha.centroCustoNome || '-' }}</span></td>
+                              <td><span class="text-muted">{{ linha.seccaoHomoNome || '-' }}</span></td>
+                              
                               <td class="text-end font-monospace fw-bold text-muted">{{ linha.quantidade }}</td>
                               <td class="text-end font-monospace">{{ linha.precoUnitario | currency:'EUR' }}</td>
                               <td class="text-end text-muted font-monospace">{{ linha.taxaIvaValor }}%</td>
@@ -134,7 +145,7 @@
               </ng-container>
             
               <tr *ngIf="listaVendas.length === 0">
-                  <td colspan="9" class="text-center py-5 text-muted">
+                  <td colspan="10" class="text-center py-5 text-muted">
                     <i class="bi bi-receipt fs-1 d-block mb-2 opacity-50"></i>
                     <span class="fw-bold">Ainda não há vendas registadas.</span>
                   </td>

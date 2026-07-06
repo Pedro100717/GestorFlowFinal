@@ -38,15 +38,23 @@
                 <td class="text-end fw-bold">{{ o.totalComIva | currency:'EUR' }}</td>
                 <td class="text-end pe-4">
                     
-                    <button *ngIf="o.estado !== 'CONVERTIDO_VENDA'" 
-                            class="btn btn-sm btn-success me-2" 
+                    <!-- <button *ngIf="o.estado !== 'CONVERTIDO_VENDA'" 
+                            class="btn btn-sm btn-success me-1" 
                             title="Converter em Venda e Abater Stock"
                             (click)="prepararConversao(o)">
                         <i class="bi bi-check2-circle"></i>
+                    </button> -->
+
+                    <button class="btn btn-sm btn-light me-1" 
+                            title="Ver PDF"
+                            (click)="visualizarPdf(o.id)">
+                        <i class="bi bi-file-earmark-pdf text-danger"></i>
                     </button>
 
-                    <button class="btn btn-sm btn-light text-primary" (click)="editar(o)">
-                        <i class="bi bi-eye"></i>
+                    <button class="btn btn-sm btn-light text-primary" 
+                            title="Editar Orçamento"
+                            (click)="editar(o)">
+                        <i class="bi bi-pencil"></i>
                     </button>
                 </td>
               </tr>

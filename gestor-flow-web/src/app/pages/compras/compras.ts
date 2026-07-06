@@ -310,6 +310,11 @@ export class ComprasComponent implements OnInit, AfterViewInit {
           next: () => {
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Fatura eliminada e stock reposto!'});
             this.tesourariaService.notificarNovaTransacao(); 
+            
+            // 🚀 Atualizar o Stock após anulação
+            this.artigoService.listar().subscribe(res => {
+                this.listaArtigos = res.content || res;
+            });
           },
           error: (e) => Swal.fire('Erro Interno', e.error?.message || 'Falha ao anular.', 'error')
         });
@@ -335,15 +340,21 @@ export class ComprasComponent implements OnInit, AfterViewInit {
         ? this.compraService.atualizar(this.compraEmEdicao.id!, payload)
         : this.compraService.registar(payload);
     
-    operacao$.subscribe({
-      next: () => {
-        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: this.compraEmEdicao ? 'Atualizado com sucesso!' : 'Registado com sucesso!' });
-        this.tesourariaService.notificarNovaTransacao();
-        this.planoOrigemId = null;
-        this.planoOrigemDescricao = '';
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCompra'));
-        modal?.hide();
-      },
+        operacao$.subscribe({
+          next: () => {
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: this.compraEmEdicao ? 'Atualizado com sucesso!' : 'Registado com sucesso!' });
+            this.tesourariaService.notificarNovaTransacao();
+            
+            // 🚀 Atualizar o Stock no ecrã
+            this.artigoService.listar().subscribe(res => {
+                this.listaArtigos = res.content || res;
+            });
+    
+            this.planoOrigemId = null;
+            this.planoOrigemDescricao = '';
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalCompra'));
+            modal?.hide();
+          },
       error: (e: any) => Swal.fire({ icon: 'error', title: 'Falha a gravar', text: e.error?.message, confirmButtonColor: '#0d6efd'})
     });
   }

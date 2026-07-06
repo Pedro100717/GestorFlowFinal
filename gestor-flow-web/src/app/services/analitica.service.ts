@@ -85,4 +85,8 @@ export class AnaliticaService {
   obterDashboardAnalitico(): Observable<AnaliseDashboard[]> {
     return this.http.get<AnaliseDashboard[]>(`${this.API_ANALISE}/dashboard`);
   }
+
+  extrairPdfDashboard(): Observable<Blob> {
+    return this.http.get(`${environment.apiUrl}/reports/dashboard/pdf`, { responseType: 'blob' });
+  }
 }

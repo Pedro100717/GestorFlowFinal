@@ -25,9 +25,10 @@
           <option *ngFor="let s of listaSeccoes" [value]="s.codigo">{{ s.nome }}</option>
         </select>
   
-        <button class="btn btn-primary btn-sm d-flex align-items-center" (click)="carregarDados()" [disabled]="carregando">
-          <i class="bi bi-arrow-clockwise me-2" [class.fa-spin]="carregando"></i>Atualizar
+        <button class="btn btn-danger btn-sm d-flex align-items-center" (click)="gerarPdfDashboard()" [disabled]="carregando">
+            <i class="bi bi-file-earmark-pdf me-2"></i>Exportar PDF
         </button>
+        
       </div>
     </div>
   

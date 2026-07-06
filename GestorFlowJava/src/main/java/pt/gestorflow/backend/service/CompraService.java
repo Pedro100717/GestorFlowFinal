@@ -308,10 +308,12 @@ public class CompraService {
                 if (linha.getCentroCusto() != null) {
                     lDto.setCentroCustoId(linha.getCentroCusto().getId());
                     lDto.setCentroCustoCodigo(linha.getCentroCusto().getCodigo());
+                    lDto.setCentroCustoNome(linha.getCentroCusto().getNome());
                 }
                 if (linha.getSeccaoHomo() != null) {
                     lDto.setSeccaoHomoId(linha.getSeccaoHomo().getId());
                     lDto.setSeccaoHomoCodigo(linha.getSeccaoHomo().getCodigo());
+                    lDto.setSeccaoHomoNome(linha.getSeccaoHomo().getNome());
                 }
                 return lDto;
             }).collect(Collectors.toList());

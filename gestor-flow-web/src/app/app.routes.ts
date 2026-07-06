@@ -18,9 +18,11 @@ import { AcertosStockComponent } from './pages/stock/acertos-stock';
 import { OrcamentosComponent } from './pages/orcamentos/orcamentos';
 import { TarefasComponent } from './pages/tarefas/tarefas';
 
-// 🚀 NOVOS IMPORTS
 import { ContaCorrenteClientesComponent } from './pages/conta-corrente/clientes/conta-corrente-clientes';
 import { ContaCorrenteFornecedoresComponent } from './pages/conta-corrente/fornecedores/conta-corrente-fornecedores';
+
+// 🚀 NOVO IMPORT
+import { DefinicoesComponent } from './pages/definicoes/definicoes';
 
 export const routes: Routes = [
   // 1. Rotas de Entrada
@@ -53,7 +55,7 @@ export const routes: Routes = [
       { path: 'orcamentos', component: OrcamentosComponent, title: 'Orçamentos' },
       { path: 'tarefas', component: TarefasComponent, title: 'Gestão de Tarefas' },
 
-      // 🚀 CONTAS CORRENTES (Adicionadas antes do redirect default)
+      // --- CONTAS CORRENTES ---
       { 
         path: 'contas-correntes/clientes', 
         component: ContaCorrenteClientesComponent, 
@@ -63,6 +65,13 @@ export const routes: Routes = [
         path: 'contas-correntes/fornecedores', 
         component: ContaCorrenteFornecedoresComponent, 
         title: 'C.C. Fornecedores' 
+      },
+
+      // 🚀 DEFINIÇÕES
+      { 
+        path: 'definicoes', 
+        component: DefinicoesComponent, 
+        title: 'Definições da Conta' 
       },
 
       // 🛡️ REDIREÇÃO PADRÃO (Sempre no fim para não interceptar rotas específicas)

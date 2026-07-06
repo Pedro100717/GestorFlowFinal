@@ -1,9 +1,22 @@
 <div id="wrapper">
     <div id="sidebar" class="text-white border-end" [class.toggled]="isMobileMenuOpen">
         
-        <div class="sidebar-heading py-4 primary-text fs-4 fw-bold text-uppercase border-bottom border-secondary d-flex align-items-center px-4">
-            <i class="bi bi-flow-merge text-primary"></i>
-            <span class="sidebar-text ms-3">GestorFlow</span>
+        <div class="sidebar-heading py-4 border-bottom border-secondary d-flex align-items-center px-4" style="height: 80px;">
+            
+            <div style="z-index: 10; background-color: #212529; display: flex; align-items: center; transition: padding-left 0.4s cubic-bezier(0.25, 1, 0.5, 1);"
+                 [style.padding-left]="isMobileMenuOpen ? '10px' : '0px'">
+                <img src="/assets/gestorflow-logo.svg" alt="G" style="height: 38px; width: 38px; min-width: 38px;">
+            </div>
+
+            <div style="display: flex; white-space: nowrap; overflow: hidden; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);"
+                 [style.max-width]="isMobileMenuOpen ? '0px' : '200px'"
+                 [style.opacity]="isMobileMenuOpen ? '0' : '1'"
+                 [style.transform]="isMobileMenuOpen ? 'translateX(-30px)' : 'translateX(0px)'">
+                
+                <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 800; font-size: 1.45rem; color: #FFFFFF; letter-spacing: 1px; margin-left: 0;">ESTOR</span>
+                <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 300; font-size: 1.45rem; color: #94A3B8; letter-spacing: 1px;">FLOW</span>
+            </div>
+
         </div>
 
         <div class="list-group list-group-flush my-3">
@@ -112,12 +125,30 @@
             
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle second-text fw-bold" href="javascript:void(0)" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <li class="nav-item dropdown position-relative">
+                        <a class="nav-link dropdown-toggle second-text fw-bold" 
+                           (click)="menuPerfilAberto = !menuPerfilAberto" 
+                           style="cursor: pointer;">
                             <i class="bi bi-person-circle me-2"></i>{{ nomeUtilizador }}
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item text-danger fw-bold" (click)="logout()" style="cursor: pointer;"><i class="bi bi-box-arrow-right me-2"></i>Sair</a></li>
+                        
+                        <ul class="dropdown-menu shadow border-0 mt-2 position-absolute" 
+                            [class.show]="menuPerfilAberto"
+                            style="right: 0; left: auto; top: 100%; min-width: 200px;">
+                            
+                            <li>
+                                <a class="dropdown-item fw-bold text-secondary py-2" routerLink="/app/definicoes" (click)="menuPerfilAberto = false" style="cursor: pointer;">
+                                    <i class="bi bi-gear me-2"></i>Definições
+                                </a>
+                            </li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li>
+                                <a class="dropdown-item text-danger fw-bold py-2" (click)="logout()" style="cursor: pointer;">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Sair
+                                </a>
+                            </li>
                         </ul>
                     </li>
                 </ul>

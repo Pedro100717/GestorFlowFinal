@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ContaCorrenteService } from '../../../services/conta-corrente.service';
 import { ContaCorrenteResumo, ContaCorrenteExtrato } from '../../../core/models/conta-corrente.model';
+import Swal from 'sweetalert2'; // 🚀 Importado para manter o padrão de alertas dos clientes
 
 // 🚀 1. A DECLARAÇÃO GLOBAL (Obrigatório para o Bootstrap funcionar como nos Modais)
 declare var bootstrap: any;
@@ -62,6 +63,7 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
       error: (err) => {
         console.error(err);
         this.carregando = false;
+        Swal.fire('Erro', 'Não foi possível carregar os resumos dos fornecedores.', 'error');
       }
     });
   }
@@ -98,6 +100,34 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
       error: (err) => {
         console.error(err);
         this.carregandoExtrato = false;
+        this.cd.detectChanges();
+        Swal.fire('Erro', 'Não foi possível carregar o extrato do fornecedor.', 'error');
+      }
+    });
+  }
+
+  // 🚀 4. NOVO MÉTODO PARA EXPORTAR O EXTRATO DO FORNECEDOR EM PDF
+  exportarExtratoPdf(): void {
+    if (!this.fornecedorSelecionado || !this.fornecedorSelecionado.fornecedorId) {
+      Swal.fire('Aviso', 'Nenhum fornecedor selecionado para exportação.', 'warning');
+      return;
+    }
+
+    this.carregandoExtrato = true;
+    this.cd.detectChanges();
+
+    this.ccService.extrairPdfExtratoFornecedor(this.fornecedorSelecionado.fornecedorId).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        this.carregandoExtrato = false;
+        this.cd.detectChanges();
+      },
+      error: (err) => {
+        console.error('Erro ao exportar PDF do fornecedor:', err);
+        this.carregandoExtrato = false;
+        this.cd.detectChanges();
+        Swal.fire('Erro', 'Não foi possível gerar o extrato em PDF para este fornecedor.', 'error');
       }
     });
   }

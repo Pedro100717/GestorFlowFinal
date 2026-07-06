@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Dashboard Analítico</title>
+    <style>
+        /* Formato Paisagem e Margens */
+        @page { size: A4 landscape; margin: 15mm; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11px; color: #333; margin: 0; }
+
+        /* Cabeçalho */
+        .header { margin-bottom: 25px; border-bottom: 2px solid #4F46E5; padding-bottom: 10px; }
+        .header h2 { margin: 0; color: #4F46E5; font-size: 18px; }
+        .header h3 { margin: 5px 0 0 0; color: #333; font-size: 16px; }
+        .header p { margin: 5px 0 0 0; color: #666; font-size: 10px; }
+
+        /* Estilos dos Dados da Empresa à direita */
+        .company-details { float: right; text-align: right; margin-top: 5px; }
+        .company-details h4 { margin: 0; font-size: 14px; color: #0f172a; }
+        .company-details p { margin: 2px 0 0 0; color: #475569; font-size: 10px; }
+        .clear { clear: both; }
+
+        /* Tabelas */
+        .section-title { font-size: 14px; font-weight: bold; color: #4F46E5; margin-bottom: 10px; margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
+        th { background-color: #f8f9fa; font-weight: bold; font-size: 10px; color: #666; }
+
+        /* Alinhamentos e Cores */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .fw-bold { font-weight: bold; }
+        .text-danger { color: #dc3545; }
+        .text-success { color: #198754; }
+        .text-primary { color: #0d6efd; }
+
+        /* Linhas Especiais */
+        .subtotal-row { background-color: #e9ecef; font-weight: bold; }
+        .total-row { background-color: #ffffff; font-weight: bold; border-top: 2px solid #333; }
+        .total-row td { font-size: 12px; }
+
+        /* Badges imitando a UI */
+        .badge {
+            background-color: #e0e7ff; color: #4F46E5; padding: 3px 6px;
+            border-radius: 4px; font-size: 9px; font-weight: bold; margin-right: 5px;
+            display: inline-block; border: 1px solid #c7d2fe;
+        }
+        .badge-gray { background-color: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="company-details">
+        <h4 th:text="${empresaNome}">Nome da Empresa</h4>
+        <p>NIF: <span th:text="${empresaNif}"></span></p>
+        <p th:text="${empresaMorada}"></p>
+    </div>
+
+    <h2>GESTOR<span style="color: #94A3B8; font-weight: 300;">FLOW</span></h2>
+    <h3>Dashboard Analítico</h3>
+    <p>Análise Operacional e Fiscal por Centro de Custo • Extraído a: <span th:text="${dataExtracao}"></span></p>
+
+    <div class="clear"></div>
+</div>
+
+<div class="section-title">1. Análise Operacional (Valores Líquidos)</div>
+<table>
+    <thead>
+    <tr>
+        <th style="width: 25%;">Centro de Custo</th>
+        <th style="width: 25%;">Secção Homogénea</th>
+        <th style="width: 16%;" class="text-right">Compras (Base)</th>
+        <th style="width: 16%;" class="text-right">Vendas (Base)</th>
+        <th style="width: 18%;" class="text-right">Margem Bruta</th>
+    </tr>
+    </thead>
+    <tbody>
+    <th:block th:each="grupo : ${grupos}">
+
+        <tr th:each="linha, iterStat : ${grupo.linhas}">
+            <td>
+                <span th:if="${iterStat.index == 0}">
+                    <span class="badge" th:text="${grupo.centroCodigo}">ADM</span>
+                    <span class="fw-bold" th:text="${grupo.centroNome}">Administração</span>
+                </span>
+            </td>
+            <td>
+                <span class="badge badge-gray" th:text="${linha.seccaoCodigo}">PIN</span>
+                <span th:text="${linha.seccaoNome}">Pinturas</span>
+            </td>
+            <td class="text-right text-danger" th:text="${linha.compras}">€ 5.00</td>
+            <td class="text-right text-success" th:text="${linha.vendas}">€ 0.00</td>
+            <td class="text-right fw-bold" th:text="${linha.margem}"
+                th:classappend="${#strings.startsWith(linha.margem, '-')} ? 'text-danger' : 'text-success'">-€ 5.00</td>
+        </tr>
+
+        <tr class="subtotal-row">
+            <td colspan="2" class="text-right">SUBTOTAL <span th:text="${grupo.centroCodigo}">ADM</span></td>
+            <td class="text-right text-danger" th:text="${grupo.subCompras}">€ 5.00</td>
+            <td class="text-right text-success" th:text="${grupo.subVendas}">€ 0.00</td>
+            <td class="text-right fw-bold" th:text="${grupo.subMargem}"
+                th:classappend="${#strings.startsWith(grupo.subMargem, '-')} ? 'text-danger' : 'text-success'">-€ 5.00</td>
+        </tr>
+
+    </th:block>
+
+    <tr class="total-row">
+        <td colspan="2" class="text-right">TOTAL GERAL (OPERACIONAL)</td>
+        <td class="text-right text-danger" th:text="${totais.compras}">€ 130.00</td>
+        <td class="text-right text-success" th:text="${totais.vendas}">€ 170.00</td>
+        <td class="text-right text-primary fw-bold" th:text="${totais.margem}">€ 40.00</td>
+    </tr>
+    </tbody>
+</table>
+
+<div class="section-title">2. Análise Fiscal (Impostos)</div>
+<table>
+    <thead>
+    <tr>
+        <th style="width: 25%;">Centro de Custo</th>
+        <th style="width: 25%;">Secção Homogénea</th>
+        <th style="width: 16%;" class="text-right">IVA Suportado (Compras)</th>
+        <th style="width: 16%;" class="text-right">IVA Liquidado (Vendas)</th>
+        <th style="width: 18%;" class="text-right">Saldo de IVA</th>
+    </tr>
+    </thead>
+    <tbody>
+    <th:block th:each="grupo : ${grupos}">
+
+        <tr th:each="linha, iterStat : ${grupo.linhas}">
+            <td>
+                <span th:if="${iterStat.index == 0}">
+                    <span class="badge" th:text="${grupo.centroCodigo}">ADM</span>
+                    <span class="fw-bold" th:text="${grupo.centroNome}">Administração</span>
+                </span>
+            </td>
+            <td>
+                <span class="badge badge-gray" th:text="${linha.seccaoCodigo}">PIN</span>
+                <span th:text="${linha.seccaoNome}">Pinturas</span>
+            </td>
+            <td class="text-right" th:text="${linha.ivaCompras}">€ 1.15</td>
+            <td class="text-right" th:text="${linha.ivaVendas}">€ 0.00</td>
+            <td class="text-right fw-bold" th:text="${linha.saldoIva}"
+                th:classappend="${#strings.startsWith(linha.saldoIva, '-')} ? 'text-success' : 'text-danger'">-€ 1.15</td>
+        </tr>
+
+        <tr class="subtotal-row">
+            <td colspan="2" class="text-right">SUBTOTAL IVA <span th:text="${grupo.centroCodigo}">ADM</span></td>
+            <td class="text-right" th:text="${grupo.subIvaCompras}">€ 1.15</td>
+            <td class="text-right" th:text="${grupo.subIvaVendas}">€ 0.00</td>
+            <td class="text-right fw-bold" th:text="${grupo.subSaldoIva}"
+                th:classappend="${#strings.startsWith(grupo.subSaldoIva, '-')} ? 'text-success' : 'text-danger'">-€ 1.15</td>
+        </tr>
+
+    </th:block>
+
+    <tr class="total-row">
+        <td colspan="2" class="text-right">SALDO GERAL DE IVA</td>
+        <td class="text-right" th:text="${totais.ivaCompras}">€ 0.00</td>
+        <td class="text-right" th:text="${totais.ivaVendas}">€ 0.00</td>
+        <td class="text-right text-primary fw-bold" th:text="${totais.saldoIva}">€ 0.00</td>
+    </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

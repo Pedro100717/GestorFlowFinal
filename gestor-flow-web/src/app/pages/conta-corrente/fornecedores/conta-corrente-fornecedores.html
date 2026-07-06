@@ -1,151 +1,83 @@
 <div class="container-fluid py-4">
   
-    <div class="mb-4">
-      <h3 class="fw-bold text-secondary mb-0">Contas Correntes - Fornecedores</h3>
-      <p class="text-muted small">Visão global de compras e pagamentos emitidos</p>
-    </div>
-  
-    <div class="row g-3 mb-4" *ngIf="!carregando">
-      
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm border-start border-primary border-4 h-100">
-          <div class="card-body">
-            <p class="text-muted small text-uppercase mb-1 fw-bold">Total Comprado</p>
-            <h4 class="mb-0 text-primary fw-bold">{{ totalCompradoGeral | currency:'EUR':'symbol':'1.2-2' }}</h4>
-          </div>
-        </div>
-      </div>
-  
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm border-start border-success border-4 h-100">
-          <div class="card-body">
-            <p class="text-muted small text-uppercase mb-1 fw-bold">Total Pago</p>
-            <h4 class="mb-0 text-success fw-bold">{{ totalPagoGeral | currency:'EUR':'symbol':'1.2-2' }}</h4>
-          </div>
-        </div>
-      </div>
-  
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm border-start border-danger border-4 h-100">
-          <div class="card-body">
-            <p class="text-muted small text-uppercase mb-1 fw-bold">Total a Pagar (Pendente)</p>
-            <h4 class="mb-0 text-danger fw-bold">{{ totalPendenteGeral | currency:'EUR':'symbol':'1.2-2' }}</h4>
-          </div>
-        </div>
-      </div>
-  
-    </div>
-  
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-0">
-        
-        <div *ngIf="carregando" class="text-center py-5">
-          <div class="spinner-border text-primary" role="status"></div>
-          <div class="mt-2 text-muted">A carregar saldos...</div>
-        </div>
-  
-        <div class="table-responsive" *ngIf="!carregando">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-              <tr>
-                <th class="ps-4 py-3 border-0 text-muted small text-uppercase">Nome do Fornecedor</th>
-                <th class="border-0 text-muted small text-uppercase text-end">Comprado</th>
-                <th class="border-0 text-muted small text-uppercase text-end">Pago</th>
-                <th class="border-0 text-muted small text-uppercase text-end">Saldo a Pagar</th>
-                <th class="border-0 text-muted small text-uppercase text-center pe-4">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let f of resumoFornecedores">
-                <td class="ps-4 fw-bold text-dark">{{ f.nome }}</td>
-                
-                <td class="text-end text-muted">{{ f.totalFaturado | currency:'EUR':'symbol':'1.2-2' }}</td>
-                <td class="text-end text-muted">{{ f.totalPago | currency:'EUR':'symbol':'1.2-2' }}</td>
-                
-                <td class="text-end fw-bold" 
-                    [ngClass]="f.saldoPendente > 0 ? 'text-danger' : 'text-secondary'">
-                  {{ f.saldoPendente | currency:'EUR':'symbol':'1.2-2' }}
-                </td>
-                
-                <td class="text-center pe-4">
-                  <button class="btn btn-sm btn-outline-primary" (click)="abrirExtrato(f)">
-                    <i class="bi bi-journal-text me-1"></i> Extrato
-                  </button>
-                </td>
-              </tr>
-  
-              <tr *ngIf="resumoFornecedores.length === 0">
-                <td colspan="5" class="text-center py-5 text-muted">
-                  <i class="bi bi-shop fs-1 d-block mb-2 opacity-50"></i>
-                  <span class="fw-bold">Nenhuma compra registada.</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  
+  <div class="mb-4">
+    <h3 class="fw-bold text-secondary mb-0">Contas Correntes - Fornecedores</h3>
+    <p class="text-muted small">Visão global de compras e pagamentos emitidos</p>
   </div>
-  
-  <div class="offcanvas offcanvas-end shadow-lg" tabindex="-1" id="offcanvasExtratoFornecedor" style="width: 700px;">
+
+  <div class="row g-3 mb-4" *ngIf="!carregando">
     
-    <div class="offcanvas-header bg-light border-bottom py-3">
-      <div>
-        <p class="text-muted small text-uppercase mb-0">Extrato de Conta Corrente</p>
-        <h4 class="offcanvas-title fw-bold text-dark">{{ fornecedorSelecionado?.nome }}</h4>
-        <div class="mt-2 badge" 
-             [ngClass]="(fornecedorSelecionado?.saldoPendente || 0) > 0 ? 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25' : 'bg-success bg-opacity-10 text-success border border-success border-opacity-25'">
-          Saldo a Pagar: <span class="fw-bold">{{ fornecedorSelecionado?.saldoPendente | currency:'EUR':'symbol':'1.2-2' }}</span>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm border-start border-primary border-4 h-100">
+        <div class="card-body">
+          <p class="text-muted small text-uppercase mb-1 fw-bold">Total Comprado</p>
+          <h4 class="mb-0 text-primary fw-bold">{{ totalCompradoGeral | currency:'EUR':'symbol':'1.2-2' }}</h4>
         </div>
       </div>
-      <button type="button" class="btn-close mb-auto mt-1" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
-    
-    <div class="offcanvas-body p-0 bg-white">
-      
-      <div *ngIf="carregandoExtrato" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
-        <div class="mt-2 text-muted small">A carregar movimentos...</div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm border-start border-success border-4 h-100">
+        <div class="card-body">
+          <p class="text-muted small text-uppercase mb-1 fw-bold">Total Pago</p>
+          <h4 class="mb-0 text-success fw-bold">{{ totalPagoGeral | currency:'EUR':'symbol':'1.2-2' }}</h4>
+        </div>
       </div>
-  
-      <div class="table-responsive h-100" *ngIf="!carregandoExtrato">
-        <table class="table table-hover align-middle mb-0 extrato-table">
-          <thead>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm border-start border-danger border-4 h-100">
+        <div class="card-body">
+          <p class="text-muted small text-uppercase mb-1 fw-bold">Total a Pagar (Pendente)</p>
+          <h4 class="mb-0 text-danger fw-bold">{{ totalPendenteGeral | currency:'EUR':'symbol':'1.2-2' }}</h4>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      
+      <div *ngIf="carregando" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <div class="mt-2 text-muted">A carregar saldos...</div>
+      </div>
+
+      <div class="table-responsive" *ngIf="!carregando">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light">
             <tr>
-              <th class="ps-4 py-2 text-muted small text-uppercase">Data</th>
-              <th class="py-2 text-muted small text-uppercase">Documento</th>
-              <th class="py-2 text-muted small text-uppercase text-end">Débito</th>
-              <th class="py-2 text-muted small text-uppercase text-end">Crédito</th>
-              <th class="pe-4 py-2 text-secondary small text-uppercase text-end bg-light">Saldo</th>
+              <th class="ps-4 py-3 border-0 text-muted small text-uppercase">Nome do Fornecedor</th>
+              <th class="border-0 text-muted small text-uppercase text-end">Comprado</th>
+              <th class="border-0 text-muted small text-uppercase text-end">Pago</th>
+              <th class="border-0 text-muted small text-uppercase text-end">Saldo a Pagar</th>
+              <th class="border-0 text-muted small text-uppercase text-center pe-4">Ação</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let linha of extratoFornecedor">
-              <td class="ps-4 small text-muted">{{ linha.dataMovimento | date:'dd/MM/yyyy' }}</td>
+            <tr *ngFor="let f of resumoFornecedores">
+              <td class="ps-4 fw-bold text-dark">{{ f.nome }}</td>
               
-              <td>
-                <div class="small fw-bold text-dark">{{ linha.descricao }}</div>
-                <div class="text-muted" style="font-size: 0.70rem;">{{ linha.tipoDocumento }}</div>
+              <td class="text-end text-muted">{{ f.totalFaturado | currency:'EUR':'symbol':'1.2-2' }}</td>
+              <td class="text-end text-muted">{{ f.totalPago | currency:'EUR':'symbol':'1.2-2' }}</td>
+              
+              <td class="text-end fw-bold" 
+                  [ngClass]="f.saldoPendente > 0 ? 'text-danger' : 'text-secondary'">
+                {{ f.saldoPendente | currency:'EUR':'symbol':'1.2-2' }}
               </td>
               
-              <td class="small text-end" [ngClass]="{'text-danger': linha.debito > 0}">
-                {{ linha.debito > 0 ? (linha.debito | currency:'EUR':'symbol':'1.2-2') : '-' }}
-              </td>
-              
-              <td class="small text-end" [ngClass]="{'text-success': linha.credito > 0}">
-                {{ linha.credito > 0 ? (linha.credito | currency:'EUR':'symbol':'1.2-2') : '-' }}
-              </td>
-              
-              <td class="pe-4 small text-end fw-bold bg-light">
-                {{ linha.saldoAcumulado | currency:'EUR':'symbol':'1.2-2' }}
+              <td class="text-center pe-4">
+                <button class="btn btn-sm btn-outline-primary" (click)="abrirExtrato(f)">
+                  <i class="bi bi-journal-text me-1"></i> Extrato
+                </button>
               </td>
             </tr>
-  
-            <tr *ngIf="extratoFornecedor.length === 0">
+
+            <tr *ngIf="resumoFornecedores.length === 0">
               <td colspan="5" class="text-center py-5 text-muted">
-                <i class="bi bi-file-earmark-x fs-2 d-block mb-2 opacity-50"></i>
-                Nenhum movimento detalhado encontrado.
+                <i class="bi bi-shop fs-1 d-block mb-2 opacity-50"></i>
+                <span class="fw-bold">Nenhuma compra registada.</span>
               </td>
             </tr>
           </tbody>
@@ -153,3 +85,79 @@
       </div>
     </div>
   </div>
+
+</div>
+
+<div class="offcanvas offcanvas-end shadow-lg" tabindex="-1" id="offcanvasExtratoFornecedor" style="width: 700px;">
+  
+  <div class="offcanvas-header bg-light border-bottom py-3">
+    <div>
+      <p class="text-muted small text-uppercase mb-0">Extrato de Conta Corrente</p>
+      <h4 class="offcanvas-title fw-bold text-dark">{{ fornecedorSelecionado?.nome }}</h4>
+      <div class="mt-2 badge" 
+           [ngClass]="(fornecedorSelecionado?.saldoPendente || 0) > 0 ? 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25' : 'bg-success bg-opacity-10 text-success border border-success border-opacity-25'">
+        Saldo a Pagar: <span class="fw-bold">{{ fornecedorSelecionado?.saldoPendente | currency:'EUR':'symbol':'1.2-2' }}</span>
+      </div>
+    </div>
+    
+    <div class="d-flex align-items-start gap-3 mt-1">
+      <button class="btn btn-outline-secondary btn-sm d-flex align-items-center shadow-sm" 
+              (click)="exportarExtratoPdf()" 
+              [disabled]="carregandoExtrato || !fornecedorSelecionado">
+        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+      </button>
+      <button type="button" class="btn-close mb-auto" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+  </div>
+  
+  <div class="offcanvas-body p-0 bg-white">
+    
+    <div *ngIf="carregandoExtrato" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <div class="mt-2 text-muted small">A carregar movimentos...</div>
+    </div>
+
+    <div class="table-responsive h-100" *ngIf="!carregandoExtrato">
+      <table class="table table-hover align-middle mb-0 extrato-table">
+        <thead>
+          <tr>
+            <th class="ps-4 py-2 text-muted small text-uppercase">Data</th>
+            <th class="py-2 text-muted small text-uppercase">Documento</th>
+            <th class="py-2 text-muted small text-uppercase text-end">Débito</th>
+            <th class="py-2 text-muted small text-uppercase text-end">Crédito</th>
+            <th class="pe-4 py-2 text-secondary small text-uppercase text-end bg-light">Saldo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let linha of extratoFornecedor">
+            <td class="ps-4 small text-muted">{{ linha.dataMovimento | date:'dd/MM/yyyy' }}</td>
+            
+            <td>
+              <div class="small fw-bold text-dark">{{ linha.descricao }}</div>
+              <div class="text-muted" style="font-size: 0.70rem;">{{ linha.tipoDocumento }}</div>
+            </td>
+            
+            <td class="small text-end" [ngClass]="{'text-danger': linha.debito > 0}">
+              {{ linha.debito > 0 ? (linha.debito | currency:'EUR':'symbol':'1.2-2') : '-' }}
+            </td>
+            
+            <td class="small text-end" [ngClass]="{'text-success': linha.credito > 0}">
+              {{ linha.credito > 0 ? (linha.credito | currency:'EUR':'symbol':'1.2-2') : '-' }}
+            </td>
+            
+            <td class="pe-4 small text-end fw-bold bg-light">
+              {{ linha.saldoAcumulado | currency:'EUR':'symbol':'1.2-2' }}
+            </td>
+          </tr>
+
+          <tr *ngIf="extratoFornecedor.length === 0">
+            <td colspan="5" class="text-center py-5 text-muted">
+              <i class="bi bi-file-earmark-x fs-2 d-block mb-2 opacity-50"></i>
+              Nenhum movimento detalhado encontrado.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

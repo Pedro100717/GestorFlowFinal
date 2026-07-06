@@ -23,9 +23,11 @@ public class LinhaCompraResponseDTO {
     // Analítica
     private Long centroCustoId;
     private String centroCustoCodigo;
+    private String centroCustoNome;
 
     private Long seccaoHomoId;
     private String seccaoHomoCodigo;
+    private String seccaoHomoNome;
 
     private String designacaoPersonalizada;
 }

@@ -25,8 +25,11 @@ export interface LinhaCompra {
     // Analítica
     centroCustoId?: number;
     centroCustoCodigo?: string;
+    centroCustoNome?: string;
+
     seccaoHomoId?: number;
     seccaoHomoCodigo?: string;
+    seccaoHomoNome?: string;
 
     designacaoPersonalizada?: string;
 }

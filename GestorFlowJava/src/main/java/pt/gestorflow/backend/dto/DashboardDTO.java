@@ -9,7 +9,7 @@ import java.util.List;
 @Builder // Ajuda a criar o objeto de forma limpa no Service
 public class DashboardDTO {
     private BigDecimal totalVendas;
-    private long totalClientes;
+    private BigDecimal margemBruta;
     private BigDecimal valorStock;
     private BigDecimal totalCompras;
     private List<VendaResponseDTO> ultimasVendas;

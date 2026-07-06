@@ -59,6 +59,12 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Ocorreu um erro interno no servidor.", request.getRequestURI());
     }
 
+    @ExceptionHandler(pt.gestorflow.backend.exception.EmpresaNaoConfiguradaException.class)
+    public ResponseEntity<ApiError> handleEmpresaNaoConfigurada(pt.gestorflow.backend.exception.EmpresaNaoConfiguradaException ex, HttpServletRequest request) {
+        // Retorna HTTP 412 PRECONDITION_FAILED
+        return buildErrorResponse(HttpStatus.PRECONDITION_FAILED, ex.getMessage(), request.getRequestURI());
+    }
+
     // Método auxiliar unificado que devolve o objeto forte (ApiError)
     private ResponseEntity<ApiError> buildErrorResponse(HttpStatus status, String message, String path) {
         ApiError apiError = new ApiError(status.value(), status.getReasonPhrase(), message, path);

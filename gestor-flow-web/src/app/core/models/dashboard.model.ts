@@ -10,7 +10,7 @@ export interface VendaResumo {
 export interface DashboardResumo {
   // 2. Isto mantém-se 100% igual, está perfeito!
   totalVendas: number;
-  totalClientes: number;
+  margemBruta: number;
   valorStock: number;
   totalCompras: number;
   ultimasVendas: VendaResumo[];

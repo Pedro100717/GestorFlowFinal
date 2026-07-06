@@ -21,6 +21,7 @@ export interface SimuladorTesourariaDTO {
 export class TesourariaService {
 
   private readonly API_URL = `${environment.apiUrl}/tesouraria`;
+  private readonly REPORTS_URL = `${environment.apiUrl}/reports`; // 🚀 Rota base para os relatórios
 
   // --- OS COFRES PRINCIPAIS ---
   private contasSubject = new BehaviorSubject<ContaBancaria[]>([]);
@@ -41,8 +42,14 @@ export class TesourariaService {
   // =========================================================================
 
   obterSimulacao(): Observable<SimuladorTesourariaDTO> {
-    // Liga-se diretamente ao novo endpoint do Spring Boot
     return this.http.get<SimuladorTesourariaDTO>(`${this.API_URL}/simulador`);
+  }
+
+  // 🚀 NOVO MÉTODO: Extração da Evolução em PDF
+  extrairEvolucaoPdf(queryParams: string): Observable<Blob> {
+    return this.http.get(`${this.REPORTS_URL}/tesouraria/evolucao/pdf${queryParams}`, {
+      responseType: 'blob'
+    });
   }
 
   // =========================================================================
@@ -164,6 +171,7 @@ export class TesourariaService {
         this.obterExtrato(this.contaAtivaId);
     }
   }
+
   alterarDataPrevista(id: number, tipo: string, novaData: string): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/previsao/${tipo}/${id}`, { novaData });
   }

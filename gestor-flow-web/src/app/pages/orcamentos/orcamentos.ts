@@ -8,7 +8,7 @@ import { VendaService } from '../../services/venda.service';
 import { TesourariaService } from '../../services/tesouraria.service'; 
 import { Orcamento } from '../../core/models/orcamento.model';
 
-// 1. IMPORTAR O SWEETALERT2
+// IMPORTAR O SWEETALERT2
 import Swal from 'sweetalert2';
 
 declare var bootstrap: any;
@@ -53,7 +53,6 @@ export class OrcamentosComponent implements OnInit {
       this.cd.detectChanges();
     });
 
-    // --- A MÁGICA REATIVA ---
     this.tesourariaService.contas$.subscribe(contas => {
       this.listaContas = contas;
       this.cd.detectChanges();
@@ -168,7 +167,6 @@ export class OrcamentosComponent implements OnInit {
   guardar() {
     if (this.formOrcamento.invalid) {
       this.formOrcamento.markAllAsTouched();
-      // 2. AVISO DE FORMULÁRIO INVÁLIDO
       Swal.fire({
         icon: 'warning',
         title: 'Atenção',
@@ -180,7 +178,6 @@ export class OrcamentosComponent implements OnInit {
 
     const dto = this.formOrcamento.value;
 
-    // 3. TRATAMENTO DE ERROS INCLUÍDO
     const request$ = this.idEmEdicao 
       ? this.orcamentoService.atualizar(this.idEmEdicao, dto)
       : this.orcamentoService.criar(dto);
@@ -207,13 +204,12 @@ export class OrcamentosComponent implements OnInit {
     const contaIdOriginal = orcamento.contaBancariaId || orcamento.contaBancaria?.id;
 
     if (contaIdOriginal) {
-        // 4. CONFIRMAÇÃO DE CONVERSÃO ELEGANTE
         Swal.fire({
           title: 'Faturar Orçamento?',
           text: "Este orçamento já tem uma conta associada. Pretende faturar e abater stock agora?",
           icon: 'question',
           showCancelButton: true,
-          confirmButtonColor: '#198754', // Verde (Sucesso)
+          confirmButtonColor: '#198754', 
           cancelButtonColor: '#6c757d',
           confirmButtonText: 'Sim, faturar!',
           cancelButtonText: 'Cancelar'
@@ -231,10 +227,8 @@ export class OrcamentosComponent implements OnInit {
   executarConversao(orcamentoId: number, contaId: number) {
     this.orcamentoService.converterEmVenda(orcamentoId, contaId).subscribe({
         next: () => {
-            // 5. MENSAGEM DE SUCESSO DE GRANDE IMPACTO
             Swal.fire('Faturado!', 'As vendas foram geradas, o stock abatido e o saldo atualizado.', 'success');
             
-            // Avisa a Tesouraria!
             this.tesourariaService.notificarNovaTransacao(); 
             
             const modalConta = bootstrap.Modal.getInstance(document.getElementById('modalEscolherConta'));
@@ -262,5 +256,29 @@ export class OrcamentosComponent implements OnInit {
     const data = new Date();
     data.setDate(data.getDate() + 30);
     return data.toISOString().split('T')[0];
+  }
+
+  // 🚀 MÉTODO DO PDF CORRIGIDO PARA ACEITAR NUMBER OU UNDEFINED
+  visualizarPdf(id: number | undefined) {
+    if (!id) {
+      Swal.fire('Atenção', 'Este orçamento ainda não tem um ID válido.', 'warning');
+      return;
+    }
+
+    this.orcamentoService.abrirPdfOrcamento(id).subscribe({
+      next: (arquivoBlob: Blob) => {
+        const fileURL = URL.createObjectURL(arquivoBlob);
+        window.open(fileURL, '_blank');
+      },
+      error: (erro) => {
+        console.error('Erro ao abrir o PDF:', erro);
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro na Geração',
+          text: 'Não foi possível gerar o PDF deste Orçamento. Tenta novamente.',
+          confirmButtonColor: '#0d6efd'
+        });
+      }
+    });
   }
 }

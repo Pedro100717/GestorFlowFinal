@@ -1,13 +1,14 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, throwError } from 'rxjs';
+// 🚀 1. IMPORTA O 'EMPTY' DO RXJS
+import { catchError, throwError, EMPTY } from 'rxjs'; 
+import Swal from 'sweetalert2'; 
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const token = localStorage.getItem('token');
 
-  // 1. Clonar o pedido para adicionar o cabeçalho (se o token existir)
   let authReq = req;
   if (token) {
     authReq = req.clone({
@@ -17,22 +18,36 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     });
   }
 
-  // 2. Enviar o pedido e "escutar" se volta com erro
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
       
-      // Se o erro for 401 (Não autorizado) ou 403 (Proibido)
       if (error.status === 401 || error.status === 403) {
         console.warn('Sessão expirada ou inválida. A redirecionar para login...');
-        
-        // Limpar o lixo do storage
         localStorage.removeItem('token');
-        
-        // Forçar a ida para o login
         router.navigate(['/login']);
+        return EMPTY; // Corta a propagação do erro
       }
 
-      // Passar o erro para a frente (para o componente saber que falhou, se quiser mostrar um alerta)
+      // 🚀 REGRA DO 412
+      if (error.status === 412) {
+        
+        Swal.fire({
+          icon: 'warning',
+          title: 'Configuração Necessária',
+          text: 'Para emitir documentos oficiais, tem de preencher primeiro os dados da Entidade Faturadora.',
+          confirmButtonText: 'Configurar Agora',
+          confirmButtonColor: '#212529',
+          allowOutsideClick: false
+        }).then((result) => {
+          if (result.isConfirmed) {
+            router.navigate(['/app/definicoes']);
+          }
+        });
+
+        // 🚀 2. O SEGREDO ESTÁ AQUI: Retornar EMPTY impede que o ecrã das contas correntes veja o erro e cancele o nosso alerta!
+        return EMPTY; 
+      }
+
       return throwError(() => error);
     })
   );

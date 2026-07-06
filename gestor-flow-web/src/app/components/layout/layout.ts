@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core'; 
+import { Component, ElementRef, HostListener, OnInit } from '@angular/core'; 
 import { CommonModule } from '@angular/common'; 
 import { Router, NavigationEnd, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 // 🚀 IMPORTAR O MOTOR DE ANIMAÇÕES DO ANGULAR
@@ -33,8 +33,11 @@ export class LayoutComponent implements OnInit {
   // Variáveis de controlo reativo dos submenus
   menuParamAberto: boolean = false;
   menuContasAberto: boolean = false;
+  
+  // 🚀 Nova variável que controla o menu do Perfil (Dropdown)
+  menuPerfilAberto: boolean = false;
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private eRef: ElementRef) {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.isMobileMenuOpen = false; 
@@ -64,5 +67,13 @@ export class LayoutComponent implements OnInit {
 
   toggleMenu() {
     this.isMobileMenuOpen = !this.isMobileMenuOpen;
+  }
+
+  // 🚀 Fecha o menu de Perfil automaticamente se o utilizador clicar fora dele
+  @HostListener('document:click', ['$event'])
+  cliqueFora(event: Event) {
+    if (!this.eRef.nativeElement.contains(event.target)) {
+      this.menuPerfilAberto = false;
+    }
   }
 }

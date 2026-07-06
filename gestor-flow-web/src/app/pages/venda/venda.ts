@@ -302,6 +302,11 @@ export class VendasComponent implements OnInit, AfterViewInit {
           next: () => {
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Anulada!'});
             this.tesourariaService.notificarNovaTransacao(); 
+            
+            // 🚀 AQUI ESTÁ: Atualiza o stock no ecrã porque a mercadoria foi devolvida!
+            this.artigoService.listar().subscribe(res => {
+                this.listaArtigos = res.content || res;
+            });
           },
           error: (e) => Swal.fire('Erro', e.error?.message, 'error')
         });
@@ -330,6 +335,11 @@ export class VendasComponent implements OnInit, AfterViewInit {
       next: () => {
         Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Fatura guardada com sucesso!' });
         this.tesourariaService.notificarNovaTransacao(); 
+        
+        // 🚀 A SOLUÇÃO: Pede ao backend a lista de artigos fresca com o stock novo!
+        this.artigoService.listar().subscribe(res => {
+            this.listaArtigos = res.content || res;
+        });
         
         this.planoOrigemId = null;
         this.planoOrigemDescricao = '';

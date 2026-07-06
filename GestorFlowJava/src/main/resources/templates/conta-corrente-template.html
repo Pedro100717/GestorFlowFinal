@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Extrato de Conta Corrente</title>
+    <style>
+        /* Configurações de Página para PDF (Margens e Numeração) */
+        @page {
+            size: A4 portrait;
+            margin: 15mm 20mm 20mm 20mm;
+            @bottom-center {
+                content: element(footer);
+            }
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #333333;
+            margin: 0;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .fw-bold { font-weight: bold; }
+        .uppercase { text-transform: uppercase; }
+
+        .text-danger { color: #dc2626; }
+        .text-success { color: #16a34a; }
+        .text-muted { color: #64748b; }
+
+        .header-table { width: 100%; border-bottom: 2px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px; }
+        .logo-img { max-height: 60px; margin-bottom: 10px; }
+        .empresa-nome { font-size: 14px; font-weight: bold; color: #0f172a; margin: 0 0 4px 0; }
+        .empresa-info { font-size: 9px; color: #475569; margin: 2px 0; }
+
+        .doc-title { font-size: 22px; font-weight: bold; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase; }
+
+        .info-table { width: 100%; margin-bottom: 30px; }
+        .info-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px; }
+        .info-label { font-size: 9px; color: #64748b; text-transform: uppercase; margin: 0 0 4px 0; font-weight: bold; }
+        .titular-nome { font-size: 14px; font-weight: bold; color: #0f172a; margin: 0; }
+        .saldo-valor { font-size: 18px; font-weight: bold; color: #dc2626; margin: 0; }
+
+        .movimentos-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .movimentos-table th {
+            background-color: #1e293b; color: #ffffff;
+            font-size: 10px; font-weight: bold; text-transform: uppercase;
+            padding: 10px 8px; text-align: left;
+        }
+        .movimentos-table th.right { text-align: right; }
+
+        .movimentos-table td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 10px 8px; vertical-align: middle;
+        }
+
+        .movimentos-table tr:nth-child(even) { background-color: #f8fafc; }
+
+        .desc-principal { font-weight: bold; font-size: 11px; color: #0f172a; margin: 0; }
+        .desc-tipo { font-size: 9px; color: #64748b; text-transform: uppercase; margin: 2px 0 0 0; }
+
+        .footer {
+            position: running(footer);
+            width: 100%; text-align: center;
+            font-size: 8px; color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 5px;
+        }
+        .page-number:before { content: counter(page); }
+        .page-count:before { content: counter(pages); }
+    </style>
+</head>
+<body>
+
+<table class="header-table">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            <p class="empresa-nome" th:text="${empresaNome}">Nome da Empresa</p>
+            <p class="empresa-info">NIF: <span th:text="${empresaNif}"></span></p>
+            <p class="empresa-info" th:text="${empresaMorada}"></p>
+        </td>
+        <td style="width: 50%; vertical-align: top; text-align: right;">
+            <h1 class="doc-title">Extrato de Conta</h1>
+            <p class="empresa-info"><strong>Data de Emissão:</strong> <span th:text="${dataExtracao}"></span></p>
+            <p class="empresa-info"><strong>Moeda:</strong> EUR (€)</p>
+        </td>
+    </tr>
+</table>
+
+<table class="info-table">
+    <tr>
+        <td class="info-box" style="width: 60%; vertical-align: middle;">
+            <p class="info-label">Entidade / Titular da Conta</p>
+            <h2 class="titular-nome" th:text="${nomeCliente}">Nome do Cliente ou Fornecedor</h2>
+        </td>
+        <td style="width: 5%;"></td> <td class="info-box text-center" style="width: 35%; vertical-align: middle;">
+        <p class="info-label">Saldo Atual (Pendente)</p>
+        <h2 class="saldo-valor" th:text="${saldoFinal}">€ 0.00</h2>
+    </td>
+    </tr>
+</table>
+
+<table class="movimentos-table">
+    <thead>
+    <tr>
+        <th style="width: 12%;">DATA</th>
+        <th style="width: 40%;">DOCUMENTO ORIGINAL</th>
+        <th style="width: 16%;" class="right">DÉBITO</th>
+        <th style="width: 16%;" class="right">CRÉDITO</th>
+        <th style="width: 16%;" class="right">SALDO</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="linha : ${linhas}">
+        <td th:text="${linha.data}">20/06/2026</td>
+        <td>
+            <p class="desc-principal" th:text="${linha.descricao}">Fatura #2</p>
+            <p class="desc-tipo" th:text="${linha.tipo}">FATURA</p>
+        </td>
+        <td class="text-right text-danger" th:text="${linha.debito}">-</td>
+        <td class="text-right text-success" th:text="${linha.credito}">-</td>
+        <td class="text-right fw-bold" th:text="${linha.saldo}">-</td>
+    </tr>
+
+    <tr th:if="${#lists.isEmpty(linhas)}">
+        <td colspan="5" class="text-center text-muted" style="padding: 40px 10px;">
+            Nenhum movimento contabilístico registado na conta corrente desta entidade.
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<div class="footer">
+    Documento processado por computador via GestorFlow | Extraído a <span th:text="${dataExtracao}"></span> | Página <span class="page-number"></span> de <span class="page-count"></span>
+</div>
+
+</body>
+</html>

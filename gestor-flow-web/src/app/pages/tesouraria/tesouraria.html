@@ -249,33 +249,44 @@
                 
                 <form [formGroup]="formFiltros" class="px-4 py-3 border-bottom m-0 transition-all"
                       [ngClass]="isTableExpanded ? 'bg-light' : 'bg-white'">
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <select class="form-select border-0 bg-white text-secondary fw-semibold shadow-sm" formControlName="fluxo" style="border-radius: 8px;">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm" formControlName="fluxo" style="border-radius: 8px; height: 40px;">
                                 <option value="TUDO">Fluxo: Todos</option>
                                 <option value="ENTRADAS">Só Entradas (+)</option>
                                 <option value="SAIDAS">Só Saídas (-)</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <select class="form-select border-0 bg-white text-secondary fw-semibold shadow-sm" formControlName="natureza" style="border-radius: 8px;">
+                        <div class="col-md-3">
+                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm" formControlName="natureza" style="border-radius: 8px; height: 40px;">
                                 <option value="TUDO">Origem: Todas</option>
                                 <option value="REAIS">Faturas Reais</option>
                                 <option value="PLANOS">Planos Fixos</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <select class="form-select border-0 bg-white text-secondary fw-semibold shadow-sm" formControlName="periodo" style="border-radius: 8px;">
+                        <div class="col-md-3">
+                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm" formControlName="periodo" style="border-radius: 8px; height: 40px;">
                                 <option value="TUDO">Período: Completo</option>
-                                <option value="ESTE_MES">Até fim do Mês</option>
-                                <option value="TRES_MESES">Próximos 3 Meses</option>
+                                <option value="6_MESES">6 Meses</option>
+                                <option value="1_ANO">1 Ano</option>
+                                <option value="2_ANOS">2 Anos</option>
+                                <option value="3_ANOS">3 Anos</option>
+                                <option value="5_ANOS">5 Anos</option>
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-danger w-100 shadow-sm d-flex justify-content-center align-items-center fw-bold bg-white" 
+                                    style="border-radius: 8px; height: 40px;" 
+                                    (click)="exportarEvolucaoPdf()"
+                                    type="button">
+                                <i class="bi bi-file-earmark-pdf me-2 fs-5"></i> Exportar PDF
+                            </button>
                         </div>
                     </div>
                 </form>
 
-                <div class="card-body p-0 flex-grow-1 simulador-tabela-container">
-                    <div class="table-responsive m-0">
+                <div class="card-body p-0 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+                    <div class="table-responsive m-0 flex-grow-1" style="overflow-y: auto; padding-bottom: 15px;">
                         <table class="table table-hover align-middle mb-0 bg-white">
                             <thead class="bg-white sticky-top shadow-sm" style="z-index: 1; top: 0;">
                                 <tr>
