@@ -20,6 +20,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,27 +53,30 @@ public class VendaService {
         Venda venda = new Venda();
         venda.setCliente(cliente);
         venda.setUtilizador(user);
-
         venda.setContaBancaria(null);
         venda.setEstadoPagamento(EstadoPagamento.PENDENTE);
-
         venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda() : LocalDate.now());
         venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : venda.getDataVenda());
-
         venda.setPlanoOrigemId(dto.getPlanoOrigemId());
 
         BigDecimal totalGeralSemIva = BigDecimal.ZERO;
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
-        // 🚀 PROCESSAMENTO LINHA A LINHA
+        // 🚀 OTIMIZAÇÃO DE ALTA PERFORMANCE: PRÉ-CARREGAR DEPENDÊNCIAS EM LOTE
+        Map<Long, Artigo> mapaArtigos = carregarArtigos(dto.getLinhas(), utilizadorId);
+        Map<Long, TxIva> mapaIvas = carregarIvas(dto.getLinhas());
+        Map<Long, CentroCusto> mapaCentros = carregarCentrosCusto(dto.getLinhas(), utilizadorId);
+        Map<Long, SeccaoHomo> mapaSeccoes = carregarSeccoesHomo(dto.getLinhas(), utilizadorId);
+
+        // PROCESSAMENTO LINHA A LINHA (Agora apenas consulta a RAM)
         for (LinhaVendaDTO linhaDto : dto.getLinhas()) {
-            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
-                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId()));
+            Artigo artigo = mapaArtigos.get(linhaDto.getArtigoId());
+            if (artigo == null) throw new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId());
 
-            TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
-                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
+            TxIva taxaIva = mapaIvas.get(linhaDto.getTaxaIvaId());
+            if (taxaIva == null) throw new EntityNotFoundException("Taxa de IVA não encontrada para a linha.");
 
-            // 1. Desconto de Stock (Se aplicável)
+            // 1. Desconto de Stock
             if (artigo instanceof Mercadoria mercadoria) {
                 artigoService.removerStock(mercadoria.getId(), linhaDto.getQuantidade());
 
@@ -99,15 +104,15 @@ public class VendaService {
             linha.setTotalLinhaComIva(totalLinhaComIva);
             linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
 
-            // 3. Analítica na Linha
+            // 3. Analítica na Linha (O(1) Memory Lookup)
             if (linhaDto.getCentroCustoId() != null) {
-                centroCustoRepository.findByIdAndUtilizadorId(linhaDto.getCentroCustoId(), utilizadorId).ifPresent(linha::setCentroCusto);
+                linha.setCentroCusto(mapaCentros.get(linhaDto.getCentroCustoId()));
             }
             if (linhaDto.getSeccaoHomoId() != null) {
-                seccaoHomoRepository.findByIdAndUtilizadorId(linhaDto.getSeccaoHomoId(), utilizadorId).ifPresent(linha::setSeccaoHomo);
+                linha.setSeccaoHomo(mapaSeccoes.get(linhaDto.getSeccaoHomoId()));
             }
 
-            venda.addLinha(linha); // Sincroniza a relação bi-direcional
+            venda.addLinha(linha);
 
             totalGeralSemIva = totalGeralSemIva.add(totalLinhaSemIva);
             totalGeralComIva = totalGeralComIva.add(totalLinhaComIva);
@@ -118,7 +123,7 @@ public class VendaService {
 
         Venda vendaGuardada = vendaRepository.save(venda);
 
-        // O MOTOR DE ABATE (MÁQUINA DO TEMPO)
+        // O MOTOR DE ABATE
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
@@ -147,7 +152,6 @@ public class VendaService {
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado."));
         venda.setCliente(cliente);
-
         venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda() : venda.getDataVenda());
         venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : venda.getDataVencimento());
 
@@ -167,18 +171,24 @@ public class VendaService {
             }
         }
 
-        // 2. Limpar as linhas antigas (O JPA orphanRemoval trata da eliminação na base de dados)
         venda.getLinhas().clear();
 
         BigDecimal totalGeralSemIva = BigDecimal.ZERO;
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
-        // 3. Aplicar novas linhas
+        // 🚀 OTIMIZAÇÃO: Carregar os mapas para a atualização
+        Map<Long, Artigo> mapaArtigos = carregarArtigos(dto.getLinhas(), utilizadorId);
+        Map<Long, TxIva> mapaIvas = carregarIvas(dto.getLinhas());
+        Map<Long, CentroCusto> mapaCentros = carregarCentrosCusto(dto.getLinhas(), utilizadorId);
+        Map<Long, SeccaoHomo> mapaSeccoes = carregarSeccoesHomo(dto.getLinhas(), utilizadorId);
+
+        // 3. Aplicar novas linhas a partir da memória
         for (LinhaVendaDTO linhaDto : dto.getLinhas()) {
-            Artigo art = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
-                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado."));
-            TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
-                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
+            Artigo art = mapaArtigos.get(linhaDto.getArtigoId());
+            if (art == null) throw new EntityNotFoundException("Artigo não encontrado.");
+
+            TxIva taxaIva = mapaIvas.get(linhaDto.getTaxaIvaId());
+            if (taxaIva == null) throw new EntityNotFoundException("Taxa de IVA não encontrada.");
 
             if (art instanceof Mercadoria mercadoria) {
                 artigoService.removerStock(mercadoria.getId(), linhaDto.getQuantidade());
@@ -207,10 +217,10 @@ public class VendaService {
             novaLinha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
 
             if (linhaDto.getCentroCustoId() != null) {
-                centroCustoRepository.findByIdAndUtilizadorId(linhaDto.getCentroCustoId(), utilizadorId).ifPresent(novaLinha::setCentroCusto);
+                novaLinha.setCentroCusto(mapaCentros.get(linhaDto.getCentroCustoId()));
             }
             if (linhaDto.getSeccaoHomoId() != null) {
-                seccaoHomoRepository.findByIdAndUtilizadorId(linhaDto.getSeccaoHomoId(), utilizadorId).ifPresent(novaLinha::setSeccaoHomo);
+                novaLinha.setSeccaoHomo(mapaSeccoes.get(linhaDto.getSeccaoHomoId()));
             }
 
             venda.addLinha(novaLinha);
@@ -275,6 +285,38 @@ public class VendaService {
                 Sort.by("dataVenda").descending().and(Sort.by("id").descending()));
         return vendaRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
     }
+
+    // =================================================================================
+    // 🚀 HELPERS DE PERFORMANCE (Mapeamento em Lote)
+    // =================================================================================
+
+    private Map<Long, Artigo> carregarArtigos(List<LinhaVendaDTO> linhas, Long utilizadorId) {
+        List<Long> ids = linhas.stream().map(LinhaVendaDTO::getArtigoId).distinct().toList();
+        return artigoRepository.findAllByIdInAndUtilizadorId(ids, utilizadorId)
+                .stream().collect(Collectors.toMap(Artigo::getId, a -> a));
+    }
+
+    private Map<Long, TxIva> carregarIvas(List<LinhaVendaDTO> linhas) {
+        List<Long> ids = linhas.stream().map(LinhaVendaDTO::getTaxaIvaId).distinct().toList();
+        return txIvaRepository.findAllById(ids)
+                .stream().collect(Collectors.toMap(TxIva::getId, t -> t));
+    }
+
+    private Map<Long, CentroCusto> carregarCentrosCusto(List<LinhaVendaDTO> linhas, Long utilizadorId) {
+        List<Long> ids = linhas.stream().map(LinhaVendaDTO::getCentroCustoId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return Map.of();
+        return centroCustoRepository.findAllByIdInAndUtilizadorId(ids, utilizadorId)
+                .stream().collect(Collectors.toMap(CentroCusto::getId, c -> c));
+    }
+
+    private Map<Long, SeccaoHomo> carregarSeccoesHomo(List<LinhaVendaDTO> linhas, Long utilizadorId) {
+        List<Long> ids = linhas.stream().map(LinhaVendaDTO::getSeccaoHomoId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return Map.of();
+        return seccaoHomoRepository.findAllByIdInAndUtilizadorId(ids, utilizadorId)
+                .stream().collect(Collectors.toMap(SeccaoHomo::getId, s -> s));
+    }
+
+    // =================================================================================
 
     private VendaResponseDTO converterParaDTO(Venda v) {
         VendaResponseDTO dto = new VendaResponseDTO();

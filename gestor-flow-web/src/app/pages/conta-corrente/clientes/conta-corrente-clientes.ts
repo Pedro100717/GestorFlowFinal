@@ -12,18 +12,7 @@ declare var bootstrap: any;
   standalone: true,
   imports: [CommonModule],
   templateUrl: './conta-corrente-clientes.html',
-  styles: [`
-    .card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-    .card.border-start:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.08) !important; }
-    .table-responsive { max-height: 65vh; overflow-y: auto; }
-    .table-responsive::-webkit-scrollbar { width: 6px; }
-    .table-responsive::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,.1); border-radius: 10px; }
-    .table-responsive thead th { position: sticky; top: 0; background-color: #f8f9fa !important; z-index: 1; box-shadow: inset 0 -1px 0 rgba(0,0,0,.1); }
-    .table-hover > tbody > tr { transition: background-color 0.15s ease-in-out; }
-    .table-hover > tbody > tr:hover > td { background-color: rgba(13, 110, 253, 0.03) !important; }
-    .btn-outline-primary { transition: all 0.2s ease; }
-    .btn-outline-primary:hover { transform: scale(1.05); }
-  `]
+  styleUrl: './conta-corrente-clientes.scss'
 })
 export class ContaCorrenteClientesComponent implements OnInit {
 

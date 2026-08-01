@@ -2,19 +2,17 @@
    1. ESTÉTICA DO MENU (O teu código)
    ========================================== */
 
-/* Quando o link está ativo (página selecionada) */
-.active-link {
-    color: #4F46E5 !important; /* A nossa cor Indigo */
+   .active-link {
+    color: #4F46E5 !important;
     background-color: white !important;
-    border-radius: 0.5rem; /* Cantos arredondados */
-    margin: 0 10px; /* Margem para não colar às bordas */
+    border-radius: 0.5rem;
+    margin: 0 10px;
 }
 
-/* Efeito ao passar o rato nos links normais */
 .list-group-item {
     border: none;
     padding: 15px 20px;
-    margin: 2px 10px; /* Espaço entre botões */
+    margin: 2px 10px;
     border-radius: 0.5rem;
     transition: all 0.3s;
 }
@@ -22,7 +20,7 @@
 .list-group-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
     color: white !important;
-    transform: translateX(5px); /* Pequeno movimento para a direita */
+    transform: translateX(5px);
 }
 
 .sidebar-heading {
@@ -31,7 +29,7 @@
 }
 
 /* ==========================================
-   2. ESTRUTURA E ANIMAÇÕES (O novo código)
+   2. ESTRUTURA E ANIMAÇÕES 
    ========================================== */
 #wrapper {
   display: flex;
@@ -46,13 +44,12 @@
   left: 0;
   bottom: 0;
   z-index: 1000;
-  background-color: #212529; /* bg-dark */
+  background-color: #212529;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   overflow-x: hidden;
-  white-space: nowrap; /* Impede o texto de quebrar de linha */
+  white-space: nowrap;
 }
 
-/* Oculta o texto e as setinhas quando o menu está encolhido */
 .sidebar-text {
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -60,7 +57,6 @@
   vertical-align: middle;
 }
 
-/* Garante que os ícones ficam sempre centrados */
 #sidebar .list-group-item i:first-child {
   font-size: 1.2rem;
   min-width: 30px;
@@ -72,24 +68,14 @@
    COMPORTAMENTO DESKTOP (Ecrãs Grandes)
    ========================================== */
 @media (min-width: 768px) {
-  /* Estado normal: Só ícones */
   #sidebar { width: 80px; }
   
-  /* Ajusta o padding quando está fechado para o ícone não ficar esmagado */
-  #sidebar:not(:hover) .list-group-item {
-    padding: 15px 10px;
-  }
+  #sidebar:not(:hover) .list-group-item { padding: 15px 10px; }
 
-  /* Estado Hover: Menu expandido */
-  #sidebar:hover {
-    width: 260px;
-    box-shadow: 4px 0 10px rgba(0,0,0,0.1);
-  }
+  #sidebar:hover { width: 260px; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
 
-  /* Mostra o texto quando passas o rato */
   #sidebar:hover .sidebar-text { opacity: 1; }
 
-  /* A página empurra 80px para a direita para dar espaço aos ícones */
   #page-content-wrapper {
     margin-left: 80px;
     width: calc(100% - 80px);
@@ -101,67 +87,74 @@
    COMPORTAMENTO MOBILE (Telemóvel/Tablet)
    ========================================== */
 @media (max-width: 767.98px) {
-  /* Menu completamente escondido à esquerda */
-  #sidebar {
-    margin-left: -260px;
-    width: 260px; 
-  }
+  #sidebar { margin-left: -260px; width: 260px; }
   
-  /* Classe adicionada pelo botão Hamburguer do Angular */
-  #sidebar.toggled {
-    margin-left: 0;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.5);
-  }
+  #sidebar.toggled { margin-left: 0; box-shadow: 4px 0 15px rgba(0,0,0,0.5); }
 
-  /* Em mobile, o texto aparece sempre que o menu está aberto */
   #sidebar.toggled .sidebar-text { opacity: 1; }
 
-  /* A página ocupa os 100% do ecrã */
-  #page-content-wrapper {
-    margin-left: 0;
-    width: 100%;
-  }
+  #page-content-wrapper { margin-left: 0; width: 100%; }
+} /* A CHAVETA QUE FALTAVA FECHAR ESTÁ AQUI! */
 
-  /* ==========================================
+/* ==========================================
    3. CORREÇÃO DOS SUBMENUS (O Edge Case)
    ========================================== */
-
-/* Recuo normal quando a sidebar está expandida */
-.submenu-link {
-    padding-left: 3rem !important;
-}
+.submenu-link { padding-left: 3rem !important; }
 
 @media (min-width: 768px) {
-    /* Quando o menu encolhe (tiras o rato), os ícones do submenu perdem o recuo e alinham com o resto */
-    #sidebar:not(:hover) .submenu-link {
-        padding-left: 10px !important; 
-    }
-    
-    /* Esconde a setinha direcional (chevron) quando o menu está encolhido */
-    #sidebar:not(:hover) .bi-chevron-down {
-        display: none;
-    }
+    #sidebar:not(:hover) .submenu-link { padding-left: 10px !important; }
+    #sidebar:not(:hover) .bi-chevron-down { display: none; }
 }
 
 /* ==========================================
    4. BACKDROP PARA MOBILE (A sombra de fechar)
    ========================================== */
-   .sidebar-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.4); /* Fundo preto meio transparente */
-    z-index: 999; /* Fica logo atrás do menu, que tem z-index: 1000 */
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.sidebar-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ==========================================
+   5. COMPORTAMENTO DO LOGÓTIPO
+   ========================================== */
+.logo-text {
+  overflow: hidden;
+  white-space: nowrap;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@media (min-width: 768px) {
+  #sidebar:not(:hover) .logo-text {
     opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease-in-out;
+    max-width: 0;
+    transform: translateX(-30px);
   }
   
-  /* Quando o Angular adiciona a classe .show, a sombra aparece */
-  .sidebar-backdrop.show {
+  #sidebar:hover .logo-text {
     opacity: 1;
-    visibility: visible;
+    max-width: 200px;
+    transform: translateX(0px);
+    transition: all 0.4s ease 0.1s;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .logo-text {
+    opacity: 1 !important;
+    max-width: 200px !important;
+    transform: translateX(0px);
   }
 }

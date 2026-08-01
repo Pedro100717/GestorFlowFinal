@@ -10,14 +10,18 @@ import pt.gestorflow.backend.model.Artigo;
 import pt.gestorflow.backend.model.Mercadoria;
 
 import java.math.BigDecimal;
-import java.util.Optional; // <--- NÃO ESQUECER ESTE IMPORT
+import java.util.List;     // <--- NOVO IMPORT ADICIONADO
+import java.util.Optional;
 
 public interface ArtigoRepository extends JpaRepository<Artigo, Long> {
 
     Page<Artigo> findAllByUtilizadorId(Long utilizadorId, Pageable pageable);
 
-    // 🛡️ A TRANCA DE SEGURANÇA (Adicionar esta linha!)
+    // 🛡️ A TRANCA DE SEGURANÇA
     Optional<Artigo> findByIdAndUtilizadorId(Long id, Long utilizadorId);
+
+    // 🚀 OTIMIZAÇÃO: Busca em Lote (Bulk Fetching) para evitar o N+1 Queries
+    List<Artigo> findAllByIdInAndUtilizadorId(List<Long> ids, Long utilizadorId);
 
     @Query(value = "SELECT COALESCE(SUM(m.ultimoPrecoCusto * m.stockAtual), 0) FROM Mercadoria m WHERE m.utilizador.id = :userId")
     BigDecimal valorTotalStock(@Param("userId") Long userId);

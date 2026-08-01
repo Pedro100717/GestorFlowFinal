@@ -1,6 +1,8 @@
-// --- ESTILOS BASE DA TABELA DE EVOLUÇÃO DE SALDO ---
+/* ==========================================
+   ESTILOS BASE DA TABELA DE EVOLUÇÃO DE SALDO
+   ========================================== */
 
-.card-evolucao {
+   .card-evolucao {
     position: relative;
     background: white;
     z-index: 10;
@@ -13,10 +15,18 @@
       transition: max-height 0.4s ease;
     }
   
-    // 🚀 AJUSTE DINÂMICO PARA O ESTADO EXPANDIDO
-    // Quando o @angular/animations injeta o estado 'expandido' via inline styles (position: fixed),
-    // o contentor interno da tabela estica automaticamente para ocupar o ecrã inteiro disponível.
-    &[style*="position: fixed"] {
+    // 🚀 AJUSTE DINÂMICO PARA O ESTADO EXPANDIDO (O FIM DO MIRTILO GIGANTE E DA TABELA CORTADA)
+    // Forçamos largura e altura máximas do ecrã do dispositivo
+    &[style*="position: fixed"],
+    &.expandido {
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      z-index: 1050 !important;
+      margin: 0 !important;
+      
       .simulador-tabela-container {
         max-height: none;
         flex-grow: 1;
@@ -27,18 +37,60 @@
     .transition-all {
       transition: all 0.3s ease;
     }
-  }
+}
   
-  // --- AJUSTE GLOBAL DE SEGURANÇA PARA MODAIS E SWAL2 ---
-  // Mantém os modais do Bootstrap e alertas do SweetAlert2 sempre acima da tabela expandida
-  :global {
-    .modal-backdrop {
-      z-index: 2000 !important;
-    }
-    .modal {
-      z-index: 2001 !important;
-    }
-    .swal2-container {
-      z-index: 3000 !important;
-    }
+// --- AJUSTE GLOBAL DE SEGURANÇA PARA MODAIS E SWAL2 ---
+// Mantém os modais do Bootstrap e alertas do SweetAlert2 sempre acima da tabela expandida
+:global {
+  .modal-backdrop {
+    z-index: 2000 !important;
   }
+  .modal {
+    z-index: 2001 !important;
+  }
+  .swal2-container {
+    z-index: 3000 !important;
+  }
+}
+
+// --- LARGURAS DE SEGURANÇA DAS TABELAS (TELEMÓVEL) ---
+
+/* Tabela de Extratos */
+.tabela-extratos {
+  th.col-data, td.col-data { min-width: 140px; }
+  th.col-descricao, td.col-descricao { min-width: 250px; }
+  th.col-valor, td.col-valor { min-width: 120px; }
+  th.col-acoes, td.col-acoes { width: 80px; min-width: 80px; }
+}
+
+/* Tabela de Pendentes */
+.tabela-pendentes {
+  th.col-tipo, td.col-tipo { min-width: 150px; }
+  th.col-data, td.col-data { min-width: 140px; }
+  th.col-entidade, td.col-entidade { min-width: 250px; }
+  th.col-valor, td.col-valor { min-width: 150px; }
+  th.col-acoes, td.col-acoes { width: 140px; min-width: 140px; }
+}
+
+/* Tabela de Previsão / Simulador */
+.tabela-previsoes {
+  th.col-data, td.col-data { min-width: 100px; }
+  th.col-movimento, td.col-movimento { min-width: 250px; }
+  th.col-valor, td.col-valor { min-width: 120px; }
+  th.col-saldo, td.col-saldo { min-width: 120px; }
+  th.col-acoes, td.col-acoes { width: 150px; min-width: 150px; }
+}
+
+/* Esconde a barra de scroll feia nos separadores no telemóvel, mas permite deslizar */
+.tabs-deslizantes {
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap !important;
+  -webkit-overflow-scrolling: touch;
+  
+  &::-webkit-scrollbar {
+    display: none; /* Safari e Chrome */
+  }
+  -ms-overflow-style: none;  /* IE e Edge */
+  scrollbar-width: none;  /* Firefox */
+}

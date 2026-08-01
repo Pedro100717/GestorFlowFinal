@@ -12,4 +12,7 @@ public interface SeccaoHomoRepository extends JpaRepository<SeccaoHomo, Long> {
 
     Optional<SeccaoHomo> findByIdAndUtilizadorId(Long id, Long utilizadorId);
 
+    // 🚀 OTIMIZAÇÃO: Busca em Lote (Bulk Fetching) para evitar N+1 Queries
+    List<SeccaoHomo> findAllByIdInAndUtilizadorId(List<Long> ids, Long utilizadorId);
+
 }

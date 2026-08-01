@@ -1,0 +1,30 @@
+/* ==========================================
+   ESTILOS DA TABELA DE VENDAS (PRINCIPAL)
+   ========================================== */
+
+   .tabela-vendas {
+    th.col-data, td.col-data { min-width: 110px; }
+    th.col-vencimento, td.col-vencimento { min-width: 140px; }
+    th.col-cliente, td.col-cliente { min-width: 220px; }
+    th.col-artigos, td.col-artigos { min-width: 200px; }
+    th.col-estado, td.col-estado { min-width: 120px; }
+    th.col-conta, td.col-conta { min-width: 160px; }
+    th.col-ccusto, td.col-ccusto { min-width: 160px; }
+    th.col-seccao, td.col-seccao { min-width: 160px; }
+    th.col-total, td.col-total { min-width: 130px; }
+    th.col-acoes, td.col-acoes { width: 140px; min-width: 140px; }
+  }
+  
+  /* ==========================================
+     ESTILOS DA SUB-TABELA (LINHAS DA VENDA)
+     ========================================== */
+  
+  .tabela-linhas-venda {
+    th.col-inner-artigo, td.col-inner-artigo { min-width: 220px; }
+    th.col-inner-ccusto, td.col-inner-ccusto { min-width: 140px; }
+    th.col-inner-seccao, td.col-inner-seccao { min-width: 140px; }
+    th.col-inner-qtd, td.col-inner-qtd { min-width: 90px; }
+    th.col-inner-preco, td.col-inner-preco { min-width: 130px; }
+    th.col-inner-iva, td.col-inner-iva { min-width: 90px; }
+    th.col-inner-subtotal, td.col-inner-subtotal { min-width: 120px; }
+  }

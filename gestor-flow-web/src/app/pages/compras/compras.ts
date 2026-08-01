@@ -27,7 +27,8 @@ declare var bootstrap: any;
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './compras.html',
-  // 🚀 INJETAR OS TRIGGERS DE ANIMAÇÃO
+  styleUrl: './compras.scss', // 🚀 ADICIONADO: Obrigatório para a vista de telemóvel funcionar!
+  // 🚀 INJETAR OS TRIGGERS DE ANIMAÇÃO (Têm de ficar aqui devido ao *ngIf)
   animations: [
     trigger('expandirTabela', [
       transition(':enter', [

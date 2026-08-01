@@ -1,0 +1,20 @@
+/* ==========================================
+   ESTILOS DA TABELA DE PATRIMÓNIO
+   ========================================== */
+
+   .tabela-patrimonio {
+    /* Coluna do Ícone + Nome */
+    th.col-ativo, td.col-ativo { min-width: 250px; }
+  
+    /* Detalhes (Morada, Matrícula, etc) */
+    th.col-detalhes, td.col-detalhes { min-width: 220px; }
+  
+    /* Datas */
+    th.col-data, td.col-data { min-width: 130px; }
+  
+    /* Valores Financeiros (Alinhados à direita) */
+    th.col-valor, td.col-valor { min-width: 140px; }
+  
+    /* Botões de Ação */
+    th.col-acoes, td.col-acoes { width: 80px; min-width: 80px; }
+  }

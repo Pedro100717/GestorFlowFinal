@@ -13,7 +13,8 @@ declare var bootstrap: any;
   selector: 'app-clientes',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './clientes.html'
+  templateUrl: './clientes.html',
+  styleUrl: './clientes.scss'
 })
 export class ClientesComponent implements OnInit {
 

@@ -13,8 +13,10 @@
         <p class="text-muted mt-3 fw-bold">A carregar definições...</p>
     </div>
 
+    <!-- O g-4 já empilha os painéis no mobile -->
     <div class="row g-4" *ngIf="!isCarregando">
         
+        <!-- BLOCO A MINHA CONTA -->
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow-sm border-0 h-100 rounded-4">
                 <div class="card-header bg-white p-4 border-bottom d-flex align-items-center rounded-top-4">
@@ -52,6 +54,7 @@
             </div>
         </div>
 
+        <!-- BLOCO DADOS DA EMPRESA -->
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow-sm border-0 h-100 rounded-4 border-start border-4 border-warning">
                 <div class="card-header bg-white p-4 border-bottom d-flex align-items-center rounded-top-4">
@@ -67,26 +70,26 @@
                 <div class="card-body p-4">
                     <form [formGroup]="formEmpresa" (ngSubmit)="guardarEmpresa()">
                         
-                        <div class="row g-3 mb-4 align-items-center">
-                            <div class="col-auto">
-                                <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted shadow-sm" style="width: 90px; height: 90px; overflow: hidden; background-color: #fff;">
-                                    <img *ngIf="logoAtual" [src]="getLogoUrl(logoAtual)" alt="Logo Empresa" style="width: 100%; height: 100%; object-fit: contain;">
-                                    <i *ngIf="!logoAtual" class="bi bi-image fs-1 text-secondary"></i>
-                                </div>
+                        <!-- 🚀 CORREÇÃO DO LOGO: Empilha no telemóvel, lado-a-lado no PC -->
+                        <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4">
+                            <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted shadow-sm flex-shrink-0" style="width: 90px; height: 90px; overflow: hidden; background-color: #fff;">
+                                <img *ngIf="logoAtual" [src]="getLogoUrl(logoAtual)" alt="Logo Empresa" style="width: 100%; height: 100%; object-fit: contain;">
+                                <i *ngIf="!logoAtual" class="bi bi-image fs-1 text-secondary"></i>
                             </div>
-                            <div class="col">
+                            <div class="flex-grow-1">
                                 <label class="form-label small fw-bold text-secondary">Logótipo da Empresa</label>
                                 <input type="file" class="form-control" accept="image/png, image/jpeg" (change)="onLogoSelected($event)">
                             </div>
                         </div>
                         <hr class="my-4 text-muted">
 
+                        <!-- As colunas g-3 já resolvem o empilhamento dos inputs -->
                         <div class="row g-3 mb-3">
-                            <div class="col-md-8">
+                            <div class="col-12 col-md-8">
                                 <label class="form-label small fw-bold text-secondary">Nome Fiscal <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control border-secondary" formControlName="nomeFiscal" [ngClass]="{'is-invalid': formEmpresa.get('nomeFiscal')?.invalid && formEmpresa.get('nomeFiscal')?.touched}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-12 col-md-4">
                                 <label class="form-label small fw-bold text-secondary">NIF <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control border-secondary" formControlName="nif" placeholder="9 dígitos" [ngClass]="{'is-invalid': formEmpresa.get('nif')?.invalid && formEmpresa.get('nif')?.touched}">
                                 <div class="invalid-feedback">NIF inválido (9 dígitos).</div>
@@ -94,11 +97,11 @@
                         </div>
 
                         <div class="row g-3 mb-3">
-                            <div class="col-md-6">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label small fw-bold text-secondary">Email Geral <span class="text-danger">*</span></label>
                                 <input type="email" class="form-control" formControlName="emailGeral" [ngClass]="{'is-invalid': formEmpresa.get('emailGeral')?.invalid && formEmpresa.get('emailGeral')?.touched}">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label small fw-bold text-secondary">Telefone <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" formControlName="telefone" [ngClass]="{'is-invalid': formEmpresa.get('telefone')?.invalid && formEmpresa.get('telefone')?.touched}">
                             </div>
@@ -110,18 +113,19 @@
                         </div>
 
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4">
+                            <div class="col-12 col-md-4">
                                 <label class="form-label small fw-bold text-secondary">C. Postal <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" formControlName="codigoPostal" [ngClass]="{'is-invalid': formEmpresa.get('codigoPostal')?.invalid && formEmpresa.get('codigoPostal')?.touched}">
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-12 col-md-8">
                                 <label class="form-label small fw-bold text-secondary">Localidade <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" formControlName="localidade" [ngClass]="{'is-invalid': formEmpresa.get('localidade')?.invalid && formEmpresa.get('localidade')?.touched}">
                             </div>
                         </div>
 
+                        <!-- 🚀 CORREÇÃO DO BOTÃO: w-100 no mobile, alinhado à direita no PC -->
                         <div class="text-end mt-4">
-                            <button type="submit" class="btn btn-dark btn-lg fw-bold shadow-sm px-5" [disabled]="formEmpresa.invalid || isGuardandoEmpresa">
+                            <button type="submit" class="btn btn-dark btn-lg fw-bold shadow-sm px-5 w-100 d-md-inline-block w-md-auto" [disabled]="formEmpresa.invalid || isGuardandoEmpresa">
                                 {{ isGuardandoEmpresa ? 'A Guardar...' : 'Gravar Dados Oficiais' }}
                             </button>
                         </div>

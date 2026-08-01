@@ -1,30 +1,46 @@
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h3 class="fw-bold text-secondary">Orçamentos & Simulador</h3>
-      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+    
+    <!-- CABEÇALHO SUPERIOR -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+      <h3 class="fw-bold text-secondary mb-0">Orçamentos & Simulador</h3>
+      <button class="btn btn-primary shadow-sm text-nowrap" (click)="abrirModalNovo()">
         <i class="bi bi-file-earmark-plus me-2"></i>Novo Orçamento
       </button>
     </div>
   
     <div class="card shadow-sm border-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
+        
+        <!-- TABELA PROTEGIDA COM SCROLL HORIZONTAL -->
+        <div class="table-responsive tabela-orcamentos">
+          <table class="table table-hover align-middle mb-0 text-nowrap">
             <thead class="bg-light">
               <tr>
-                <th class="ps-4 py-3 border-0 text-muted small uppercase">Nº</th>
-                <th class="border-0 text-muted small uppercase">Cliente</th>
-                <th class="border-0 text-muted small uppercase">Data Validade</th>
-                <th class="border-0 text-muted small uppercase text-center">Estado</th>
-                <th class="border-0 text-muted small uppercase text-end">Total</th>
-                <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+                <th class="border-0 p-0 col-id">
+                    <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Nº</div>
+                </th>
+                <th class="border-0 p-0 col-cliente">
+                    <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Cliente</div>
+                </th>
+                <th class="border-0 p-0 col-data">
+                    <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Data Validade</div>
+                </th>
+                <th class="border-0 p-0 col-estado">
+                    <div class="d-flex align-items-center justify-content-center px-2 py-3 text-muted small text-uppercase">Estado</div>
+                </th>
+                <th class="border-0 p-0 col-total">
+                    <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Total</div>
+                </th>
+                <th class="border-0 p-0 col-acoes">
+                    <div class="d-flex align-items-center justify-content-end pe-4 py-3 text-muted small text-uppercase">Ações</div>
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let o of listaOrcamentos">
-                <td class="ps-4 fw-bold text-primary">#{{ o.id }}</td>
-                <td class="fw-bold">{{ o.clienteNome }}</td>
-                <td class="text-muted">{{ o.dataValidade | date:'dd/MM/yyyy' }}</td>
-                <td class="text-center">
+                <td class="ps-4 text-start fw-bold text-primary col-id">#{{ o.id }}</td>
+                <td class="text-start px-2 fw-bold col-cliente">{{ o.clienteNome }}</td>
+                <td class="text-start px-2 text-muted col-data">{{ o.dataValidade | date:'dd/MM/yyyy' }}</td>
+                <td class="text-center px-2 col-estado">
                     <span class="badge" 
                         [ngClass]="{
                             'bg-warning text-dark': o.estado === 'RASCUNHO',
@@ -35,23 +51,23 @@
                         {{ o.estado?.replace('_', ' ') }}
                     </span>
                 </td>
-                <td class="text-end fw-bold">{{ o.totalComIva | currency:'EUR' }}</td>
-                <td class="text-end pe-4">
+                <td class="text-end px-2 fw-bold font-monospace col-total">{{ o.totalComIva | currency:'EUR' }}</td>
+                <td class="text-end pe-4 col-acoes">
                     
                     <!-- <button *ngIf="o.estado !== 'CONVERTIDO_VENDA'" 
-                            class="btn btn-sm btn-success me-1" 
+                            class="btn btn-sm btn-success me-1 border shadow-sm" 
                             title="Converter em Venda e Abater Stock"
                             (click)="prepararConversao(o)">
                         <i class="bi bi-check2-circle"></i>
                     </button> -->
 
-                    <button class="btn btn-sm btn-light me-1" 
+                    <button class="btn btn-sm btn-light me-1 border shadow-sm" 
                             title="Ver PDF"
                             (click)="visualizarPdf(o.id)">
                         <i class="bi bi-file-earmark-pdf text-danger"></i>
                     </button>
 
-                    <button class="btn btn-sm btn-light text-primary" 
+                    <button class="btn btn-sm btn-light text-primary border shadow-sm" 
                             title="Editar Orçamento"
                             (click)="editar(o)">
                         <i class="bi bi-pencil"></i>
@@ -61,7 +77,7 @@
 
               <tr *ngIf="listaOrcamentos.length === 0">
                 <td colspan="6" class="text-center py-5 text-muted">
-                  <i class="bi bi-file-earmark-text fs-1 d-block mb-2 opacity-50"></i>
+                  <i class="bi bi-file-earmark-text fs-1 d-block mb-3 opacity-50"></i>
                   <span class="fw-bold">Ainda não tens orçamentos criados.</span>
                 </td>
               </tr>
@@ -72,28 +88,31 @@
     </div>
 </div>
 
+<!-- ==========================================
+     MODAL EDITOR DE ORÇAMENTO
+     ========================================== -->
 <div class="modal fade" id="modalOrcamento" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable"> 
-      <div class="modal-content border-0 shadow">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered"> 
+      <div class="modal-content border-0 shadow-lg">
         <div class="modal-header bg-primary text-white">
           <h5 class="modal-title fw-bold">Editor de Orçamento</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body bg-light">
+        <div class="modal-body bg-light p-3 p-md-4">
           <form [formGroup]="formOrcamento">
             
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-3 p-md-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
                             <label class="form-label small fw-bold">Cliente <span class="text-danger">*</span></label>
-                            <select class="form-select" formControlName="clienteId">
+                            <select class="form-select fw-bold" formControlName="clienteId">
                                 <option [ngValue]="null">Selecione...</option>
                                 <option *ngFor="let c of listaClientes" [ngValue]="c.id">{{ c.nome }}</option>
                             </select>
                         </div>
                         
-                        <div class="col-md-4 mb-3">
+                        <div class="col-12 col-md-4">
                             <label class="form-label small fw-bold">Conta Bancária (Opcional)</label>
                             <select class="form-select" formControlName="contaBancariaId">
                                 <option [ngValue]="null">Decidir mais tarde...</option>
@@ -101,31 +120,32 @@
                             </select>
                         </div>
 
-                        <div class="col-md-2 mb-3">
+                        <div class="col-12 col-md-2">
                             <label class="form-label small fw-bold">Válido Até</label>
                             <input type="date" class="form-control" formControlName="dataValidade">
                         </div>
 
-                        <div class="col-md-2 mb-3 d-flex align-items-end justify-content-end">
-                            <div class="text-end">
-                                <small class="text-muted text-uppercase fw-bold">Total Previsto</small>
-                                <h4 class="mb-0 text-primary fw-bold">{{ totalGeralPrevisto | currency:'EUR' }}</h4>
-                            </div>
+                        <!-- ALINHAMENTO DO TOTAL (Esquerda no mobile, Direita no PC) -->
+                        <div class="col-12 col-md-2 text-start text-md-end mt-4 mt-md-auto">
+                            <small class="text-muted text-uppercase fw-bold d-block mb-1">Total Previsto</small>
+                            <h4 class="mb-0 text-primary fw-bold font-monospace">{{ totalGeralPrevisto | currency:'EUR' }}</h4>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <h6 class="fw-bold ms-1 mb-2 text-secondary">Artigos & Serviços</h6>
+            <h6 class="fw-bold ms-1 mb-3 text-secondary"><i class="bi bi-box-seam me-2"></i>Artigos & Serviços</h6>
             
             <div formArrayName="linhas">
-                <div *ngFor="let linha of linhasForm.controls; let i = index" [formGroupName]="i" class="card border-0 shadow-sm mb-2">
-                    <div class="card-body py-2">
-                        <div class="row align-items-center">
+                <div *ngFor="let linha of linhasForm.controls; let i = index" [formGroupName]="i" class="card border border-2 border-light shadow-sm mb-3">
+                    <div class="card-body p-3 p-md-4">
+                        
+                        <!-- REMOVIDO O *ngIf="i===0" PARA AS ETIQUETAS SEREM SEMPRE VISÍVEIS NO MOBILE -->
+                        <div class="row g-3 align-items-end">
                             
-                            <div class="col-md-4">
-                                <label *ngIf="i===0" class="small text-muted mb-1">Artigo</label>
-                                <select class="form-select form-select-sm" formControlName="artigoId" (change)="calcularTotais()">
+                            <div class="col-12 col-md-3">
+                                <label class="small text-muted fw-bold mb-1">Artigo</label>
+                                <select class="form-select" formControlName="artigoId" (change)="calcularTotais()">
                                     <option [ngValue]="null">Escolha...</option>
                                     <option *ngFor="let a of listaArtigos" [ngValue]="a.id">
                                         {{ a.nome }} (Custo: {{ a.ultimoPrecoCusto | currency:'EUR' }})
@@ -133,35 +153,38 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-1">
-                                <label *ngIf="i===0" class="small text-muted mb-1">Qtd</label>
-                                <input type="number" class="form-control form-select-sm" formControlName="quantidade" (change)="calcularTotais()" min="1">
+                            <div class="col-6 col-md-2">
+                                <label class="small text-muted fw-bold mb-1">Qtd</label>
+                                <input type="number" class="form-control" formControlName="quantidade" (change)="calcularTotais()" min="1">
                             </div>
 
-                            <div class="col-md-2">
-                                <label *ngIf="i===0" class="small text-muted mb-1">Margem %</label>
-                                <div class="input-group input-group-sm">
+                            <div class="col-6 col-md-2">
+                                <label class="small text-muted fw-bold mb-1">Margem %</label>
+                                <div class="input-group">
                                     <input type="number" class="form-control" formControlName="margemLucroPercentual" (change)="calcularTotais()">
-                                    <span class="input-group-text">%</span>
+                                    <span class="input-group-text bg-light text-muted">%</span>
                                 </div>
                             </div>
 
-                            <div class="col-md-2">
-                                <label *ngIf="i===0" class="small text-muted mb-1">IVA</label>
-                                <select class="form-select form-select-sm" formControlName="taxaIvaId" (change)="calcularTotais()">
+                            <div class="col-6 col-md-2 mt-3 mt-md-0">
+                                <label class="small text-muted fw-bold mb-1">IVA</label>
+                                <select class="form-select" formControlName="taxaIvaId" (change)="calcularTotais()">
                                     <option *ngFor="let t of listaTaxasIva" [ngValue]="t.id">{{ t.valor }}%</option>
                                 </select>
                             </div>
 
-                            <div class="col-md-2">
-                                <label *ngIf="i===0" class="small text-muted mb-1">Manual € (Opcional)</label>
-                                <input type="number" class="form-control form-select-sm" formControlName="precoVendaUnitarioOverride" placeholder="Auto" (change)="calcularTotais()">
+                            <div class="col-6 col-md-2 mt-3 mt-md-0">
+                                <label class="small text-muted fw-bold mb-1">Manual € (Opcional)</label>
+                                <input type="number" class="form-control" formControlName="precoVendaUnitarioOverride" placeholder="Auto" (change)="calcularTotais()">
                             </div>
 
-                            <div class="col-md-1 text-end">
-                                <label *ngIf="i===0" class="d-block mb-1">&nbsp;</label>
-                                <button class="btn btn-sm btn-outline-danger border-0" (click)="removerLinha(i)" title="Remover linha">
-                                    <i class="bi bi-trash"></i>
+                            <!-- BOTÃO REMOVER: Ícone no PC, Botão largo no Mobile -->
+                            <div class="col-12 col-md-1 text-end mt-4 mt-md-0">
+                                <button class="btn btn-outline-danger w-100 d-md-none fw-bold" (click)="removerLinha(i)">
+                                    <i class="bi bi-trash me-2"></i>Remover Artigo
+                                </button>
+                                <button class="btn btn-outline-danger border-0 d-none d-md-inline-block" (click)="removerLinha(i)" title="Remover linha">
+                                    <i class="bi bi-trash fs-5"></i>
                                 </button>
                             </div>
 
@@ -170,20 +193,20 @@
                 </div>
             </div>
 
-            <button type="button" class="btn btn-light border w-100 mt-2 text-primary fw-bold" (click)="adicionarLinha()">
-                <i class="bi bi-plus-circle me-2"></i> Adicionar Outro Artigo
+            <button type="button" class="btn btn-light border shadow-sm w-100 mt-2 p-3 text-primary fw-bold" (click)="adicionarLinha()">
+                <i class="bi bi-plus-lg me-2"></i> Adicionar Outro Artigo
             </button>
 
-            <div class="mt-3">
-                <label class="form-label small fw-bold">Notas / Observações</label>
-                <textarea class="form-control" formControlName="notas" rows="2" placeholder="Ex: Entrega prevista para dia 10..."></textarea>
+            <div class="mt-4 p-3 bg-white border shadow-sm rounded">
+                <label class="form-label small fw-bold text-secondary">Notas / Observações</label>
+                <textarea class="form-control border-secondary border-opacity-25" formControlName="notas" rows="2" placeholder="Ex: Condições de pagamento, entrega prevista para dia 10..."></textarea>
             </div>
   
           </form>
         </div>
-        <div class="modal-footer bg-light">
+        <div class="modal-footer bg-light border-0">
             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary" [disabled]="formOrcamento.invalid" (click)="guardar()">
+            <button type="button" class="btn btn-primary fw-bold px-4" [disabled]="formOrcamento.invalid" (click)="guardar()">
               <i class="bi bi-save me-2"></i> Guardar
             </button>
           </div>
@@ -191,24 +214,27 @@
     </div>
 </div>
 
+<!-- ==========================================
+     MODAL ESCOLHER CONTA
+     ========================================== -->
 <div class="modal fade" id="modalEscolherConta" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-success text-white">
                 <h6 class="modal-title fw-bold"><i class="bi bi-bank me-2"></i>Destino do Dinheiro</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center p-4">
-                <p class="small text-muted mb-3">O Orçamento <strong>#{{ orcamentoParaConverter?.id }}</strong> não tem conta atribuída. Para faturar a venda, indique para onde vai o dinheiro:</p>
+                <p class="small text-muted mb-4">O Orçamento <strong class="text-dark">#{{ orcamentoParaConverter?.id }}</strong> não tem conta atribuída. Para faturar a venda, indique para onde vai o dinheiro:</p>
                 
-                <select class="form-select mb-3" [(ngModel)]="contaSelecionadaParaConversao">
+                <select class="form-select fw-bold mb-2" [(ngModel)]="contaSelecionadaParaConversao">
                     <option [ngValue]="null">-- Escolha a Conta --</option>
                     <option *ngFor="let conta of listaContas" [ngValue]="conta.id">{{ conta.nome }}</option>
                 </select>
             </div>
-            <div class="modal-footer bg-light p-2 justify-content-center">
+            <div class="modal-footer bg-light p-3 justify-content-center border-0">
                 <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-sm btn-success fw-bold" 
+                <button type="button" class="btn btn-sm btn-success fw-bold px-3" 
                         [disabled]="!contaSelecionadaParaConversao"
                         (click)="confirmarConversaoComNovaConta()">
                     <i class="bi bi-check-lg me-1"></i> Confirmar Fatura

@@ -12,7 +12,8 @@ declare var bootstrap: any;
   selector: 'app-seccoes-homogeneas',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './seccoes-homogeneas.html'
+  templateUrl: './seccoes-homogeneas.html',
+  styleUrl: './seccoes-homogeneas.scss'
 })
 export class SeccoesHomoComponent implements OnInit {
 

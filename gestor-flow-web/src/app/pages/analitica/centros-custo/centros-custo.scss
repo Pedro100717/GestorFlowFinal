@@ -1,0 +1,18 @@
+/* ==========================================
+   ESTILOS DA TABELA DE CENTROS DE CUSTO
+   ========================================== */
+
+   .tabela-centros {
+  
+    /* Largura fixa para a coluna do Código */
+    th.col-codigo, td.col-codigo {
+      width: 20%;
+      min-width: 120px; /* Garante que não esmaga no telemóvel */
+    }
+  
+    /* Largura fixa para a coluna de Ações */
+    th.col-acoes, td.col-acoes {
+      width: 130px;
+      min-width: 130px;
+    }
+  }

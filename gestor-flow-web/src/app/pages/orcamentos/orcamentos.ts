@@ -17,7 +17,8 @@ declare var bootstrap: any;
   selector: 'app-orcamentos',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule], 
-  templateUrl: './orcamentos.html'
+  templateUrl: './orcamentos.html',
+  styleUrls: ['./orcamentos.scss']
 })
 export class OrcamentosComponent implements OnInit {
 

@@ -2,13 +2,13 @@
    ESTILOS DA TABELA DE CONTAS CORRENTES
    ========================================== */
 
-   .tabela-contas-clientes {
-    /* Espaço para o nome do cliente */
-    th.col-cliente, td.col-cliente { min-width: 250px; }
+   .tabela-contas-fornecedores {
+    /* Espaço para o nome do fornecedor */
+    th.col-fornecedor, td.col-fornecedor { min-width: 250px; }
   
     /* Larguras para as colunas financeiras (alinhadas à direita) */
-    th.col-faturado, td.col-faturado,
-    th.col-recebido, td.col-recebido,
+    th.col-comprado, td.col-comprado,
+    th.col-pago, td.col-pago,
     th.col-saldo, td.col-saldo { min-width: 140px; }
   
     /* Botão de ação (Extrato) */
@@ -28,7 +28,7 @@
   }
   
   /* ==========================================
-     ANIMAÇÕES E COMPORTAMENTOS GERAIS (Movidos do .ts)
+     ANIMAÇÕES E COMPORTAMENTOS GERAIS
      ========================================== */
   
   .card {

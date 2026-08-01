@@ -1,59 +1,83 @@
 <div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold text-secondary">Registo de Compras</h3>
-    <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+    
+  <!-- CABEÇALHO SUPERIOR -->
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+    <h3 class="fw-bold text-secondary mb-0">Registo de Compras</h3>
+    <button class="btn btn-primary shadow-sm text-nowrap" (click)="abrirModalNovo()">
       <i class="bi bi-cart-plus me-2"></i>Registar Compra
     </button>
   </div>
 
   <div class="card shadow-sm border-0">
     <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+      
+      <!-- TABELA PRINCIPAL PROTEGIDA -->
+      <div class="table-responsive tabela-compras">
+        <table class="table table-hover align-middle mb-0 text-nowrap">
           <thead class="bg-light">
             <tr>
-              <th class="ps-4 py-3 border-0 text-muted small uppercase">Data</th>
-              <th class="border-0 text-muted small uppercase">Vencimento</th>
-              <th class="border-0 text-muted small uppercase">Fornecedor</th>
-              <th class="border-0 text-muted small uppercase">Artigo(s)</th>
-              <th class="border-0 text-muted small uppercase">Estado</th>
-              <th class="border-0 text-muted small uppercase">Conta Movimentada</th>
-              <th class="border-0 text-muted small uppercase">C. Custo</th>
-              <th class="border-0 text-muted small uppercase">Secção Hom.</th> 
-              <th class="border-0 text-muted small uppercase text-end">Total Fatura</th>
-              <th class="border-0 text-muted small uppercase text-center pe-4">Ações</th>
+              <th class="border-0 p-0 col-data">
+                <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Data</div>
+              </th>
+              <th class="border-0 p-0 col-vencimento">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Vencimento</div>
+              </th>
+              <th class="border-0 p-0 col-fornecedor">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Fornecedor</div>
+              </th>
+              <th class="border-0 p-0 col-artigos">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Artigo(s)</div>
+              </th>
+              <th class="border-0 p-0 col-estado">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Estado</div>
+              </th>
+              <th class="border-0 p-0 col-conta">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Conta Movimentada</div>
+              </th>
+              <th class="border-0 p-0 col-ccusto">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">C. Custo</div>
+              </th>
+              <th class="border-0 p-0 col-seccao">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Secção Hom.</div>
+              </th> 
+              <th class="border-0 p-0 col-total">
+                <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Total Fatura</div>
+              </th>
+              <th class="border-0 p-0 col-acoes">
+                <div class="d-flex align-items-center justify-content-center pe-4 py-3 text-muted small text-uppercase">Ações</div>
+              </th>
             </tr>
           </thead>
           <tbody>
             <ng-container *ngFor="let c of listaCompras">
               
               <tr>
-                <td class="ps-4 text-muted small">{{ c.dataCompra | date:'dd/MM/yyyy' }}</td>
+                <td class="ps-4 text-muted small text-start col-data">{{ c.dataCompra | date:'dd/MM/yyyy' }}</td>
                 
-                <td>
+                <td class="text-start px-2 col-vencimento">
                     <span class="badge bg-light text-danger border border-danger border-opacity-25">
                         <i class="bi bi-calendar-x me-1"></i>{{ c.dataVencimento | date:'dd/MM/yyyy' }}
                     </span>
                 </td>
                 
-                <td class="fw-bold text-dark">{{ c.fornecedorNome }}</td>
+                <td class="fw-bold text-dark text-start px-2 col-fornecedor">{{ c.fornecedorNome }}</td>
                 
-                <td>
+                <td class="text-start px-2 col-artigos">
                     <ng-container *ngIf="c.linhas && c.linhas.length > 0">
-                        <div class="fw-bold">
+                        <div class="fw-bold text-truncate" style="max-width: 180px;">
                             {{ c.linhas[0].artigoNome }}
                             <span *ngIf="c.linhas.length > 1" class="badge bg-secondary ms-1 shadow-sm" style="font-size: 0.65rem;">
                                 +{{ c.linhas.length - 1 }}
                             </span>
                         </div>
-                        <div class="small text-muted" *ngIf="c.linhas[0].designacaoPersonalizada">
+                        <div class="small text-muted text-truncate" style="max-width: 180px;" *ngIf="c.linhas[0].designacaoPersonalizada">
                             {{ c.linhas[0].designacaoPersonalizada }}
                         </div>
                     </ng-container>
                     <span *ngIf="!c.linhas || c.linhas.length === 0" class="text-muted">-</span>
                 </td>
   
-                <td>
+                <td class="text-start px-2 col-estado">
                     <span class="badge" 
                           [ngClass]="c.estadoPagamento === 'PAGO' ? 'bg-success' : (c.estadoPagamento === 'PARCIALMENTE_PAGO' ? 'bg-info text-dark' : 'bg-warning text-dark')">
                         <i class="bi" [ngClass]="c.estadoPagamento === 'PAGO' ? 'bi-check-circle' : 'bi-hourglass-split'"></i>
@@ -61,14 +85,14 @@
                     </span>
                 </td>
                 
-                <td>
+                <td class="text-start px-2 col-conta">
                     <span *ngIf="c.contaBancariaNome" class="badge bg-light text-dark border">
                         <i class="bi bi-bank me-1"></i>{{ c.contaBancariaNome }}
                     </span>
                     <span *ngIf="!c.contaBancariaNome" class="text-muted small">-</span>
                 </td>
                 
-                <td>
+                <td class="text-start px-2 col-ccusto">
                     <span class="badge bg-light text-primary border border-primary-subtle" 
                           *ngIf="c.linhas && c.linhas.length > 0 && c.linhas[0].centroCustoNome; else semCC">
                         {{ c.linhas[0].centroCustoNome }}
@@ -76,7 +100,7 @@
                     <ng-template #semCC><span class="text-muted small">-</span></ng-template>
                 </td>
 
-                <td>
+                <td class="text-start px-2 col-seccao">
                     <span class="badge bg-light text-secondary border border-secondary-subtle" 
                           *ngIf="c.linhas && c.linhas.length > 0 && c.linhas[0].seccaoHomoNome; else semSeccao">
                         {{ c.linhas[0].seccaoHomoNome }}
@@ -84,9 +108,9 @@
                     <ng-template #semSeccao><span class="text-muted small">-</span></ng-template>
                 </td>
                 
-                <td class="text-end fw-bold text-primary">{{ c.total | currency:'EUR' }}</td>
+                <td class="text-end px-2 fw-bold text-primary font-monospace col-total">{{ c.total | currency:'EUR' }}</td>
   
-                <td class="text-center pe-4">
+                <td class="text-center pe-4 col-acoes">
                     <button class="btn btn-sm btn-light text-secondary me-1 border" 
                             (click)="toggleExpandir(c.id!)" title="Ver Detalhes da Compra">
                         <i class="bi" [ngClass]="faturasExpandidas[c.id!] ? 'bi-chevron-up text-primary fw-bold' : 'bi-eye'"></i>
@@ -102,45 +126,48 @@
                 </td>
               </tr>
   
+              <!-- SUB-TABELA EXPANDIDA -->
               <tr class="bg-light bg-opacity-50">
                 <td colspan="10" class="p-0 border-0">
                   <div *ngIf="faturasExpandidas[c.id!]" [@expandirTabela]>
-                    <div class="card border border-secondary border-opacity-25 shadow-sm mx-3 my-3">
+                    <div class="card border border-secondary border-opacity-25 shadow-sm mx-0 mx-md-3 my-3">
                       <div class="card-header bg-white py-2 small fw-bold text-secondary text-uppercase">
                         <i class="bi bi-list-nested me-2"></i>Descriminação dos Itens da Compra #{{ c.id }}
                       </div>
-                      <div class="p-0">
-                        <table class="table table-sm table-borderless align-middle mb-0 text-dark" style="font-size: 0.85rem;">
+                      
+                      <div class="table-responsive tabela-linhas-compra">
+                        <table class="table table-sm table-borderless align-middle mb-0 text-dark text-nowrap" style="font-size: 0.85rem;">
                           <thead class="table-light border-bottom border-secondary border-opacity-10 text-muted">
                             <tr>
-                              <th class="ps-3">Artigo / Serviço</th>
-                              <th>Centro Custo</th>
-                              <th>Secção</th>
-                              <th class="text-end">Quantidade</th>
-                              <th class="text-end">Preço Unit. (Base)</th>
-                              <th class="text-end">IVA</th>
-                              <th class="text-end pe-3">Subtotal</th>
+                              <th class="ps-3 col-inner-artigo">Artigo / Serviço</th>
+                              <th class="col-inner-ccusto">Centro Custo</th>
+                              <th class="col-inner-seccao">Secção</th>
+                              <th class="text-end col-inner-qtd">Quantidade</th>
+                              <th class="text-end col-inner-preco">Preço Unit.</th>
+                              <th class="text-end col-inner-iva">IVA</th>
+                              <th class="text-end pe-3 col-inner-subtotal">Subtotal</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr *ngFor="let linha of c.linhas" class="border-bottom border-light">
-                              <td class="ps-3">
+                              <td class="ps-3 col-inner-artigo">
                                 <span class="fw-bold text-secondary">{{ linha.artigoNome }}</span>
-                                <div class="text-muted text-truncate fst-italic" style="max-width: 300px; font-size: 0.75rem;" *ngIf="linha.designacaoPersonalizada">
+                                <div class="text-muted text-truncate fst-italic" style="max-width: 200px; font-size: 0.75rem;" *ngIf="linha.designacaoPersonalizada">
                                   "{{ linha.designacaoPersonalizada }}"
                                 </div>
                               </td>
-                              <td><span class="badge bg-light text-dark border">{{ linha.centroCustoNome || '-' }}</span></td>
-                              <td><span class="text-muted">{{ linha.seccaoHomoNome || '-' }}</span></td>
+                              <td class="col-inner-ccusto"><span class="badge bg-light text-dark border">{{ linha.centroCustoNome || '-' }}</span></td>
+                              <td class="col-inner-seccao"><span class="text-muted">{{ linha.seccaoHomoNome || '-' }}</span></td>
                               
-                              <td class="text-end font-monospace fw-bold text-muted">{{ linha.quantidade }}</td>
-                              <td class="text-end font-monospace">{{ linha.precoUnitario | currency:'EUR' }}</td>
-                              <td class="text-end text-muted font-monospace">{{ linha.taxaIvaValor }}%</td>
-                              <td class="text-end font-monospace fw-bold text-primary pe-3">{{ linha.totalLinha | currency:'EUR' }}</td>
+                              <td class="text-end font-monospace fw-bold text-muted col-inner-qtd">{{ linha.quantidade }}</td>
+                              <td class="text-end font-monospace col-inner-preco">{{ linha.precoUnitario | currency:'EUR' }}</td>
+                              <td class="text-end text-muted font-monospace col-inner-iva">{{ linha.taxaIvaValor }}%</td>
+                              <td class="text-end font-monospace fw-bold text-primary pe-3 col-inner-subtotal">{{ linha.totalLinha | currency:'EUR' }}</td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
+
                     </div>
                   </div>
                 </td>
@@ -161,9 +188,13 @@
   </div>
 </div>
 
+<!-- ==========================================
+     MODAL DE CRIAÇÃO / EDIÇÃO
+     ========================================== -->
 <div class="modal fade" id="modalCompra" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
+      
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title fw-bold">
             <i class="bi" [ngClass]="compraEmEdicao ? 'bi-pencil-square me-2' : 'bi-cart-plus me-2'"></i>
@@ -214,16 +245,17 @@
           <div formArrayName="linhas">
             
             <div *ngFor="let linha of linhas.controls; let i = index" [formGroupName]="i" [@animarCartao]
-                 class="card bg-white border border-2 border-light shadow-sm mb-3 position-relative">
+                 class="card bg-white border border-2 border-light shadow-sm mb-4 position-relative">
                 
                 <button type="button" class="btn btn-sm text-danger position-absolute top-0 end-0 m-2 border-0 bg-transparent" 
                         (click)="removerLinha(i)" title="Remover esta linha" *ngIf="linhas.length > 1">
                     <i class="bi bi-trash fs-5"></i>
                 </button>
 
-                <div class="card-body p-3 mt-2">
+                <!-- ADICIONADO p-md-4 PARA MAIS ESPAÇO NO PC -->
+                <div class="card-body p-3 p-md-4 mt-2">
                     
-                    <div class="row g-3 mb-3">
+                    <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Centro de Custo <span class="text-danger">*</span></label>
                             <select class="form-select" formControlName="centroCustoId" [ngClass]="{ 'is-invalid': campoLinhaInvalido(i, 'centroCustoId') }">
@@ -256,7 +288,8 @@
                         </div>
                     </div>
         
-                    <div class="row g-3 align-items-center bg-light p-3 rounded mb-3 mx-0 border border-secondary border-opacity-10">
+                    <!-- ADICIONADO mt-4 e mb-4 PARA SEPARAR OS ELEMENTOS -->
+                    <div class="row g-3 align-items-center bg-light p-3 rounded mt-4 mb-4 mx-0 border border-secondary border-opacity-10">
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Qtd <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" formControlName="quantidade" [ngClass]="{ 'is-invalid': campoLinhaInvalido(i, 'quantidade') }">
@@ -271,9 +304,11 @@
                                 <option *ngFor="let t of listaTaxasIva" [ngValue]="t.id">{{ t.valor }}%</option>
                             </select>
                         </div>
-                        <div class="col-md-3 text-end">
+                        
+                        <!-- ADICIONADO mt-4 NO MOBILE (mt-md-0 NO PC) PARA AFASTAR DO IVA -->
+                        <div class="col-md-3 text-start text-md-end mt-4 mt-md-0">
                             <label class="form-label small fw-bold text-muted d-block mb-1">Subtotal (Linha)</label>
-                            <h6 class="fw-bolder text-secondary mb-0">{{ calcularTotalLinha(i) | currency:'EUR' }}</h6>
+                            <h6 class="fw-bolder text-secondary mb-0 font-monospace">{{ calcularTotalLinha(i) | currency:'EUR' }}</h6>
                         </div>
                     </div>
         
@@ -288,14 +323,15 @@
             </div>
           </div>
       
-          <div class="d-flex justify-content-between align-items-center mt-4 p-3 bg-white rounded border shadow-sm">
-              <button type="button" class="btn btn-outline-danger fw-bold" (click)="adicionarLinha()">
+          <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center mt-4 p-3 bg-white rounded border shadow-sm gap-3">
+              
+              <button type="button" class="btn btn-outline-danger fw-bold w-100 w-sm-auto text-nowrap" (click)="adicionarLinha()">
                   <i class="bi bi-plus-lg me-1"></i> Adicionar Artigo
               </button>
               
-              <div class="text-end">
+              <div class="text-center text-sm-end w-100 w-sm-auto">
                   <span class="text-muted fw-bold small text-uppercase mb-1 d-block">TOTAL DA FATURA</span>
-                  <h3 class="text-primary fw-bolder mb-0">{{ totalCalculado | currency:'EUR' }}</h3>
+                  <h3 class="text-primary fw-bolder mb-0 font-monospace">{{ totalCalculado | currency:'EUR' }}</h3>
               </div>
           </div>
       
@@ -309,6 +345,7 @@
           {{ compraEmEdicao ? 'Atualizar Compra' : 'Registar Compra' }}
         </button>
       </div>
+      
     </div>
   </div>
 </div>

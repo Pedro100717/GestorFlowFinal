@@ -1,5 +1,6 @@
 package pt.gestorflow.backend.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -17,6 +18,7 @@ public class OrcamentoDTO {
     private String notas;
 
     @NotEmpty(message = "O orçamento tem de ter pelo menos uma linha")
+    @Valid
     private List<LinhaOrcamentoDTO> linhas;
 
     @Data

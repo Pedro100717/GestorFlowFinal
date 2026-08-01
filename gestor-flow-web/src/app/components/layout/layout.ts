@@ -76,4 +76,11 @@ export class LayoutComponent implements OnInit {
       this.menuPerfilAberto = false;
     }
   }
+
+  // Adiciona este método dentro da classe LayoutComponent
+  fecharMenuMobile() {
+    if (this.isMobileMenuOpen) {
+      this.isMobileMenuOpen = false;
+    }
+  }
 }

@@ -119,4 +119,17 @@ export class DashboardComponent implements OnInit {
     const [y, m, d] = dataIso.split('-');
     return `${d}/${m}/${y}`;
   }
+
+  abrirPainelFiltro() {
+    this.dropdownAberto = false; // Fecha o dropdown primeiro
+    
+    // Pequeno timeout para garantir que o DOM processa o fecho do menu antes de abrir o offcanvas
+    setTimeout(() => {
+      const offcanvasElement = document.getElementById('offcanvasFiltroDatas');
+      if (offcanvasElement && (window as any).bootstrap) {
+        const bsOffcanvas = (window as any).bootstrap.Offcanvas.getInstance(offcanvasElement) || new (window as any).bootstrap.Offcanvas(offcanvasElement);
+        bsOffcanvas.show();
+      }
+    }, 100);
+  }
 }

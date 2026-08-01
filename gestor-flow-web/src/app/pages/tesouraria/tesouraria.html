@@ -1,41 +1,50 @@
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-secondary">Tesouraria</h3>
-        <div>
-            <button class="btn btn-outline-success me-2 fw-bold" (click)="novaTransferencia()">
+    
+    <!-- CABEÇALHO SUPERIOR -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+        <h3 class="fw-bold text-secondary mb-0">Tesouraria</h3>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-success fw-bold text-nowrap shadow-sm" (click)="novaTransferencia()">
                 <i class="bi bi-arrow-left-right me-2"></i>Transferência
             </button>
-            <button class="btn btn-primary fw-bold" (click)="novaConta()">
+            <button class="btn btn-primary fw-bold text-nowrap shadow-sm" (click)="novaConta()">
                 <i class="bi bi-bank me-2"></i>Nova Conta
             </button>
         </div>
     </div>
 
-    <ul class="nav nav-tabs mb-4 border-bottom-0">
+    <!-- TABS: Empilhadas no telemóvel (flex-column), lado a lado no PC (flex-sm-row) -->
+    <ul class="nav nav-tabs mb-4 border-bottom-0 flex-column flex-sm-row gap-2 gap-sm-0">
         <li class="nav-item">
-            <a class="nav-link fw-bold border-0 border-bottom" 
-               [ngClass]="abaAtiva === 'contas' ? 'active text-primary border-primary border-3' : 'text-muted'" 
+            <!-- Trocado para text-start puro -->
+            <a class="nav-link fw-bold border-0 border-bottom text-start" 
+               [ngClass]="abaAtiva === 'contas' ? 'active text-primary border-primary border-3 bg-light bg-sm-transparent' : 'text-muted'" 
                (click)="abaAtiva = 'contas'" style="cursor: pointer;">
                 <i class="bi bi-wallet2 me-2"></i>Saldos e Extratos
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link fw-bold border-0 border-bottom" 
-               [ngClass]="abaAtiva === 'pendentes' ? 'active text-primary border-primary border-3' : 'text-muted'" 
+            <!-- Trocado para text-start puro -->
+            <a class="nav-link fw-bold border-0 border-bottom text-start" 
+               [ngClass]="abaAtiva === 'pendentes' ? 'active text-primary border-primary border-3 bg-light bg-sm-transparent' : 'text-muted'" 
                (click)="abaAtiva = 'pendentes'" style="cursor: pointer;">
                 <i class="bi bi-hourglass-split me-2"></i>Documentos Pendentes
                 <span class="badge bg-danger ms-2 rounded-pill" *ngIf="listaPendentes.length > 0">{{ listaPendentes.length }}</span>
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link fw-bold border-0 border-bottom" 
-               [ngClass]="abaAtiva === 'simulador' ? 'active text-primary border-primary border-3' : 'text-muted'" 
+            <!-- Trocado para text-start puro -->
+            <a class="nav-link fw-bold border-0 border-bottom text-start" 
+               [ngClass]="abaAtiva === 'simulador' ? 'active text-primary border-primary border-3 bg-light bg-sm-transparent' : 'text-muted'" 
                (click)="abaAtiva = 'simulador'; atualizarGraficoSimulador()" style="cursor: pointer;">
                 <i class="bi bi-graph-up me-2"></i>Previsão (Futuro)
             </a>
         </li>
     </ul>
 
+    <!-- =========================================
+         ABA 1: SALDOS E EXTRATOS
+         ========================================= -->
     <div *ngIf="abaAtiva === 'contas'">
         <div class="row g-3 mb-4">
             <div class="col-md-4" *ngFor="let conta of listaContas">
@@ -76,24 +85,33 @@
             </div>
         </div>
 
+        <!-- TABELA EXTRATO (Com proteção de larguras flexbox) -->
         <div class="card shadow-sm border-0" *ngIf="contaSelecionada">
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold text-secondary">Extrato: {{ contaSelecionada.nome }}</h5>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div class="table-responsive tabela-extratos">
+                <table class="table table-hover align-middle mb-0 text-nowrap">
                     <thead class="bg-light">
                         <tr>
-                            <th class="ps-4 border-0 text-muted small uppercase">Data</th>
-                            <th class="border-0 text-muted small uppercase">Descrição</th>
-                            <th class="border-0 text-muted small uppercase text-end">Valor</th>
-                            <th class="border-0 text-muted small uppercase text-center pe-4">Ação</th>
+                            <th class="border-0 p-0 col-data">
+                                <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Data</div>
+                            </th>
+                            <th class="border-0 p-0 col-descricao">
+                                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Descrição</div>
+                            </th>
+                            <th class="border-0 p-0 col-valor">
+                                <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Valor</div>
+                            </th>
+                            <th class="border-0 p-0 col-acoes">
+                                <div class="d-flex align-items-center justify-content-center pe-4 py-3 text-muted small text-uppercase">Ação</div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr *ngFor="let m of movimentos">
-                            <td class="ps-4 text-muted small">{{ m.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
-                            <td>
+                            <td class="ps-4 text-muted small text-start col-data">{{ m.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
+                            <td class="text-start px-2 col-descricao">
                                 <span class="badge me-2" 
                                       [ngClass]="m.tipo === 'CREDITO' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'">
                                     {{ m.tipo === 'CREDITO' ? 'Entrada' : 'Saída' }}
@@ -117,11 +135,11 @@
                             
                                 <span class="text-dark">{{ m.descricao }}</span>
                             </td>
-                            <td class="text-end fw-bold" 
+                            <td class="text-end px-2 fw-bold col-valor" 
                                 [ngClass]="m.tipo === 'CREDITO' ? 'text-success' : 'text-danger'">
                                 {{ m.tipo === 'CREDITO' ? '+' : '-' }} {{ m.valor | currency:'EUR' }}
                             </td>
-                            <td class="text-center pe-4">
+                            <td class="text-center pe-4 col-acoes">
                                 <button class="btn btn-sm btn-light text-danger border" 
                                         (click)="anularMovimento(m)" 
                                         title="Estornar Movimento">
@@ -142,39 +160,52 @@
         </div>
     </div>
 
+    <!-- =========================================
+         ABA 2: PENDENTES
+         ========================================= -->
     <div *ngIf="abaAtiva === 'pendentes'" class="card shadow-sm border-0">
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div class="table-responsive tabela-pendentes">
+                <table class="table table-hover align-middle mb-0 text-nowrap">
                     <thead class="bg-light">
                         <tr>
-                            <th class="ps-4 py-3 border-0 text-muted small uppercase">Tipo</th>
-                            <th class="border-0 text-muted small uppercase">Data Emissão</th>
-                            <th class="border-0 text-muted small uppercase">Entidade / Descritivo</th>
-                            <th class="border-0 text-muted small uppercase text-end">Valor Pendente</th>
-                            <th class="border-0 text-muted small uppercase text-end pe-4">Ação</th>
+                            <th class="border-0 p-0 col-tipo">
+                                <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Tipo</div>
+                            </th>
+                            <th class="border-0 p-0 col-data">
+                                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Data Emissão</div>
+                            </th>
+                            <th class="border-0 p-0 col-entidade">
+                                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Entidade / Descritivo</div>
+                            </th>
+                            <th class="border-0 p-0 col-valor">
+                                <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Valor Pendente</div>
+                            </th>
+                            <th class="border-0 p-0 col-acoes">
+                                <div class="d-flex align-items-center justify-content-end pe-4 py-3 text-muted small text-uppercase">Ação</div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr *ngFor="let doc of listaPendentes">
-                            <td class="ps-4">
+                            <td class="ps-4 text-start col-tipo">
                                 <span class="badge" [ngClass]="doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'bg-success bg-opacity-10 text-success border border-success' : 'bg-danger bg-opacity-10 text-danger border border-danger'">
                                     <i class="bi" [ngClass]="doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'bi-box-arrow-in-down-left' : 'bi-box-arrow-up-right'"></i> 
                                     {{ doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'Recebimento' : 'Pagamento' }}
                                 </span>
                             </td>
-                            <td class="text-muted small">{{ doc.data | date:'dd/MM/yyyy HH:mm' }}</td>
-                            <td class="fw-bold text-dark">{{ doc.entidade }}
+                            <td class="text-muted small text-start px-2 col-data">{{ doc.data | date:'dd/MM/yyyy HH:mm' }}</td>
+                            <td class="fw-bold text-dark text-start px-2 col-entidade">{{ doc.entidade }}
                                 <span *ngIf="doc.descricao" class="text-muted fw-normal d-block small mt-1">
                                     <i class="bi bi-info-circle me-1"></i>{{ doc.descricao }}
                                 </span>
                             </td>
-                            <td class="text-end">
+                            <td class="text-end px-2 col-valor">
                                 <div class="fw-bold fs-6 text-dark">{{ doc.valorPendente | currency:'EUR' }}</div>
                                 <small class="text-muted fw-normal">de {{ doc.total | currency:'EUR' }}</small>
                             </td>
-                            <td class="text-end pe-4">
-                                <button class="btn btn-sm shadow-sm" 
+                            <td class="text-end pe-4 col-acoes">
+                                <button class="btn btn-sm shadow-sm text-nowrap" 
                                         [ngClass]="doc.tipo === 'VENDA' || doc.tipo === 'RECEITA' ? 'btn-success' : 'btn-danger'"
                                         (click)="abrirModalConfirmacao(doc)">
                                     Liquidar <i class="bi bi-chevron-right ms-1"></i>
@@ -194,16 +225,19 @@
         </div>
     </div>
 
+    <!-- =========================================
+         ABA 3: SIMULADOR (PREVISÃO)
+         ========================================= -->
     <div *ngIf="abaAtiva === 'simulador'" class="row g-4">
         
         <div class="col-xl-6 col-lg-12">
             <div class="card shadow-sm border-0 h-100 rounded-4">
-                <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
+                <div class="card-header bg-white p-4 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center rounded-top-4 gap-2">
                     <div>
                         <h5 class="mb-0 fw-bold text-dark">Projeção Bancária</h5>
                         <small class="text-muted">Evolução do teu capital ao longo do tempo</small>
                     </div>
-                    <div class="text-end">
+                    <div class="text-start text-sm-end">
                         <span class="badge bg-primary bg-opacity-10 text-primary mb-1 rounded-pill px-3 py-1 fw-bold border border-primary border-opacity-25">
                             Saldo Real Hoje
                         </span>
@@ -222,7 +256,7 @@
             <div class="card shadow-sm border-0 h-100 d-flex flex-column rounded-4 card-evolucao" 
                  [@expandirTabela]="isTableExpanded ? 'expandido' : 'normal'">
                 
-                <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
+                <div class="card-header bg-white p-4 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center rounded-top-4 gap-3">
                     <div>
                         <h5 class="mb-0 fw-bold text-dark">
                             <i class="bi bi-list-columns me-2 text-primary"></i>
@@ -233,39 +267,40 @@
                         </small>
                     </div>
                     
-                    <div class="d-flex gap-2 align-items-center">
-                        <button class="btn btn-light text-secondary border-0 p-2 d-flex align-items-center justify-content-center transition-all"
+                    <div class="d-flex gap-2 align-items-center w-100 w-sm-auto justify-content-end">
+                        <button class="btn btn-light text-secondary border-0 p-2 d-flex align-items-center justify-content-center transition-all flex-shrink-0"
                                 (click)="toggleExpand()" 
                                 [title]="isTableExpanded ? 'Encolher Tabela' : 'Expandir Tabela'">
                             <i class="bi fs-5" [class.bi-arrows-fullscreen]="!isTableExpanded" [class.bi-fullscreen-exit]="isTableExpanded"></i>
                         </button>
                         
-                        <button class="btn btn-primary fw-bold shadow-sm rounded-pill px-4" 
+                        <button class="btn btn-primary fw-bold shadow-sm rounded-pill px-4 text-nowrap" 
                                 (click)="abrirModalPlaneamento()">
                             <i class="bi bi-plus-lg me-1"></i> Novo Plano
                         </button>
                     </div>
                 </div>
                 
+                <!-- FILTROS: Grelha 100% no telemóvel e adaptada no PC -->
                 <form [formGroup]="formFiltros" class="px-4 py-3 border-bottom m-0 transition-all"
                       [ngClass]="isTableExpanded ? 'bg-light' : 'bg-white'">
-                    <div class="row g-2 align-items-center">
-                        <div class="col-md-3">
-                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm" formControlName="fluxo" style="border-radius: 8px; height: 40px;">
+                    <div class="row g-2">
+                        <div class="col-12 col-md-3">
+                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm w-100" formControlName="fluxo" style="border-radius: 8px; height: 40px;">
                                 <option value="TUDO">Fluxo: Todos</option>
                                 <option value="ENTRADAS">Só Entradas (+)</option>
                                 <option value="SAIDAS">Só Saídas (-)</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm" formControlName="natureza" style="border-radius: 8px; height: 40px;">
+                        <div class="col-12 col-md-3">
+                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm w-100" formControlName="natureza" style="border-radius: 8px; height: 40px;">
                                 <option value="TUDO">Origem: Todas</option>
                                 <option value="REAIS">Faturas Reais</option>
                                 <option value="PLANOS">Planos Fixos</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm" formControlName="periodo" style="border-radius: 8px; height: 40px;">
+                        <div class="col-12 col-md-3">
+                            <select class="form-select border-0 bg-light text-secondary fw-semibold shadow-sm w-100" formControlName="periodo" style="border-radius: 8px; height: 40px;">
                                 <option value="TUDO">Período: Completo</option>
                                 <option value="6_MESES">6 Meses</option>
                                 <option value="1_ANO">1 Ano</option>
@@ -274,7 +309,7 @@
                                 <option value="5_ANOS">5 Anos</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-12 col-md-3">
                             <button class="btn btn-outline-danger w-100 shadow-sm d-flex justify-content-center align-items-center fw-bold bg-white" 
                                     style="border-radius: 8px; height: 40px;" 
                                     (click)="exportarEvolucaoPdf()"
@@ -286,29 +321,39 @@
                 </form>
 
                 <div class="card-body p-0 d-flex flex-column" style="min-height: 0; overflow: hidden;">
-                    <div class="table-responsive m-0 flex-grow-1" style="overflow-y: auto; padding-bottom: 15px;">
-                        <table class="table table-hover align-middle mb-0 bg-white">
+                    <div class="table-responsive tabela-previsoes m-0 flex-grow-1" style="overflow-y: auto; padding-bottom: 15px;">
+                        <table class="table table-hover align-middle mb-0 bg-white text-nowrap">
                             <thead class="bg-white sticky-top shadow-sm" style="z-index: 1; top: 0;">
                                 <tr>
-                                    <th class="py-3 px-4 text-muted small uppercase border-bottom-0">Data</th>
-                                    <th class="text-muted small uppercase border-bottom-0">Movimento</th>
-                                    <th class="text-muted small uppercase text-end border-bottom-0">Valor</th>
-                                    <th class="text-dark fw-bold small uppercase text-end bg-light border-bottom-0">Saldo Conta</th>
-                                    <th class="text-muted small uppercase text-center border-bottom-0 pe-4">Ações</th>
+                                    <th class="border-0 p-0 col-data border-bottom-0">
+                                        <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Data</div>
+                                    </th>
+                                    <th class="border-0 p-0 col-movimento border-bottom-0">
+                                        <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Movimento</div>
+                                    </th>
+                                    <th class="border-0 p-0 col-valor border-bottom-0">
+                                        <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Valor</div>
+                                    </th>
+                                    <th class="border-0 p-0 col-saldo border-bottom-0 bg-light">
+                                        <div class="d-flex align-items-center justify-content-end px-2 py-3 text-dark fw-bold small text-uppercase">Saldo Conta</div>
+                                    </th>
+                                    <th class="border-0 p-0 col-acoes border-bottom-0">
+                                        <div class="d-flex align-items-center justify-content-center pe-4 py-3 text-muted small text-uppercase">Ações</div>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr *ngFor="let linha of linhasSimuladorFiltradas" 
                                     [ngClass]="{'bg-light bg-opacity-50': linha.isAtual}">
                                     
-                                    <td class="small px-4">
+                                    <td class="small ps-4 text-start col-data">
                                         <span *ngIf="!linha.isAtual" class="fw-semibold text-secondary">
                                             {{ linha.data | date:'dd/MM' }}
                                             <span class="text-muted small d-block" style="font-size: 0.7rem;">{{ linha.data | date:'yyyy' }}</span>
                                         </span>
                                     </td>
                                     
-                                    <td>
+                                    <td class="text-start px-2 col-movimento">
                                         <div class="fw-bold" [ngClass]="linha.isAtual ? 'text-primary' : (linha.isProjecao ? 'text-secondary' : 'text-dark')">
                                             <i class="bi bi-magic me-2 text-warning" *ngIf="linha.isProjecao" title="Previsão de Plano Fixo"></i>
                                             {{ linha.descritivo }}
@@ -319,19 +364,19 @@
                                         </div>
                                     </td>
                                     
-                                    <td class="text-end fw-bold font-monospace align-middle" style="white-space: nowrap;">
-                                        <span *ngIf="linha.receita" class="text-success bg-success bg-opacity-10 px-2 py-1 rounded" style="white-space: nowrap;">+{{ linha.receita | currency:'EUR' }}</span>
-                                        <span *ngIf="linha.despesa" class="text-danger bg-danger bg-opacity-10 px-2 py-1 rounded" style="white-space: nowrap;">-{{ linha.despesa | currency:'EUR' }}</span>
+                                    <td class="text-end px-2 fw-bold font-monospace align-middle col-valor">
+                                        <span *ngIf="linha.receita" class="text-success bg-success bg-opacity-10 px-2 py-1 rounded">+{{ linha.receita | currency:'EUR' }}</span>
+                                        <span *ngIf="linha.despesa" class="text-danger bg-danger bg-opacity-10 px-2 py-1 rounded">-{{ linha.despesa | currency:'EUR' }}</span>
                                     </td>
                                     
-                                    <td class="text-end fw-bold font-monospace" 
+                                    <td class="text-end px-2 fw-bold font-monospace col-saldo" 
                                         [ngClass]="(linha.saldo || 0) >= 0 ? 'text-dark' : 'text-danger'"
                                         style="background-color: #f8f9fa;">
                                         {{ linha.saldo | currency:'EUR' }}
                                     </td>
                                     
-                                    <td class="text-center pe-4">
-                                        <div class="d-flex justify-content-end gap-1" *ngIf="!linha.isAtual && !linha.isProjecao">
+                                    <td class="text-center pe-4 col-acoes">
+                                        <div class="d-flex justify-content-center gap-1" *ngIf="!linha.isAtual && !linha.isProjecao">
                                             <button class="btn btn-sm btn-dark rounded-pill fw-bold px-3" 
                                                     (click)="abrirModalConfirmacao($any(linha.documento))">
                                                 Liquidar
@@ -342,7 +387,7 @@
                                             </button>
                                         </div>
     
-                                        <div class="d-flex justify-content-end gap-1" *ngIf="linha.isProjecao">
+                                        <div class="d-flex justify-content-center gap-1" *ngIf="linha.isProjecao">
                                             <button class="btn btn-sm btn-light text-primary fw-bold rounded-pill px-3 shadow-sm border" 
                                                 (click)="gerarFaturaDoPlano(linha)">
                                                 Efetivar
@@ -374,6 +419,9 @@
     </div>
 </div>
 
+<!-- =========================================
+     MODAIS (MANTIDOS INTACTOS)
+     ========================================= -->
 <div class="modal fade" id="modalConta" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">

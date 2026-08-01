@@ -1,25 +1,25 @@
 <div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h3 class="fw-bold text-secondary mb-0">Gestão de Inventário e Stock</h3>
-        <small class="text-muted">Controlo de quantidades e registo de quebras/ofertas</small>
-    </div>
-    <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+  
+  <!-- CABEÇALHO SUPERIOR (Sem descrição e adaptável ao mobile) -->
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+    <h3 class="fw-bold text-secondary mb-0">Gestão de Inventário e Stock</h3>
+    <button class="btn btn-primary shadow-sm text-nowrap" (click)="abrirModalNovo()">
       <i class="bi bi-box-arrow-in-right me-2"></i>Novo Acerto Manual
     </button>
   </div>
 
-  <ul class="nav nav-tabs mb-4 border-bottom-0">
+  <!-- SEPARADORES (Empilhados no mobile) -->
+  <ul class="nav nav-tabs mb-4 border-bottom-0 flex-column flex-sm-row gap-2 gap-sm-0">
       <li class="nav-item">
-          <a class="nav-link fw-bold border-0 border-bottom" 
-             [ngClass]="abaAtiva === 'inventario' ? 'active text-primary border-primary border-3' : 'text-muted'" 
+          <a class="nav-link fw-bold border-0 border-bottom text-start" 
+             [ngClass]="abaAtiva === 'inventario' ? 'active text-primary border-primary border-3 bg-light bg-sm-transparent' : 'text-muted'" 
              (click)="abaAtiva = 'inventario'" style="cursor: pointer;">
               <i class="bi bi-boxes me-2"></i>Inventário Atual
           </a>
       </li>
       <li class="nav-item">
-          <a class="nav-link fw-bold border-0 border-bottom" 
-             [ngClass]="abaAtiva === 'historico' ? 'active text-primary border-primary border-3' : 'text-muted'" 
+          <a class="nav-link fw-bold border-0 border-bottom text-start" 
+             [ngClass]="abaAtiva === 'historico' ? 'active text-primary border-primary border-3 bg-light bg-sm-transparent' : 'text-muted'" 
              (click)="abaAtiva = 'historico'" style="cursor: pointer;">
               <i class="bi bi-clock-history me-2"></i>Histórico de Acertos
           </a>
@@ -29,24 +29,39 @@
   <div class="card shadow-sm border-0">
     <div class="card-body p-0">
       
-      <div class="table-responsive" *ngIf="abaAtiva === 'inventario'">
-          <table class="table table-hover align-middle mb-0">
+      <!-- =========================================
+           ABA 1: INVENTÁRIO
+           ========================================= -->
+      <div class="table-responsive tabela-inventario" *ngIf="abaAtiva === 'inventario'">
+          <table class="table table-hover align-middle mb-0 text-nowrap">
             <thead class="bg-light">
               <tr>
-                <th class="ps-4 py-3 border-0 text-muted small uppercase">Ref / Código</th>
-                <th class="border-0 text-muted small uppercase">Artigo</th>
-                <th class="border-0 text-muted small uppercase text-end">Custo Unit.</th>
-                <th class="border-0 text-muted small uppercase text-center">Estado</th>
-                <th class="border-0 text-muted small uppercase text-end">Stock Atual</th>
-                <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+                <th class="border-0 p-0 col-ref">
+                  <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Ref / Código</div>
+                </th>
+                <th class="border-0 p-0 col-artigo">
+                  <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Artigo</div>
+                </th>
+                <th class="border-0 p-0 col-custo">
+                  <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Custo Unit.</div>
+                </th>
+                <th class="border-0 p-0 col-estado">
+                  <div class="d-flex align-items-center justify-content-center px-2 py-3 text-muted small text-uppercase">Estado</div>
+                </th>
+                <th class="border-0 p-0 col-stock">
+                  <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Stock Atual</div>
+                </th>
+                <th class="border-0 p-0 col-acoes">
+                  <div class="d-flex align-items-center justify-content-end pe-4 py-3 text-muted small text-uppercase">Ações</div>
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let m of listaMercadorias">
-                <td class="ps-4 text-muted small">{{ m.codigoBarras || '--' }}</td>
-                <td class="fw-bold text-dark">{{ m.nome }}</td>
-                <td class="text-end text-muted">{{ m.ultimoPrecoCusto | currency:'EUR' }}</td>
-                <td class="text-center">
+                <td class="ps-4 text-muted small text-start col-ref">{{ m.codigoBarras || '--' }}</td>
+                <td class="fw-bold text-dark text-start px-2 col-artigo">{{ m.nome }}</td>
+                <td class="text-end px-2 text-muted font-monospace col-custo">{{ m.ultimoPrecoCusto | currency:'EUR' }}</td>
+                <td class="text-center px-2 col-estado">
                     <span class="badge" [ngClass]="{
                         'bg-success': m.stockAtual! > 10,
                         'bg-warning text-dark': m.stockAtual! > 0 && m.stockAtual! <= 10,
@@ -55,58 +70,79 @@
                         {{ m.stockAtual! > 10 ? 'Normal' : (m.stockAtual! > 0 ? 'Baixo' : 'Esgotado') }}
                     </span>
                 </td>
-                <td class="text-end pe-3 fw-bold fs-5" [ngClass]="m.stockAtual! <= 0 ? 'text-danger' : 'text-primary'">
+                <td class="text-end px-2 pe-3 fw-bold fs-5 font-monospace col-stock" [ngClass]="m.stockAtual! <= 0 ? 'text-danger' : 'text-primary'">
                     {{ m.stockAtual || 0 }}
                 </td>
-                <td class="text-end pe-4">
-                    <button class="btn btn-sm btn-outline-info me-2" 
+                <td class="text-end pe-4 col-acoes">
+                    <button class="btn btn-sm btn-outline-info me-2 text-nowrap" 
                       (click)="abrirHistoricoArtigo(m)" 
                       title="Ver a conta-corrente deste artigo">
                       <i class="bi bi-list-columns-reverse"></i> Movimentos
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary" (click)="abrirModalNovo(m.id)" title="Ajustar Stock deste artigo">
+                    <button class="btn btn-sm btn-outline-secondary text-nowrap" (click)="abrirModalNovo(m.id)" title="Ajustar Stock deste artigo">
                       <i class="bi bi-sliders"></i> Acerto
                     </button>
                 </td>
               </tr>
               <tr *ngIf="listaMercadorias.length === 0">
-                  <td colspan="6" class="text-center py-4 text-muted">Ainda não tens mercadorias registadas.</td>
+                  <td colspan="6" class="text-center py-5 text-muted">
+                    <i class="bi bi-box-seam fs-1 d-block mb-3 opacity-50"></i>
+                    <span class="fw-bold">Ainda não tens mercadorias registadas.</span>
+                  </td>
               </tr>
             </tbody>
           </table>
       </div>
 
-      <div class="table-responsive" *ngIf="abaAtiva === 'historico'">
-        <table class="table table-hover align-middle mb-0">
+      <!-- =========================================
+           ABA 2: HISTÓRICO GERAL
+           ========================================= -->
+      <div class="table-responsive tabela-historico" *ngIf="abaAtiva === 'historico'">
+        <table class="table table-hover align-middle mb-0 text-nowrap">
           <thead class="bg-light">
             <tr>
-              <th class="ps-4 py-3 border-0 text-muted small uppercase">Data</th>
-              <th class="border-0 text-muted small uppercase">Artigo</th>
-              <th class="border-0 text-muted small uppercase text-center">Tipo</th>
-              <th class="border-0 text-muted small uppercase text-end">Quantidade</th>
-              <th class="border-0 text-muted small uppercase">Motivo</th>
-              <th class="border-0 text-muted small uppercase text-end pe-4">Stock Após Acerto</th>
+              <th class="border-0 p-0 col-data">
+                <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Data</div>
+              </th>
+              <th class="border-0 p-0 col-artigo">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Artigo</div>
+              </th>
+              <th class="border-0 p-0 col-tipo">
+                <div class="d-flex align-items-center justify-content-center px-2 py-3 text-muted small text-uppercase">Tipo</div>
+              </th>
+              <th class="border-0 p-0 col-qtd">
+                <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Quantidade</div>
+              </th>
+              <th class="border-0 p-0 col-motivo">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Motivo</div>
+              </th>
+              <th class="border-0 p-0 col-stock-apos">
+                <div class="d-flex align-items-center justify-content-end pe-4 py-3 text-muted small text-uppercase">Stock Após Acerto</div>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let h of listaHistorico">
-              <td class="ps-4 text-muted small">{{ h.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
-              <td class="fw-bold text-dark">{{ h.mercadoriaNome }}</td>
-              <td class="text-center">
+              <td class="ps-4 text-muted small text-start col-data">{{ h.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td class="fw-bold text-dark text-start px-2 col-artigo">{{ h.mercadoriaNome }}</td>
+              <td class="text-center px-2 col-tipo">
                 <span class="badge" [ngClass]="{
                     'bg-success': h.tipo === 'ENTRADA', 
                     'bg-danger': h.tipo === 'SAIDA'}">
                     {{ h.tipo }}
                 </span>
-            </td>
-              <td class="text-end fw-bold" [ngClass]="{'text-success': h.tipo === 'ENTRADA', 'text-danger': h.tipo === 'SAIDA'}">
+              </td>
+              <td class="text-end px-2 fw-bold font-monospace col-qtd" [ngClass]="{'text-success': h.tipo === 'ENTRADA', 'text-danger': h.tipo === 'SAIDA'}">
                   {{ h.tipo === 'ENTRADA' ? '+' : '-' }}{{ h.quantidade }}
               </td>
-              <td class="text-muted small">{{ h.motivo }}</td>
-              <td class="text-end pe-4 fw-bold text-secondary">{{ h.stockAposMovimento }}</td>
+              <td class="text-muted small text-start px-2 col-motivo text-truncate" style="max-width: 200px;" [title]="h.motivo">{{ h.motivo }}</td>
+              <td class="text-end pe-4 fw-bold text-secondary font-monospace col-stock-apos">{{ h.stockAposMovimento }}</td>
             </tr>
             <tr *ngIf="listaHistorico.length === 0">
-                <td colspan="6" class="text-center py-4 text-muted">Nenhum acerto manual registado.</td>
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <i class="bi bi-clock-history fs-1 d-block mb-3 opacity-50"></i>
+                  <span class="fw-bold">Nenhum acerto manual registado.</span>
+                </td>
             </tr>
           </tbody>
         </table>
@@ -116,11 +152,14 @@
   </div>
 </div>
 
+<!-- =========================================
+     MODAL DE ACERTO
+     ========================================= -->
 <div class="modal fade" id="modalAcerto" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow">
+    <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title"><i class="bi bi-tools me-2"></i>Registar Acerto Manual</h5>
+        <h5 class="modal-title fw-bold"><i class="bi bi-tools me-2"></i>Registar Acerto Manual</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
@@ -128,7 +167,7 @@
           
           <div class="mb-3">
             <label class="form-label small fw-bold">Artigo (Mercadoria) <span class="text-danger">*</span></label>
-            <select class="form-select" formControlName="mercadoriaId" [ngClass]="{ 'is-invalid': f['mercadoriaId'].touched && f['mercadoriaId'].invalid }">
+            <select class="form-select fw-bold" formControlName="mercadoriaId" [ngClass]="{ 'is-invalid': f['mercadoriaId'].touched && f['mercadoriaId'].invalid }">
                 <option [ngValue]="null">Selecione a mercadoria...</option>
                 <option *ngFor="let m of listaMercadorias" [ngValue]="m.id">
                     {{ m.nome }} (Stock Atual: {{ m.stockAtual || 0 }})
@@ -136,42 +175,46 @@
             </select>
           </div>
 
-          <div class="row">
-              <div class="col-md-6 mb-3">
+          <div class="row g-3">
+              <div class="col-12 col-md-6 mb-3">
                   <label class="form-label small fw-bold">Tipo de Movimento <span class="text-danger">*</span></label>
                   <select class="form-select" formControlName="tipo">
-                      <option value="ENTRADA">Entrada (Aumentar)</option>
-                      <option value="SAIDA">Saída (Diminuir/Quebra)</option>
+                      <option value="ENTRADA">Entrada (+ Aumentar)</option>
+                      <option value="SAIDA">Saída (- Diminuir/Quebra)</option>
                   </select>
               </div>
-              <div class="col-md-6 mb-3">
+              <div class="col-12 col-md-6 mb-3">
                   <label class="form-label small fw-bold">Quantidade <span class="text-danger">*</span></label>
-                  <input type="number" class="form-control" formControlName="quantidade" step="1" min="0">
+                  <input type="number" class="form-control font-monospace fw-bold" formControlName="quantidade" step="1" min="0">
               </div>
           </div>
 
           <div class="mb-3 bg-light p-3 rounded border" *ngIf="f['tipo'].value === 'ENTRADA' || f['tipo'].value === 'SAIDA'">
               
+              <!-- CLIENTE (ENTRADA) -->
               <div *ngIf="f['tipo'].value === 'ENTRADA'">
                   <label class="form-label small fw-bold text-success">
-                      <i class="bi bi-person-down me-1"></i> Cliente (Em caso de Devolução)
+                      <i class="bi bi-person-down me-1"></i> Cliente (Em caso de Devolução) <span class="text-danger">*</span>
                   </label>
-                  <select class="form-select border-success border-opacity-50" formControlName="clienteId">
-                      <option [ngValue]="null">-- Sem Cliente associado --</option>
+                  <select class="form-select border-success border-opacity-50" formControlName="clienteId"
+                          [ngClass]="{ 'is-invalid': f['clienteId']?.touched && f['clienteId']?.invalid }">
+                      <option [ngValue]="null" disabled>-- Selecione um Cliente --</option>
                       <option *ngFor="let c of listaClientes" [ngValue]="c.id">{{ c.nome }}</option>
                   </select>
-                  <div class="form-text small text-muted mt-1">Opcional. Indica de que cliente recebeste o material.</div>
+                  <div class="form-text small text-muted mt-1">Obrigatório. Indica de que cliente recebeste o material.</div>
               </div>
 
+              <!-- FORNECEDOR (SAÍDA) -->
               <div *ngIf="f['tipo'].value === 'SAIDA'">
                   <label class="form-label small fw-bold text-danger">
-                      <i class="bi bi-truck me-1"></i> Fornecedor (Em caso de Devolução)
+                      <i class="bi bi-truck me-1"></i> Fornecedor (Em caso de Devolução) <span class="text-danger">*</span>
                   </label>
-                  <select class="form-select border-danger border-opacity-50" formControlName="fornecedorId">
-                      <option [ngValue]="null">-- Sem Fornecedor associado --</option>
+                  <select class="form-select border-danger border-opacity-50" formControlName="fornecedorId"
+                          [ngClass]="{ 'is-invalid': f['fornecedorId']?.touched && f['fornecedorId']?.invalid }">
+                      <option [ngValue]="null" disabled>-- Selecione um Fornecedor --</option>
                       <option *ngFor="let f of listaFornecedores" [ngValue]="f.id">{{ f.nome }}</option>
                   </select>
-                  <div class="form-text small text-muted mt-1">Opcional. Indica a que fornecedor devolveste o material.</div>
+                  <div class="form-text small text-muted mt-1">Obrigatório. Indica a que fornecedor devolveste o material.</div>
               </div>
           </div>
 
@@ -183,9 +226,9 @@
 
         </form>
       </div>
-      <div class="modal-footer bg-light">
+      <div class="modal-footer bg-light border-0">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" [disabled]="formAcerto.invalid" (click)="guardarAcerto()">
+        <button type="button" class="btn btn-primary fw-bold px-4" [disabled]="formAcerto.invalid" (click)="guardarAcerto()">
           <i class="bi bi-save me-2"></i> Confirmar
         </button>
       </div>
@@ -193,16 +236,17 @@
   </div>
 </div>
 
+<!-- =========================================
+     MODAL DE HISTÓRICO DO ARTIGO
+     ========================================= -->
 <div *ngIf="mostrarModalHistorico">
-  
   <div class="modal-backdrop fade show"></div>
-
   <div class="modal fade show" style="display: block;" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content border-0 shadow">
+      <div class="modal-content border-0 shadow-lg">
         
         <div class="modal-header bg-dark text-white">
-          <h5 class="modal-title">
+          <h5 class="modal-title fw-bold">
             <i class="bi bi-clock-history text-info me-2"></i> 
             Histórico: <span class="fw-light">{{ artigoSelecionadoParaHistorico }}</span>
           </h5>
@@ -210,15 +254,25 @@
         </div>
         
         <div class="modal-body p-0">
-          <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
-            <table class="table table-hover align-middle mb-0">
+          <div class="table-responsive tabela-historico" style="max-height: 450px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0 text-nowrap">
               <thead class="bg-light" style="position: sticky; top: 0; z-index: 1;">
                 <tr>
-                  <th class="ps-4 border-0 text-muted small uppercase">Data</th>
-                  <th class="border-0 text-muted small uppercase text-center">Tipo</th>
-                  <th class="border-0 text-muted small uppercase">Motivo</th>
-                  <th class="border-0 text-muted small uppercase text-end">Qtd.</th>
-                  <th class="border-0 text-muted small uppercase text-end pe-4">Stock Após</th>
+                  <th class="border-0 p-0 col-data">
+                    <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Data</div>
+                  </th>
+                  <th class="border-0 p-0 col-tipo">
+                    <div class="d-flex align-items-center justify-content-center px-2 py-3 text-muted small text-uppercase">Tipo</div>
+                  </th>
+                  <th class="border-0 p-0 col-motivo">
+                    <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Motivo</div>
+                  </th>
+                  <th class="border-0 p-0 col-qtd">
+                    <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Qtd.</div>
+                  </th>
+                  <th class="border-0 p-0 col-stock-apos">
+                    <div class="d-flex align-items-center justify-content-end pe-4 py-3 text-muted small text-uppercase">Stock Após</div>
+                  </th>
                 </tr>
               </thead>
               
@@ -226,36 +280,34 @@
                 <tr *ngIf="historicoArtigoSelecionado.length === 0">
                   <td colspan="5" class="text-center text-muted py-5">
                       <i class="bi bi-hourglass-split fs-1 d-block mb-2 text-opacity-50"></i>
-                      A procurar movimentos...
+                      <span class="fw-bold">A procurar movimentos... ou sem movimentos.</span>
                   </td>
                 </tr>
                 
                 <tr *ngFor="let mov of historicoArtigoSelecionado">
-                  <td class="ps-4 text-muted small">{{ mov.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
-                  <td class="text-center">
+                  <td class="ps-4 text-muted small text-start col-data">{{ mov.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td class="text-center px-2 col-tipo">
                     <span class="badge" 
                           [ngClass]="{'bg-success': mov.tipo === 'ENTRADA', 'bg-danger': mov.tipo === 'SAIDA'}">
                       {{ mov.tipo }}
                     </span>
                   </td>
-                  <td class="text-start small">{{ mov.motivo }}</td>
-                  <td class="text-end fw-bold" [ngClass]="{'text-success': mov.tipo === 'ENTRADA', 'text-danger': mov.tipo === 'SAIDA'}">
+                  <td class="text-start small px-2 col-motivo text-truncate" style="max-width: 250px;" [title]="mov.motivo">{{ mov.motivo }}</td>
+                  <td class="text-end px-2 fw-bold font-monospace col-qtd" [ngClass]="{'text-success': mov.tipo === 'ENTRADA', 'text-danger': mov.tipo === 'SAIDA'}">
                       {{ mov.tipo === 'ENTRADA' ? '+' : '-' }}{{ mov.quantidade }}
                   </td>
-                  <td class="text-end pe-4"><strong class="text-primary">{{ mov.stockAposMovimento }}</strong></td>
+                  <td class="text-end pe-4 font-monospace col-stock-apos"><strong class="text-primary">{{ mov.stockAposMovimento }}</strong></td>
                 </tr>
               </tbody>
-
             </table>
           </div>
         </div>
 
         <div class="modal-footer bg-light border-top-0">
-          <button type="button" class="btn btn-secondary shadow-sm" (click)="fecharModalHistorico()">Fechar</button>
+          <button type="button" class="btn btn-secondary fw-bold shadow-sm" (click)="fecharModalHistorico()">Fechar</button>
         </div>
 
       </div>
     </div>
   </div>
-
 </div>

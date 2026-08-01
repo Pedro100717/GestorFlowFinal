@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import pt.gestorflow.backend.dto.OrcamentoDTO;
 import pt.gestorflow.backend.dto.OrcamentoResponseDTO;
 import pt.gestorflow.backend.dto.VendaDTO;
-import pt.gestorflow.backend.dto.LinhaVendaDTO; // 🚀 A NOVA IMPORTAÇÃO
+import pt.gestorflow.backend.dto.LinhaVendaDTO;
 import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.*;
 
@@ -20,6 +20,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,16 +32,12 @@ public class OrcamentoService {
     private final ArtigoRepository artigoRepository;
     private final TxIvaRepository txIvaRepository;
     private final VendaService vendaService;
-
-    // 🚀 Injeções de Segurança
     private final UtilizadorRepository utilizadorRepository;
     private final AuthService authService;
 
-    // --- 1. CRIAR ---
     @Transactional
     public OrcamentoResponseDTO criarOrcamento(OrcamentoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -59,7 +56,6 @@ public class OrcamentoService {
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
-    // --- 2. ATUALIZAR ---
     @Transactional
     public OrcamentoResponseDTO atualizarOrcamento(Long id, OrcamentoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
@@ -85,18 +81,21 @@ public class OrcamentoService {
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
+    // 🚀 OTIMIZAÇÃO: Carregamento de dados em memória para evitar N+1
     private void processarLinhasOrcamento(Orcamento orcamento, OrcamentoDTO dto, Long userId) {
         BigDecimal totalCustoGeral = BigDecimal.ZERO;
         BigDecimal totalSemIvaGeral = BigDecimal.ZERO;
         BigDecimal totalComIvaGeral = BigDecimal.ZERO;
 
+        Map<Long, Artigo> mapaArtigos = carregarArtigos(dto.getLinhas(), userId);
+        Map<Long, TxIva> mapaIvas = carregarIvas(dto.getLinhas());
+
         for (OrcamentoDTO.LinhaOrcamentoDTO linhaDto : dto.getLinhas()) {
+            Artigo artigo = mapaArtigos.get(linhaDto.getArtigoId());
+            if (artigo == null) throw new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId());
 
-            Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), userId)
-                    .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado: ID " + linhaDto.getArtigoId()));
-
-            TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
-                    .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada"));
+            TxIva taxaIva = mapaIvas.get(linhaDto.getTaxaIvaId());
+            if (taxaIva == null) throw new EntityNotFoundException("Taxa de IVA não encontrada para a linha.");
 
             LinhaOrcamento linha = new LinhaOrcamento();
             linha.setOrcamento(orcamento);
@@ -143,11 +142,9 @@ public class OrcamentoService {
         orcamento.setTotalComIva(totalComIvaGeral);
     }
 
-    // --- 3. CONVERTER EM VENDA ---
     @Transactional
     public void converterEmVenda(Long orcamentoId, Long contaBancariaId) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
-
         Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(orcamentoId, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
 
@@ -155,16 +152,12 @@ public class OrcamentoService {
             throw new RuntimeException("Este orçamento já foi processado anteriormente.");
         }
 
-        // 🛡️ 1. Criar o Cabeçalho da Venda
         VendaDTO vendaDTO = new VendaDTO();
         vendaDTO.setClienteId(orcamento.getCliente().getId());
         vendaDTO.setDataVenda(LocalDate.now());
-        vendaDTO.setDataVencimento(LocalDate.now()); // 🚀 Novo requisito do motor de Vendas
+        vendaDTO.setDataVencimento(LocalDate.now());
 
-        // 🛡️ 2. Preparar a lista de linhas usando o DTO isolado
         List<LinhaVendaDTO> linhasVenda = new ArrayList<>();
-
-        // 🛡️ 3. Transferir as Linhas
         for (LinhaOrcamento linha : orcamento.getLinhas()) {
             LinhaVendaDTO linhaDTO = new LinhaVendaDTO();
             linhaDTO.setArtigoId(linha.getArtigo().getId());
@@ -172,21 +165,15 @@ public class OrcamentoService {
             linhaDTO.setQuantidade(linha.getQuantidade());
             linhaDTO.setPrecoUnitario(linha.getPrecoVendaUnitario());
             linhaDTO.setDesignacaoPersonalizada("Origem: Orçamento #" + orcamento.getId());
-
             linhasVenda.add(linhaDTO);
         }
-
         vendaDTO.setLinhas(linhasVenda);
-
-        // 🛡️ 5. Registar a Venda
         vendaService.registarVenda(vendaDTO);
 
-        // 🛡️ 6. Fechar o Orçamento
         orcamento.setEstado(Orcamento.EstadoOrcamento.CONVERTIDO_VENDA);
         orcamentoRepository.save(orcamento);
     }
 
-    // --- 4. LISTAR E BUSCAR ---
     @Transactional(readOnly = true)
     public Page<OrcamentoResponseDTO> listarMeusOrcamentos(int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
@@ -202,7 +189,6 @@ public class OrcamentoService {
         return converterParaDTO(orcamento);
     }
 
-    // --- 5. ELIMINAR ---
     @Transactional
     public void eliminarOrcamento(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
@@ -215,7 +201,6 @@ public class OrcamentoService {
         orcamentoRepository.delete(orcamento);
     }
 
-    // --- 6. ALTERAR ESTADO ---
     @Transactional
     public OrcamentoResponseDTO alterarEstado(Long id, Orcamento.EstadoOrcamento novoEstado) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
@@ -229,7 +214,19 @@ public class OrcamentoService {
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 
-    // --- 7. CONVERSOR DTO ---
+    // 🚀 HELPERS DE PERFORMANCE
+    private Map<Long, Artigo> carregarArtigos(List<OrcamentoDTO.LinhaOrcamentoDTO> linhas, Long utilizadorId) {
+        List<Long> ids = linhas.stream().map(OrcamentoDTO.LinhaOrcamentoDTO::getArtigoId).distinct().toList();
+        return artigoRepository.findAllByIdInAndUtilizadorId(ids, utilizadorId)
+                .stream().collect(Collectors.toMap(Artigo::getId, a -> a));
+    }
+
+    private Map<Long, TxIva> carregarIvas(List<OrcamentoDTO.LinhaOrcamentoDTO> linhas) {
+        List<Long> ids = linhas.stream().map(OrcamentoDTO.LinhaOrcamentoDTO::getTaxaIvaId).distinct().toList();
+        return txIvaRepository.findAllById(ids)
+                .stream().collect(Collectors.toMap(TxIva::getId, t -> t));
+    }
+
     private OrcamentoResponseDTO converterParaDTO(Orcamento o) {
         OrcamentoResponseDTO dto = new OrcamentoResponseDTO();
         dto.setId(o.getId());

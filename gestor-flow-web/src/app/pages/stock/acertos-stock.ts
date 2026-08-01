@@ -20,7 +20,8 @@ declare var bootstrap: any;
   selector: 'app-acertos-stock',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './acertos-stock.html'
+  templateUrl: './acertos-stock.html',
+  styleUrls: ['./acertos-stock.scss']
 })
 export class AcertosStockComponent implements OnInit {
 
@@ -62,12 +63,23 @@ export class AcertosStockComponent implements OnInit {
       this.cd.detectChanges();
     });
 
+    // 🚀 OUVINTE DINÂMICO PARA AS VALIDAÇÕES OBRIGATÓRIAS
     this.formAcerto.get('tipo')?.valueChanges.subscribe(tipoSelecionado => {
+        const controlCliente = this.formAcerto.get('clienteId');
+        const controlFornecedor = this.formAcerto.get('fornecedorId');
+
         if (tipoSelecionado === 'ENTRADA') {
-            this.formAcerto.get('fornecedorId')?.setValue(null);
+            controlCliente?.setValidators([Validators.required]);
+            controlFornecedor?.clearValidators();
+            controlFornecedor?.setValue(null);
         } else if (tipoSelecionado === 'SAIDA') {
-            this.formAcerto.get('clienteId')?.setValue(null);
+            controlFornecedor?.setValidators([Validators.required]);
+            controlCliente?.clearValidators();
+            controlCliente?.setValue(null);
         }
+
+        controlCliente?.updateValueAndValidity();
+        controlFornecedor?.updateValueAndValidity();
     });
   }
 
@@ -77,7 +89,8 @@ export class AcertosStockComponent implements OnInit {
       tipo: ['ENTRADA', [Validators.required]],
       quantidade: [1, [Validators.required, Validators.min(0.001)]],
       motivo: ['', [Validators.required]],
-      clienteId: [null],
+      // 🚀 Como o default é ENTRADA, o cliente já começa como obrigatório
+      clienteId: [null, [Validators.required]],
       fornecedorId: [null]
     });
   }
@@ -99,7 +112,7 @@ export class AcertosStockComponent implements OnInit {
     });
   }
 
-  // --- LÓGICA DO MODAL DE ACERTOS (Mantém-se o Bootstrap JS aqui porque é um form simples) ---
+  // --- LÓGICA DO MODAL DE ACERTOS ---
   abrirModalNovo(mercadoriaIdPadrao: number | null = null) {
     this.formAcerto.reset({ 
         mercadoriaId: mercadoriaIdPadrao,
@@ -112,7 +125,7 @@ export class AcertosStockComponent implements OnInit {
     modal.show();
   }
 
-  // --- 🛡️ LÓGICA DO MODAL DE HISTÓRICO (Controlado 100% pelo Angular) ---
+  // --- 🛡️ LÓGICA DO MODAL DE HISTÓRICO ---
   abrirHistoricoArtigo(artigo: Artigo) {
     this.artigoSelecionadoParaHistorico = artigo.nome;
     this.historicoArtigoSelecionado = []; // Mostra "A carregar..." visualmente

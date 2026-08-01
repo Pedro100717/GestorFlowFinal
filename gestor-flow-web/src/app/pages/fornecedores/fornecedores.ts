@@ -13,7 +13,8 @@ declare var bootstrap: any;
   selector: 'app-fornecedores',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './fornecedores.html'
+  templateUrl: './fornecedores.html',
+  styleUrl: './fornecedores.scss'
 })
 export class FornecedoresComponent implements OnInit {
 

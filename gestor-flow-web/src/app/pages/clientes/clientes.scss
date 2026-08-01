@@ -1,0 +1,32 @@
+/* ==========================================
+   ESTILOS DA TABELA DE CLIENTES
+   ========================================== */
+
+   .tabela-clientes {
+  
+    /* Espaço para nomes compridos */
+    th.col-nome, td.col-nome {
+      min-width: 220px;
+    }
+  
+    /* Largura fixa para o NIF (geralmente 9 dígitos) */
+    th.col-nif, td.col-nif {
+      min-width: 130px;
+    }
+  
+    /* Espaço para telefone/email */
+    th.col-contacto, td.col-contacto {
+      min-width: 160px;
+    }
+  
+    /* Espaço para a morada/cidade */
+    th.col-localidade, td.col-localidade {
+      min-width: 160px;
+    }
+  
+    /* Tranca os botões de ação à direita para não empilharem */
+    th.col-acoes, td.col-acoes {
+      width: 130px;
+      min-width: 130px;
+    }
+  }

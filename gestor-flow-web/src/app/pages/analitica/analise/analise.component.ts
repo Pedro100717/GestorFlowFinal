@@ -22,7 +22,8 @@ interface GrupoCentroCusto {
   selector: 'app-analise',
   standalone: true,
   imports: [CommonModule, FormsModule], 
-  templateUrl: './analise.component.html'
+  templateUrl: './analise.component.html',
+  styleUrl: './analise.component.scss'
 })
 export class AnaliseComponent implements OnInit {
 

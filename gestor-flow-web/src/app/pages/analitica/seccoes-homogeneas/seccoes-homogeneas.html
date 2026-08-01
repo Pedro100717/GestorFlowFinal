@@ -1,47 +1,70 @@
 <div class="container-fluid">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h3 class="fw-bold text-secondary mb-0">Secções Homogéneas</h3>
-        <small class="text-muted">Dimensões analíticas independentes</small>
-    </div>
-    <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
+  <!-- CABEÇALHO: Empilha no telemóvel, lado a lado no PC -->
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+    
+    <!-- Título limpo, sem a descrição por baixo -->
+    <h3 class="fw-bold text-secondary mb-0">Secções Homogéneas</h3>
+    
+    <!-- BOTÃO: text-nowrap impede que quebre de linha no telemóvel -->
+    <button class="btn btn-primary shadow-sm text-nowrap" (click)="abrirModalNovo()">
       <i class="bi bi-plus-lg me-2"></i>Nova Secção
     </button>
   </div>
 
   <div class="card shadow-sm border-0">
     <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+      
+      <!-- table-responsive cria o scroll no telemóvel -->
+      <div class="table-responsive tabela-seccoes">
+        
+        <!-- text-nowrap protege o texto da tabela de ser esmagado -->
+        <table class="table table-hover align-middle mb-0 text-nowrap">
+          
           <thead class="bg-light">
             <tr>
-              <th class="ps-4 py-3 border-0 text-muted small uppercase">Código</th>
-              <th class="border-0 text-muted small uppercase">Nome da Secção</th>
-              <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
+              <!-- ALINHAMENTO FORÇADO A FLEXBOX -->
+              <th class="border-0 p-0 col-codigo">
+                <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">
+                  Código
+                </div>
+              </th>
+              
+              <th class="border-0 p-0">
+                <div class="d-flex align-items-center py-3 text-muted small text-uppercase">
+                  Nome da Secção
+                </div>
+              </th>
+              
+              <th class="border-0 p-0 col-acoes">
+                <div class="d-flex align-items-center justify-content-end pe-4 py-3 text-muted small text-uppercase">
+                  Ações
+                </div>
+              </th>
             </tr>
           </thead>
+          
           <tbody>
-            <tr *ngFor="let seccao of listaSeccoes">
-              <td class="ps-4 fw-bold text-primary">{{ seccao.codigo }}</td>
-              <td class="fw-bold text-dark">{{ seccao.nome }}</td>
-
-              <td class="text-end pe-4">
-                <button class="btn btn-sm btn-light text-primary me-2" (click)="editarSeccao(seccao)">
+            <tr *ngFor="let sec of listaSeccoes">
+              <td class="ps-4 fw-bold text-primary text-start col-codigo">{{ sec.codigo }}</td>
+              <td class="fw-bold text-dark text-start">{{ sec.nome }}</td>
+              <td class="text-end pe-4 col-acoes">
+                <button class="btn btn-sm btn-light text-primary me-2" (click)="editarSeccao(sec)">
                   <i class="bi bi-pencil"></i>
                 </button>
-                <button class="btn btn-sm btn-light text-danger" (click)="eliminarSeccao(seccao.id!)">
+                <button class="btn btn-sm btn-light text-danger" (click)="eliminarSeccao(sec.id!)">
                   <i class="bi bi-trash"></i>
                 </button>
               </td>
             </tr>
+            
             <tr *ngIf="listaSeccoes.length === 0">
               <td colspan="3" class="text-center py-5 text-muted">
                 <i class="bi bi-layers fs-1 d-block mb-2 opacity-50"></i>
-                <span class="fw-bold">Nenhuma secção definida.</span><br>
-                <small>Crie a sua primeira secção para começar.</small>
+                <span class="fw-bold">Ainda não definiste Secções Homogéneas.</span>
               </td>
             </tr>
+
           </tbody>
         </table>
       </div>
@@ -49,35 +72,45 @@
   </div>
 </div>
 
+<!-- ==========================================
+     MODAL DE CRIAÇÃO / EDIÇÃO
+     ========================================== -->
 <div class="modal fade" id="modalSeccao" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
+      
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Nova' }} Secção</h5>
+        <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Nova' }} Secção Homogénea</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+      
       <div class="modal-body p-4">
         <form [formGroup]="formSeccao">
           
-          <div class="row">
-              <div class="col-md-4 mb-3">
-                <label class="form-label small fw-bold">Código <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" formControlName="codigo" placeholder="Ex: MAN01">
-              </div>
-              <div class="col-md-8 mb-3">
-                <label class="form-label small fw-bold">Nome da Secção <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" formControlName="nome" placeholder="Ex: Manutenção">
-              </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Código (Ex: MAN01, VEN1) <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="codigo"
+                   [ngClass]="{ 'is-invalid': f['codigo'].touched && f['codigo'].invalid }">
+            <div *ngIf="f['codigo'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Nome (Ex: Manutenção) <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="nome"
+                   [ngClass]="{ 'is-invalid': f['nome'].touched && f['nome'].invalid }">
+            <div *ngIf="f['nome'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
           </div>
 
         </form>
       </div>
+      
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-primary" [disabled]="formSeccao.invalid" (click)="guardarSeccao()">
           <i class="bi bi-save me-2"></i>Guardar
         </button>
       </div>
+      
     </div>
   </div>
 </div>

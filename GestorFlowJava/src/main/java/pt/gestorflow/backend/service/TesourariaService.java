@@ -47,13 +47,11 @@ public class TesourariaService {
 
         Map<YearMonth, BigDecimal> fluxoMensal = new TreeMap<>();
 
-        // 🚀 HORIZONTE ELÁSTICO: Começa com mínimo de 12 meses
         YearMonth mesCorrente = YearMonth.now();
         YearMonth limiteProjecao = mesCorrente.plusMonths(12);
 
         List<MovimentoPlaneado> planosAtivos = movimentoPlaneadoRepository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId);
 
-        // 🚀 Procura a Data de Fim mais longa para esticar o gráfico
         for (MovimentoPlaneado plan : planosAtivos) {
             if (plan.getDataFim() != null) {
                 YearMonth fimDoPlano = YearMonth.from(plan.getDataFim());
@@ -73,7 +71,6 @@ public class TesourariaService {
         List<Venda> vendasPendentes = vendaRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
         List<Compra> comprasPendentes = compraRepository.findAllByUtilizadorIdAndEstadoPagamentoIn(utilizadorId, estadosPendentes);
 
-        // 🚀 AGORA USA LOCALDATE (Sem horas a atrapalhar)
         for (Venda v : vendasPendentes) {
             LocalDate dataAlvo = v.getDataPrevistaPagamento() != null
                     ? v.getDataPrevistaPagamento()
@@ -275,7 +272,6 @@ public class TesourariaService {
                     ? c.getDataPrevistaPagamento()
                     : (c.getDataVencimento() != null ? c.getDataVencimento() : c.getDataCompra());
 
-            // 🚀 A CORREÇÃO: Extração do nome através da primeira linha
             String descricaoCompra = null;
             if (c.getLinhas() != null && !c.getLinhas().isEmpty()) {
                 LinhaCompra primeiraLinha = c.getLinhas().get(0);
@@ -320,6 +316,10 @@ public class TesourariaService {
             Venda venda = vendaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
             venda.setValorPago(venda.getValorPago().add(valorPagamento));
             venda.setEstadoPagamento(venda.getValorPago().compareTo(venda.getTotalComIva()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+
+            // 🚀 CORREÇÃO APLICADA AQUI
+            venda.setContaBancaria(conta);
+
             vendaRepository.save(venda);
             mov.setTipo(Movimento.TipoMovimento.CREDITO); mov.setValor(valorPagamento);
             mov.setDescricao("Recebimento Venda #" + venda.getId() + " - " + venda.getCliente().getNome());
@@ -330,6 +330,10 @@ public class TesourariaService {
             Compra compra = compraRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Compra não encontrada."));
             compra.setValorPago(compra.getValorPago().add(valorPagamento));
             compra.setEstadoPagamento(compra.getValorPago().compareTo(compra.getTotal()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+
+            // 🚀 CORREÇÃO APLICADA AQUI
+            compra.setContaBancaria(conta);
+
             compraRepository.save(compra);
             mov.setTipo(Movimento.TipoMovimento.DEBITO); mov.setValor(valorPagamento);
             mov.setDescricao("Pagamento Compra #" + compra.getId() + " - " + compra.getFornecedor().getNome());
@@ -342,6 +346,8 @@ public class TesourariaService {
 
             doc.setValorPago(doc.getValorPago().add(valorPagamento));
             doc.setEstadoPagamento(doc.getValorPago().compareTo(doc.getValorTotal()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+            
+
             documentoTesourariaRepository.save(doc);
 
             mov.setTipo(doc.getTipo() == TipoMovimentoPlaneado.ENTRADA ? Movimento.TipoMovimento.CREDITO : Movimento.TipoMovimento.DEBITO);

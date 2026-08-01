@@ -1,0 +1,26 @@
+/* ==========================================
+   ESTILOS DA TABELA DE ARTIGOS
+   ========================================== */
+
+   .tabela-artigos {
+  
+    /* Garante que o nome do artigo tem espaço para respirar */
+    th.col-artigo, td.col-artigo {
+      min-width: 250px;
+    }
+  
+    /* Larguras seguras para os valores e badges */
+    th.col-preco, td.col-preco {
+      min-width: 120px;
+    }
+  
+    th.col-stock, td.col-stock {
+      min-width: 140px;
+    }
+  
+    /* Fixa as ações à direita para os botões não empilharem */
+    th.col-acoes, td.col-acoes {
+      width: 130px;
+      min-width: 130px;
+    }
+  }

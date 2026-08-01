@@ -13,7 +13,8 @@ declare var bootstrap: any;
   selector: 'app-centros-custo',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './centros-custo.html'
+  templateUrl: './centros-custo.html',
+  styleUrl: './centros-custo.scss'
 })
 export class CentrosCustoComponent implements OnInit {
 

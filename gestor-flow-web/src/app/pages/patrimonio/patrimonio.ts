@@ -13,7 +13,8 @@ declare var bootstrap: any;
   selector: 'app-patrimonio',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './patrimonio.html'
+  templateUrl: './patrimonio.html',
+  styleUrls: ['./patrimonio.scss']
 })
 export class PatrimonioComponent implements OnInit {
 

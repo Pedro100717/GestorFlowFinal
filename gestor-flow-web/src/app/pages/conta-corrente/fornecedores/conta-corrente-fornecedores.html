@@ -44,31 +44,59 @@
         <div class="mt-2 text-muted">A carregar saldos...</div>
       </div>
 
-      <div class="table-responsive" *ngIf="!carregando">
-        <table class="table table-hover align-middle mb-0">
+      <!-- TABELA PRINCIPAL: Proteção table-responsive e classe SCSS -->
+      <div class="table-responsive tabela-contas-fornecedores" *ngIf="!carregando">
+        <!-- text-nowrap para não quebrar títulos -->
+        <table class="table table-hover align-middle mb-0 text-nowrap">
           <thead class="bg-light">
             <tr>
-              <th class="ps-4 py-3 border-0 text-muted small text-uppercase">Nome do Fornecedor</th>
-              <th class="border-0 text-muted small text-uppercase text-end">Comprado</th>
-              <th class="border-0 text-muted small text-uppercase text-end">Pago</th>
-              <th class="border-0 text-muted small text-uppercase text-end">Saldo a Pagar</th>
-              <th class="border-0 text-muted small text-uppercase text-center pe-4">Ação</th>
+              <!-- TÍTULOS COM FLEXBOX MATEMÁTICO -->
+              <th class="border-0 p-0 col-fornecedor">
+                <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">
+                  Nome do Fornecedor
+                </div>
+              </th>
+              
+              <th class="border-0 p-0 col-comprado">
+                <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">
+                  Comprado
+                </div>
+              </th>
+              
+              <th class="border-0 p-0 col-pago">
+                <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">
+                  Pago
+                </div>
+              </th>
+              
+              <th class="border-0 p-0 col-saldo">
+                <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">
+                  Saldo a Pagar
+                </div>
+              </th>
+              
+              <th class="border-0 p-0 col-acoes">
+                <div class="d-flex align-items-center justify-content-center pe-4 py-3 text-muted small text-uppercase">
+                  Ação
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let f of resumoFornecedores">
-              <td class="ps-4 fw-bold text-dark">{{ f.nome }}</td>
+              <td class="ps-4 fw-bold text-dark text-start col-fornecedor">{{ f.nome }}</td>
               
-              <td class="text-end text-muted">{{ f.totalFaturado | currency:'EUR':'symbol':'1.2-2' }}</td>
-              <td class="text-end text-muted">{{ f.totalPago | currency:'EUR':'symbol':'1.2-2' }}</td>
+              <td class="text-end text-muted px-2 col-comprado font-monospace">{{ f.totalFaturado | currency:'EUR':'symbol':'1.2-2' }}</td>
               
-              <td class="text-end fw-bold" 
+              <td class="text-end text-muted px-2 col-pago font-monospace">{{ f.totalPago | currency:'EUR':'symbol':'1.2-2' }}</td>
+              
+              <td class="text-end fw-bold px-2 col-saldo font-monospace" 
                   [ngClass]="f.saldoPendente > 0 ? 'text-danger' : 'text-secondary'">
                 {{ f.saldoPendente | currency:'EUR':'symbol':'1.2-2' }}
               </td>
               
-              <td class="text-center pe-4">
-                <button class="btn btn-sm btn-outline-primary" (click)="abrirExtrato(f)">
+              <td class="text-center pe-4 col-acoes">
+                <button class="btn btn-sm btn-outline-primary text-nowrap" (click)="abrirExtrato(f)">
                   <i class="bi bi-journal-text me-1"></i> Extrato
                 </button>
               </td>
@@ -88,6 +116,9 @@
 
 </div>
 
+<!-- ==========================================
+     OFFCANVAS - EXTRATO
+     ========================================== -->
 <div class="offcanvas offcanvas-end shadow-lg" tabindex="-1" id="offcanvasExtratoFornecedor" style="width: 700px;">
   
   <div class="offcanvas-header bg-light border-bottom py-3">
@@ -117,35 +148,48 @@
       <div class="mt-2 text-muted small">A carregar movimentos...</div>
     </div>
 
-    <div class="table-responsive h-100" *ngIf="!carregandoExtrato">
-      <table class="table table-hover align-middle mb-0 extrato-table">
-        <thead>
+    <!-- TABELA DO EXTRATO: Protegida com tabela-extrato-detalhe -->
+    <div class="table-responsive h-100 tabela-extrato-detalhe" *ngIf="!carregandoExtrato">
+      
+      <!-- text-nowrap adicionado aqui também -->
+      <table class="table table-hover align-middle mb-0 text-nowrap extrato-table">
+        <thead class="bg-light sticky-top">
           <tr>
-            <th class="ps-4 py-2 text-muted small text-uppercase">Data</th>
-            <th class="py-2 text-muted small text-uppercase">Documento</th>
-            <th class="py-2 text-muted small text-uppercase text-end">Débito</th>
-            <th class="py-2 text-muted small text-uppercase text-end">Crédito</th>
-            <th class="pe-4 py-2 text-secondary small text-uppercase text-end bg-light">Saldo</th>
+            <th class="border-0 p-0 col-data">
+              <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">Data</div>
+            </th>
+            <th class="border-0 p-0 col-doc">
+              <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">Documento</div>
+            </th>
+            <th class="border-0 p-0 col-debito">
+              <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Débito</div>
+            </th>
+            <th class="border-0 p-0 col-credito">
+              <div class="d-flex align-items-center justify-content-end px-2 py-3 text-muted small text-uppercase">Crédito</div>
+            </th>
+            <th class="border-0 p-0 col-saldo-acc bg-light">
+              <div class="d-flex align-items-center justify-content-end pe-4 py-3 text-secondary small text-uppercase">Saldo</div>
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let linha of extratoFornecedor">
-            <td class="ps-4 small text-muted">{{ linha.dataMovimento | date:'dd/MM/yyyy' }}</td>
+            <td class="ps-4 small text-muted text-start col-data">{{ linha.dataMovimento | date:'dd/MM/yyyy' }}</td>
             
-            <td>
+            <td class="text-start px-2 col-doc">
               <div class="small fw-bold text-dark">{{ linha.descricao }}</div>
               <div class="text-muted" style="font-size: 0.70rem;">{{ linha.tipoDocumento }}</div>
             </td>
             
-            <td class="small text-end" [ngClass]="{'text-danger': linha.debito > 0}">
+            <td class="small text-end px-2 col-debito font-monospace" [ngClass]="{'text-danger fw-bold': linha.debito > 0}">
               {{ linha.debito > 0 ? (linha.debito | currency:'EUR':'symbol':'1.2-2') : '-' }}
             </td>
             
-            <td class="small text-end" [ngClass]="{'text-success': linha.credito > 0}">
+            <td class="small text-end px-2 col-credito font-monospace" [ngClass]="{'text-success fw-bold': linha.credito > 0}">
               {{ linha.credito > 0 ? (linha.credito | currency:'EUR':'symbol':'1.2-2') : '-' }}
             </td>
             
-            <td class="pe-4 small text-end fw-bold bg-light">
+            <td class="pe-4 small text-end fw-bold bg-light col-saldo-acc font-monospace">
               {{ linha.saldoAcumulado | currency:'EUR':'symbol':'1.2-2' }}
             </td>
           </tr>

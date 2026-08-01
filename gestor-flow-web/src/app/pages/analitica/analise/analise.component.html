@@ -1,35 +1,46 @@
 <div class="container-fluid">
   
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div>
-        <h3 class="fw-bold text-secondary mb-0">Dashboard Analítico</h3>
-        <small class="text-muted">Análise Operacional e Fiscal por Centro de Custo</small>
-      </div>
-      
-      <div class="d-flex gap-2">
-        <select class="form-select form-select-sm border-secondary text-secondary fw-bold" 
-                style="width: auto; min-width: 200px;" 
-                [(ngModel)]="centroSelecionado" 
-                (change)="aplicarFiltro()" 
-                [disabled]="carregando">
-          <option value="">-- Todos os Centros --</option>
-          <option *ngFor="let c of listaCentros" [value]="c.codigo">{{ c.nome }}</option>
-        </select>
-
-        <select class="form-select form-select-sm border-secondary text-secondary fw-bold" 
-                style="width: auto; min-width: 200px;" 
-                [(ngModel)]="seccaoSelecionada" 
-                (change)="aplicarFiltro()" 
-                [disabled]="carregando">
-          <option value="">-- Todas as Secções --</option>
-          <option *ngFor="let s of listaSeccoes" [value]="s.codigo">{{ s.nome }}</option>
-        </select>
-  
-        <button class="btn btn-danger btn-sm d-flex align-items-center" (click)="gerarPdfDashboard()" [disabled]="carregando">
-            <i class="bi bi-file-earmark-pdf me-2"></i>Exportar PDF
-        </button>
+    <!-- CABEÇALHO RESPONSIVO: Empilha no telemóvel, alinha no PC -->
+    <div class="row g-3 align-items-center mb-4">
+    
+        <!-- TÍTULO: Em PC ocupa só o espaço que precisa e empurra o resto para a direita (me-lg-auto) -->
+        <div class="col-12 col-lg-auto me-lg-auto">
+            <h3 class="fw-bold text-secondary mb-0">Dashboard Analítico</h3>
+            <small class="text-muted">Análise Operacional e Fiscal por Centro de Custo</small>
+        </div>
         
-      </div>
+        <!-- FILTROS: Em telemóvel (col-12) ocupa 100%, em PC (col-lg-auto) ocupa apenas o tamanho dos selects -->
+        <div class="col-12 col-lg-auto">
+            <div class="d-flex flex-column flex-sm-row gap-2">
+                
+                <!-- Adicionado style="min-width: 220px;" para não ficarem minúsculos, mas sem esticarem ao infinito -->
+                <select class="form-select form-select-sm border-secondary text-secondary fw-bold" 
+                        [(ngModel)]="centroSelecionado" 
+                        (change)="aplicarFiltro()" 
+                        [disabled]="carregando"
+                        style="min-width: 220px;">
+                    <option value="">-- Todos os Centros --</option>
+                    <option *ngFor="let c of listaCentros" [value]="c.codigo">{{ c.nome }}</option>
+                </select>
+    
+                <select class="form-select form-select-sm border-secondary text-secondary fw-bold" 
+                        [(ngModel)]="seccaoSelecionada" 
+                        (change)="aplicarFiltro()" 
+                        [disabled]="carregando"
+                        style="min-width: 220px;">
+                    <option value="">-- Todas as Secções --</option>
+                    <option *ngFor="let s of listaSeccoes" [value]="s.codigo">{{ s.nome }}</option>
+                </select>
+    
+                <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center text-nowrap" 
+                        (click)="gerarPdfDashboard()" 
+                        [disabled]="carregando">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>Exportar PDF
+                </button>
+                
+            </div>
+        </div>
+    
     </div>
   
     <div *ngIf="carregando" class="text-center py-5">
@@ -42,15 +53,17 @@
         <h5 class="fw-bold text-primary mb-3"><i class="bi bi-graph-up me-2"></i>1. Análise Operacional (Valores Líquidos)</h5>
         <div class="card shadow-sm border-0 mb-5">
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle mb-0">
+                <!-- ADICIONADO: tabela-analitica-wrapper -->
+                <div class="table-responsive tabela-analitica-wrapper">
+                    <!-- ADICIONADO: text-nowrap -->
+                    <table class="table table-bordered align-middle mb-0 text-nowrap">
                         <thead class="bg-light">
                             <tr>
-                                <th class="ps-4 py-3 border-0 text-muted small uppercase" style="width: 25%;">Centro de Custo</th>
-                                <th class="py-3 border-0 text-muted small uppercase" style="width: 25%;">Secção Homogénea</th>
-                                <th class="border-0 text-muted small uppercase text-end">Compras (Base)</th>
-                                <th class="border-0 text-muted small uppercase text-end">Vendas (Base)</th>
-                                <th class="border-0 text-muted small uppercase text-end pe-4">Margem Bruta</th>
+                                <th class="ps-4 py-3 border-0 text-muted small uppercase col-centro w-25">Centro de Custo</th>
+                                <th class="py-3 border-0 text-muted small uppercase col-seccao w-25">Secção Homogénea</th>
+                                <th class="py-3 border-0 text-muted small uppercase text-end">Compras (Base)</th>
+                                <th class="py-3 border-0 text-muted small uppercase text-end">Vendas (Base)</th>
+                                <th class="py-3 border-0 text-muted small uppercase text-end pe-4">Margem Bruta</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -105,15 +118,17 @@
         <h5 class="fw-bold text-secondary mb-3"><i class="bi bi-bank me-2"></i>2. Análise Fiscal (Impostos)</h5>
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle mb-0">
+                <!-- ADICIONADO: tabela-analitica-wrapper -->
+                <div class="table-responsive tabela-analitica-wrapper">
+                    <!-- ADICIONADO: text-nowrap -->
+                    <table class="table table-bordered align-middle mb-0 text-nowrap">
                         <thead class="bg-light">
                             <tr>
-                                <th class="ps-4 py-3 border-0 text-muted small uppercase" style="width: 25%;">Centro de Custo</th>
-                                <th class="py-3 border-0 text-muted small uppercase" style="width: 25%;">Secção Homogénea</th>
-                                <th class="border-0 text-muted small uppercase text-end" title="O IVA que pagaste e podes deduzir">IVA Suportado (Compras)</th>
-                                <th class="border-0 text-muted small uppercase text-end" title="O IVA que cobraste e tens de entregar">IVA Liquidado (Vendas)</th>
-                                <th class="border-0 text-muted small uppercase text-end pe-4" title="Positivo = A Pagar | Negativo = A Recuperar">Saldo de IVA</th>
+                                <th class="ps-4 py-3 border-0 text-muted small uppercase col-centro w-25">Centro de Custo</th>
+                                <th class="py-3 border-0 text-muted small uppercase col-seccao w-25">Secção Homogénea</th>
+                                <th class="py-3 border-0 text-muted small uppercase text-end" title="O IVA que pagaste e podes deduzir">IVA Suportado (Compras)</th>
+                                <th class="py-3 border-0 text-muted small uppercase text-end" title="O IVA que cobraste e tens de entregar">IVA Liquidado (Vendas)</th>
+                                <th class="py-3 border-0 text-muted small uppercase text-end pe-4" title="Positivo = A Pagar | Negativo = A Recuperar">Saldo de IVA</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -167,4 +182,4 @@
         </div>
   
     </div>
-  </div>
+</div>

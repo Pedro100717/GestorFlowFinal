@@ -1,0 +1,23 @@
+/* ==========================================
+   ESTILOS DA TABELA DE ORÇAMENTOS
+   ========================================== */
+
+   .tabela-orcamentos {
+    /* ID / Número do Orçamento */
+    th.col-id, td.col-id { min-width: 80px; }
+  
+    /* Nome do Cliente */
+    th.col-cliente, td.col-cliente { min-width: 250px; }
+  
+    /* Datas */
+    th.col-data, td.col-data { min-width: 140px; }
+  
+    /* Estado (Rascunho, Adjudicado, etc) */
+    th.col-estado, td.col-estado { min-width: 140px; }
+  
+    /* Valores Financeiros (Alinhados à direita) */
+    th.col-total, td.col-total { min-width: 140px; }
+  
+    /* Botões de Ação */
+    th.col-acoes, td.col-acoes { width: 120px; min-width: 120px; }
+  }

@@ -1,117 +1,166 @@
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h3 class="fw-bold text-secondary">Meus Clientes</h3>
-      <button class="btn btn-primary shadow-sm" (click)="abrirModalNovo()">
-        <i class="bi bi-person-plus-fill me-2"></i>Novo Cliente
-      </button>
-    </div>
-  
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-              <tr>
-                <th class="ps-4 py-3 border-0 text-muted small uppercase">Nome</th>
-                <th class="border-0 text-muted small uppercase">NIF</th>
-                <th class="border-0 text-muted small uppercase">Contacto</th>
-                <th class="border-0 text-muted small uppercase">Localidade</th>
-                <th class="border-0 text-muted small uppercase text-end pe-4">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let cliente of listaClientes">
-                <td class="ps-4 fw-bold text-dark">{{ cliente.nome }}</td>
-                
-                <td>
-                    <span *ngIf="cliente.nif" class="badge bg-light text-dark border">{{ cliente.nif }}</span>
-                    <span *ngIf="!cliente.nif" class="text-muted small">n/a</span>
-                </td>
-                
-                <td>
-                    <div class="small">{{ cliente.email || '-' }}</div>
-                    <div class="small text-muted">{{ cliente.telefone || '-' }}</div>
-                </td>
-                
-                <td class="text-muted small text-truncate" style="max-width: 150px;">
-                    {{ cliente.morada || '-' }}
-                </td>
-
-                <td class="text-end pe-4">
-                  <button class="btn btn-sm btn-light text-primary me-2" (click)="editarCliente(cliente)">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-light text-danger" (click)="eliminarCliente(cliente.id!)">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="listaClientes.length === 0">
-                <td colspan="5" class="text-center py-5 text-muted">
-                  <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
-                  <span class="fw-bold">Ainda não tens clientes.</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    
+  <!-- CABEÇALHO: Empilha no telemóvel, lado a lado no PC -->
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+    <h3 class="fw-bold text-secondary mb-0">Meus Clientes</h3>
+    
+    <!-- BOTÃO: text-nowrap para não quebrar texto -->
+    <button class="btn btn-primary shadow-sm text-nowrap" (click)="abrirModalNovo()">
+      <i class="bi bi-person-plus-fill me-2"></i>Novo Cliente
+    </button>
   </div>
-  
-  <div class="modal fade" id="modalCliente" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered"> <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Novo' }} Cliente</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body p-4">
-          <form [formGroup]="formCliente">
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      
+      <!-- table-responsive + classe SCSS -->
+      <div class="table-responsive tabela-clientes">
+        
+        <!-- text-nowrap impede o esmagamento no telemóvel -->
+        <table class="table table-hover align-middle mb-0 text-nowrap">
+          
+          <thead class="bg-light">
+            <tr>
+              <!-- NOME: Mantém-se ps-4 (alinhamento forte à esquerda) -->
+              <th class="border-0 p-0 col-nome">
+                <div class="d-flex align-items-center ps-4 py-3 text-muted small text-uppercase">
+                  Nome
+                </div>
+              </th>
+              
+              <!-- COLUNAS DO MEIO: Adicionado px-2 para alinhar com o padding default dos <td> -->
+              <th class="border-0 p-0 col-nif">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">
+                  NIF
+                </div>
+              </th>
+              
+              <th class="border-0 p-0 col-contacto">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">
+                  Contacto
+                </div>
+              </th>
+
+              <th class="border-0 p-0 col-localidade">
+                <div class="d-flex align-items-center px-2 py-3 text-muted small text-uppercase">
+                  Localidade
+                </div>
+              </th>
+              
+              <!-- AÇÕES: Alterado de justify-content-end para justify-content-center -->
+              <th class="border-0 p-0 col-acoes">
+                <div class="d-flex align-items-center justify-content-center py-3 text-muted small text-uppercase">
+                  Ações
+                </div>
+              </th>
+            </tr>
+          </thead>
+          
+          <tbody>
+            <tr *ngFor="let cliente of listaClientes">
+              <td class="ps-4 fw-bold text-dark text-start col-nome">{{ cliente.nome }}</td>
+              
+              <!-- Adicionado px-2 nos <td> do meio por segurança matemática -->
+              <td class="text-start px-2 col-nif">
+                  <span *ngIf="cliente.nif" class="badge bg-light text-dark border">{{ cliente.nif }}</span>
+                  <span *ngIf="!cliente.nif" class="text-muted small">n/a</span>
+              </td>
+              
+              <td class="text-start px-2 col-contacto">
+                  <div class="small">{{ cliente.email || '-' }}</div>
+                  <div class="small text-muted">{{ cliente.telefone || '-' }}</div>
+              </td>
+              
+              <td class="text-muted small text-start text-truncate px-2 col-localidade" style="max-width: 150px;">
+                  {{ cliente.morada || '-' }}
+              </td>
+
+              <!-- AÇÕES: Alterado de text-end para text-center -->
+              <td class="text-center col-acoes">
+                <button class="btn btn-sm btn-light text-primary me-2" (click)="editarCliente(cliente)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-light text-danger" (click)="eliminarCliente(cliente.id!)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
             
-            <div class="row">
-                <div class="col-md-8 mb-3">
-                    <label class="form-label small fw-bold">Nome Completo <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" formControlName="nome" 
-                           [ngClass]="{ 'is-invalid': f['nome'].touched && f['nome'].invalid }">
-                    <div *ngIf="f['nome'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label small fw-bold">NIF</label>
-                    <input type="text" class="form-control" formControlName="nif" placeholder="999999999"
-                           [ngClass]="{ 'is-invalid': f['nif'].touched && f['nif'].invalid }">
-                    <div *ngIf="f['nif'].errors?.['pattern']" class="invalid-feedback">Deve ter 9 dígitos.</div>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label small fw-bold">Email</label>
-                    <input type="email" class="form-control" formControlName="email">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label small fw-bold">Telefone</label>
-                    <input type="text" class="form-control" formControlName="telefone">
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label small fw-bold">Morada</label>
-                <textarea class="form-control" formControlName="morada" rows="2"></textarea>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label small fw-bold">Notas Internas</label>
-                <textarea class="form-control" formControlName="anotacoes" rows="2" placeholder="Ex: Cliente prefere contacto por email..."></textarea>
-            </div>
-  
-          </form>
-        </div>
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" [disabled]="formCliente.invalid" (click)="guardarCliente()">
-            <i class="bi bi-save me-2"></i>Guardar
-          </button>
-        </div>
+            <tr *ngIf="listaClientes.length === 0">
+              <td colspan="5" class="text-center py-5 text-muted">
+                <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
+                <span class="fw-bold">Ainda não tens clientes.</span>
+              </td>
+            </tr>
+          </tbody>
+          
+        </table>
       </div>
     </div>
   </div>
+</div>
+
+<!-- ==========================================
+     MODAL DE CRIAÇÃO / EDIÇÃO
+     ========================================== -->
+<div class="modal fade" id="modalCliente" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered"> 
+    <div class="modal-content border-0 shadow-lg">
+      
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">{{ idEmEdicao ? 'Editar' : 'Novo' }} Cliente</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      
+      <div class="modal-body p-4">
+        <form [formGroup]="formCliente">
+          
+          <div class="row">
+              <div class="col-md-8 mb-3">
+                  <label class="form-label small fw-bold">Nome Completo <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" formControlName="nome" 
+                         [ngClass]="{ 'is-invalid': f['nome'].touched && f['nome'].invalid }">
+                  <div *ngIf="f['nome'].errors?.['required']" class="invalid-feedback">Obrigatório.</div>
+              </div>
+              <div class="col-md-4 mb-3">
+                  <label class="form-label small fw-bold">NIF</label>
+                  <input type="text" class="form-control" formControlName="nif" placeholder="999999999"
+                         [ngClass]="{ 'is-invalid': f['nif'].touched && f['nif'].invalid }">
+                  <div *ngIf="f['nif'].errors?.['pattern']" class="invalid-feedback">Deve ter 9 dígitos.</div>
+              </div>
+          </div>
+
+          <div class="row">
+              <div class="col-md-6 mb-3">
+                  <label class="form-label small fw-bold">Email</label>
+                  <input type="email" class="form-control" formControlName="email">
+              </div>
+              <div class="col-md-6 mb-3">
+                  <label class="form-label small fw-bold">Telefone</label>
+                  <input type="text" class="form-control" formControlName="telefone">
+              </div>
+          </div>
+
+          <div class="mb-3">
+              <label class="form-label small fw-bold">Morada</label>
+              <textarea class="form-control" formControlName="morada" rows="2"></textarea>
+          </div>
+
+          <div class="mb-3">
+              <label class="form-label small fw-bold">Notas Internas</label>
+              <textarea class="form-control" formControlName="anotacoes" rows="2" placeholder="Ex: Cliente prefere contacto por email..."></textarea>
+          </div>
+
+        </form>
+      </div>
+      
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="formCliente.invalid" (click)="guardarCliente()">
+          <i class="bi bi-save me-2"></i>Guardar
+        </button>
+      </div>
+      
+    </div>
+  </div>
+</div>

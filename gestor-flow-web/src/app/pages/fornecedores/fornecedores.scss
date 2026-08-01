@@ -1,0 +1,32 @@
+/* ==========================================
+   ESTILOS DA TABELA DE FORNECEDORES
+   ========================================== */
+
+   .tabela-fornecedores {
+  
+    /* Espaço para o nome da empresa */
+    th.col-fornecedor, td.col-fornecedor {
+      min-width: 220px;
+    }
+  
+    /* Largura fixa para o NIF */
+    th.col-nif, td.col-nif {
+      min-width: 130px;
+    }
+  
+    /* Espaço para telefone/email */
+    th.col-contactos, td.col-contactos {
+      min-width: 160px;
+    }
+  
+    /* Espaço para o website */
+    th.col-website, td.col-website {
+      min-width: 160px;
+    }
+  
+    /* Tranca os botões de ação ao centro para não empilharem */
+    th.col-acoes, td.col-acoes {
+      width: 130px;
+      min-width: 130px;
+    }
+  }

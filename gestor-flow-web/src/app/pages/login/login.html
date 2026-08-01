@@ -1,31 +1,43 @@
-<div class="d-flex align-items-center justify-content-center vh-100 bg-light">
-    <div class="card shadow-lg p-4" style="width: 400px; border-radius: 15px;">
-      <div class="card-body">
-        <h2 class="text-center text-primary mb-4 fw-bold">GestorFlow</h2>
+<div class="d-flex align-items-center justify-content-center vh-100 bg-light px-3">
+  
+  <!-- Substituímos o width fixo por max-width para o telemóvel conseguir esmagar o cartão -->
+  <div class="card shadow-lg border-0" style="width: 100%; max-width: 420px; border-radius: 16px;">
+    
+    <!-- No PC temos muito padding (p-5), no mobile temos um pouco menos (p-4) -->
+    <div class="card-body p-4 p-sm-5">
+      
+      <div class="text-center mb-4">
+        <h2 class="text-primary fw-bold mb-1">GestorFlow</h2>
+        <p class="text-muted small">Bem-vindo de volta! Insere os teus dados.</p>
+      </div>
+      
+      <form (ngSubmit)="fazerLogin()">
         
-        <form (ngSubmit)="fazerLogin()">
-          <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-control" [(ngModel)]="email" name="email" placeholder="exemplo@gestorflow.pt" required>
-          </div>
-  
-          <div class="mb-3">
-            <label class="form-label">Senha</label>
-            <input type="password" class="form-control" [(ngModel)]="senha" name="senha" placeholder="******" required>
-          </div>
-  
-          <div class="d-grid gap-2 mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
-          </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-secondary">Email</label>
+          <input type="email" class="form-control form-control-lg bg-light border-0" [(ngModel)]="email" name="email" placeholder="exemplo@gestorflow.pt" required>
+        </div>
 
-          <div class="text-center mt-3">
-            <span class="text-muted">Não tem conta? </span>
-            <a routerLink="/register" class="text-primary fw-bold text-decoration-none">Registe-se agora</a>
-          </div>
-        </form>
-      </div>
-      <div class="card-footer text-center bg-white border-0 mt-2">
-        <small class="text-muted">Gestão Comercial Inteligente</small>
-      </div>
+        <div class="mb-4">
+          <label class="form-label small fw-bold text-secondary">Senha</label>
+          <input type="password" class="form-control form-control-lg bg-light border-0" [(ngModel)]="senha" name="senha" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Entrar
+        </button>
+
+        <div class="text-center mt-4">
+          <span class="text-muted small">Ainda não tens conta? </span>
+          <a routerLink="/register" class="text-primary fw-bold text-decoration-none small">Regista-te aqui</a>
+        </div>
+
+      </form>
     </div>
+    
+    <div class="card-footer text-center bg-transparent border-0 pb-4 pt-0">
+      <small class="text-muted opacity-75">Gestão Comercial Inteligente</small>
+    </div>
+    
   </div>
+</div>

@@ -1,8 +1,10 @@
 <div class="container-fluid">
     
+    <!-- CABEÇALHO E FILTROS -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold text-secondary mb-0">Visão Geral</h3>
         
+        <!-- DROPDOWN APENAS PARA AÇÕES RÁPIDAS -->
         <div class="dropdown">
             <button class="btn btn-white border-0 shadow-sm fw-bold text-secondary d-flex align-items-center bg-white" 
                     type="button" 
@@ -11,34 +13,29 @@
                 <i class="bi bi-calendar3 me-2 text-primary"></i> {{ labelFiltroData }}
             </button>
             
-            <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border-0 mt-2" 
-                 [class.show]="dropdownAberto" 
-                 style="width: 280px; border-radius: 12px; position: absolute; right: 0;">
+            <div class="dropdown-menu dropdown-menu-end p-2 shadow-lg border-0 mt-2" 
+                 [class.show]="dropdownAberto"
+                 style="min-width: 230px; border-radius: 12px; position: absolute; right: 0; z-index: 1050;">
                  
-                <h6 class="dropdown-header fw-bold text-uppercase px-2 text-primary">Filtros Rápidos</h6>
-                <a class="dropdown-item rounded fw-semibold py-2" style="cursor:pointer;" (click)="setFiltroRapido('ESTE_MES')">Este Mês</a>
-                <a class="dropdown-item rounded fw-semibold py-2" style="cursor:pointer;" (click)="setFiltroRapido('MES_PASSADO')">Mês Passado</a>
-                <a class="dropdown-item rounded fw-semibold py-2" style="cursor:pointer;" (click)="setFiltroRapido('ESTE_ANO')">Este Ano</a>
-                <a class="dropdown-item rounded fw-semibold py-2" style="cursor:pointer;" (click)="setFiltroRapido('TUDO')">Todo o Histórico</a>
+                <h6 class="dropdown-header fw-bold text-uppercase text-primary">Filtros Rápidos</h6>
+                <a class="dropdown-item rounded fw-semibold py-2 mb-1" style="cursor:pointer;" (click)="setFiltroRapido('ESTE_MES'); dropdownAberto = false">Este Mês</a>
+                <a class="dropdown-item rounded fw-semibold py-2 mb-1" style="cursor:pointer;" (click)="setFiltroRapido('MES_PASSADO'); dropdownAberto = false">Mês Passado</a>
+                <a class="dropdown-item rounded fw-semibold py-2 mb-1" style="cursor:pointer;" (click)="setFiltroRapido('ESTE_ANO'); dropdownAberto = false">Este Ano</a>
+                <a class="dropdown-item rounded fw-semibold py-2" style="cursor:pointer;" (click)="setFiltroRapido('TUDO'); dropdownAberto = false">Todo o Histórico</a>
                 
-                <hr class="dropdown-divider my-3">
+                <hr class="dropdown-divider my-2">
                 
-                <h6 class="dropdown-header fw-bold text-uppercase px-2 text-primary">Intervalo Personalizado</h6>
-                <div class="px-2 mt-2">
-                    <label class="small text-muted mb-1 fw-bold">De:</label>
-                    <input type="date" class="form-control mb-2 bg-light border-0" [(ngModel)]="dataInicio">
-                    
-                    <label class="small text-muted mb-1 fw-bold">Até:</label>
-                    <input type="date" class="form-control mb-3 bg-light border-0" [(ngModel)]="dataFim">
-                    
-                    <button class="btn btn-primary w-100 fw-bold rounded-3 shadow-sm" (click)="aplicarFiltroPersonalizado()">
-                        Aplicar Filtro
-                    </button>
-                </div>
+                <!-- GATILHO PARA ABRIR O PAINEL LATERAL (OFFCANVAS) -->
+                <!-- Muda de data-bs-toggle="offcanvas" para isto: -->
+                <a class="dropdown-item rounded fw-bold py-2 text-primary" style="cursor:pointer;" 
+                    (click)="abrirPainelFiltro()">
+                     <i class="bi bi-sliders me-2"></i>Intervalo Personalizado...
+                </a>
             </div>
         </div>
     </div>
 
+    <!-- CARTÕES DE MÉTRICAS -->
     <div class="row g-4 mb-5">
         
         <div class="col-md-3">
@@ -102,6 +99,7 @@
         </div>
     </div>
 
+    <!-- TABELA DE VENDAS RECENTES -->
     <div class="row">
         <div class="col-md-12">
             <div class="card shadow-sm border-0">
@@ -109,7 +107,7 @@
                     <h5 class="mb-0 fw-bold text-secondary">Vendas Recentes</h5>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover align-middle mb-0 text-nowrap">
                         <thead class="bg-light">
                             <tr>
                                 <th class="ps-4 border-0 text-muted small uppercase">Cliente</th>
@@ -123,11 +121,12 @@
                                 <td class="ps-4 fw-bold">{{ venda.clienteNome }}</td>
                                 <td class="text-muted">{{ venda.dataVenda | date:'dd/MM/yyyy' }}</td>
                                 <td class="text-muted small">{{ venda.designacao }}</td>
-                                <td class="text-end fw-bold text-success pe-4">{{ venda.totalComIva | currency:'EUR' }}</td>
+                                <td class="text-end fw-bold text-success font-monospace pe-4">{{ venda.totalComIva | currency:'EUR' }}</td>
                             </tr>
                             
                             <tr *ngIf="ultimasVendas.length === 0">
-                                <td colspan="4" class="text-center py-4 text-muted">
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="bi bi-receipt fs-1 d-block mb-3 opacity-50"></i>
                                     Ainda não existem vendas registadas.
                                 </td>
                             </tr>
@@ -137,4 +136,38 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- ========================================================
+     PAINEL LATERAL DE FILTROS (OFFCANVAS)
+     ======================================================== -->
+<div class="offcanvas offcanvas-end border-0 shadow" tabindex="-1" id="offcanvasFiltroDatas" aria-labelledby="offcanvasFiltroDatasLabel">
+  
+  <div class="offcanvas-header bg-light border-bottom">
+    <h5 class="offcanvas-title fw-bold text-secondary" id="offcanvasFiltroDatasLabel">
+        <i class="bi bi-funnel me-2 text-primary"></i>Filtros de Data
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  
+  <div class="offcanvas-body d-flex flex-column p-4">
+    <p class="text-muted small mb-4">Define um intervalo personalizado para analisar as métricas do teu negócio.</p>
+    
+    <div class="mb-4">
+        <label class="form-label small fw-bold text-secondary">Data de Início</label>
+        <input type="date" class="form-control form-control-lg bg-light border-0" [(ngModel)]="dataInicio">
+    </div>
+    
+    <div class="mb-4">
+        <label class="form-label small fw-bold text-secondary">Data de Fim</label>
+        <input type="date" class="form-control form-control-lg bg-light border-0" [(ngModel)]="dataFim">
+    </div>
+
+    <!-- O mt-auto empurra o botão sempre para o fundo do painel -->
+    <div class="mt-auto">
+        <button type="button" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" (click)="aplicarFiltroPersonalizado()" data-bs-dismiss="offcanvas">
+            <i class="bi bi-check2-circle me-2"></i>Aplicar Filtro
+        </button>
+    </div>
+  </div>
 </div>

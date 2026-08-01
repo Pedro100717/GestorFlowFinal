@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { Router } from '@angular/router'; 
 
+// 🚀 1. IMPORTAR AS ANIMAÇÕES DO ANGULAR
+import { trigger, style, transition, animate } from '@angular/animations';
+
 import { VendaService } from '../../services/venda.service';
 import { ArtigoService } from '../../services/artigo.service';
 import { ClienteService } from '../../services/cliente.service';
@@ -23,7 +26,30 @@ declare var bootstrap: any;
   selector: 'app-vendas',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './venda.html'
+  templateUrl: './venda.html',
+  styleUrl: './venda.scss',
+  // 🚀 2. INJETAR OS TRIGGERS DE ANIMAÇÃO
+  animations: [
+    trigger('expandirTabela', [
+      transition(':enter', [
+        style({ height: '0', opacity: 0, overflow: 'hidden' }),
+        animate('300ms cubic-bezier(0.4, 0.0, 0.2, 1)', style({ height: '*', opacity: 1 }))
+      ]),
+      transition(':leave', [
+        style({ height: '*', opacity: 1, overflow: 'hidden' }),
+        animate('250ms cubic-bezier(0.4, 0.0, 0.2, 1)', style({ height: '0', opacity: 0 }))
+      ])
+    ]),
+    trigger('animarCartao', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(-20px)' }),
+        animate('300ms cubic-bezier(0.2, 0.8, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' }))
+      ]),
+      transition(':leave', [
+        animate('200ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' }))
+      ])
+    ])
+  ]
 })
 export class VendasComponent implements OnInit, AfterViewInit {
 
@@ -39,12 +65,10 @@ export class VendasComponent implements OnInit, AfterViewInit {
   
   vendaEmEdicao: Venda | null = null;
 
-  // 🚀 VARIÁVEIS INVISÍVEIS PARA RECEBER O PLANO DA TESOURARIA
   planoOrigemId: number | null = null;
   planoOrigemDescricao: string = '';
   planoOrigemData: string | null = null;
 
-  // 🚀 CONTROLO DE EXPANSÃO DE LINHAS NA TABELA
   faturasExpandidas = new Set<number>();
 
   constructor(
@@ -72,7 +96,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
       Toast.fire({ icon: 'info', title: 'A preparar receita a partir do planeamento.' });
     }
 
-    // 🚀 Recalcular o total geral sempre que qualquer linha sofrer alterações
     this.formVenda.get('linhas')?.valueChanges.subscribe(() => this.calcularTotalGeral());
     
     this.vendaService.vendas$.subscribe((vendasAtualizadas) => {
@@ -92,12 +115,9 @@ export class VendasComponent implements OnInit, AfterViewInit {
       dataVenda: [this.getDataAtual(), [Validators.required]],
       dataVencimento: [this.getDataAtual(), [Validators.required]], 
       clienteId: [null, [Validators.required]],
-      // 🚀 O MOTOR DE MÚLTIPLAS LINHAS
       linhas: this.fb.array([])
     });
   }
-
-  // --- MÉTODOS DE EXPANSÃO DA TABELA ---
 
   toggleExpandir(id: number): void {
     if (this.faturasExpandidas.has(id)) {
@@ -106,8 +126,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
       this.faturasExpandidas.add(id);
     }
   }
-
-  // --- MÉTODOS DO FORMARRAY ---
 
   get linhas(): FormArray {
     return this.formVenda.get('linhas') as FormArray;
@@ -145,8 +163,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // --- REGRAS DE NEGÓCIO DA LINHA ---
-
   aoSelecionarArtigo(index: number) {
     if (!this.vendaEmEdicao) {
         const linha = this.linhas.at(index);
@@ -163,8 +179,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
         }
     }
   }
-
-  // --- MATEMÁTICA ---
 
   calcularTotalLinha(index: number): number {
     const linha = this.linhas.at(index);
@@ -187,8 +201,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
     }
     this.totalCalculado = total;
   }
-
-  // --- UTILITÁRIOS ---
 
   getDataAtual(): string {
     const now = new Date();
@@ -231,8 +243,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
       error: (err) => console.error('Erro ao carregar dados:', err)
     });
   }
-
-  // --- MODAL ---
 
   abrirModalNovo() {
     this.vendaEmEdicao = null;
@@ -303,7 +313,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Anulada!'});
             this.tesourariaService.notificarNovaTransacao(); 
             
-            // 🚀 AQUI ESTÁ: Atualiza o stock no ecrã porque a mercadoria foi devolvida!
             this.artigoService.listar().subscribe(res => {
                 this.listaArtigos = res.content || res;
             });
@@ -336,7 +345,6 @@ export class VendasComponent implements OnInit, AfterViewInit {
         Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Fatura guardada com sucesso!' });
         this.tesourariaService.notificarNovaTransacao(); 
         
-        // 🚀 A SOLUÇÃO: Pede ao backend a lista de artigos fresca com o stock novo!
         this.artigoService.listar().subscribe(res => {
             this.listaArtigos = res.content || res;
         });

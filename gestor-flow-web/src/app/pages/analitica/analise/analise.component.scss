@@ -1,0 +1,21 @@
+/* ==========================================
+   ESTILOS RESPONSIVOS - DASHBOARD ANALÍTICO
+   ========================================== */
+
+   .tabela-analitica-wrapper {
+    // Garante que as colunas principais nunca ficam esmagadas em ecrãs pequenos
+    // A tabela vai criar um scroll horizontal suave nativo do Bootstrap
+    th.col-centro, td.col-centro {
+      min-width: 180px;
+    }
+    th.col-seccao, td.col-seccao {
+      min-width: 180px;
+    }
+  }
+  
+  /* Reduz o padding interior dos cartões apenas nos telemóveis para ganhar espaço */
+  @media (max-width: 767.98px) {
+    .card-body {
+      padding: 0.5rem !important;
+    }
+  }

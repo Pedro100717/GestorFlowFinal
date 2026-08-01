@@ -1,0 +1,25 @@
+/* ==========================================
+   ESTILOS DA TABELA DE INVENTÁRIO
+   ========================================== */
+
+   .tabela-inventario {
+    th.col-ref, td.col-ref { min-width: 120px; }
+    th.col-artigo, td.col-artigo { min-width: 250px; }
+    th.col-custo, td.col-custo { min-width: 120px; }
+    th.col-estado, td.col-estado { min-width: 110px; }
+    th.col-stock, td.col-stock { min-width: 130px; }
+    th.col-acoes, td.col-acoes { width: 190px; min-width: 190px; }
+  }
+  
+  /* ==========================================
+     ESTILOS DA TABELA DE HISTÓRICO
+     ========================================== */
+  
+  .tabela-historico {
+    th.col-data, td.col-data { min-width: 140px; }
+    th.col-artigo, td.col-artigo { min-width: 220px; }
+    th.col-tipo, td.col-tipo { min-width: 100px; }
+    th.col-qtd, td.col-qtd { min-width: 110px; }
+    th.col-motivo, td.col-motivo { min-width: 200px; }
+    th.col-stock-apos, td.col-stock-apos { min-width: 150px; }
+  }
