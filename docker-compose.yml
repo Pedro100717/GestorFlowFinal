@@ -45,6 +45,7 @@ services:
       - "443:443"  # <-- PORTA DO CADEADO
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro  # <-- LIGAÇÃO AO CERTIFICADO DO SERVIDOR
+      - ./.htpasswd:/etc/nginx/.htpasswd:ro   # 🚀 O COFRE FOI INJETADO AQUI!
     depends_on:
       - backend
     restart: unless-stopped

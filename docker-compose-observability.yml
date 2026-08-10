@@ -5,8 +5,6 @@ services:
     image: grafana/loki:2.9.0
     container_name: gestorflow-loki
     command: -config.file=/etc/loki/local-config.yaml
-    ports:
-      - "127.0.0.1:3100:3100" # 🚀 Fechado ao mundo! O Nginx é que vai gerir a entrada.
     restart: unless-stopped
     volumes:
       - loki_data:/loki
@@ -15,7 +13,7 @@ services:
     image: grafana/promtail:2.9.0
     container_name: gestorflow-promtail-server
     volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro # 🚀 Lê os logs do GestorFlow localmente
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro 
       - ./promtail-server.yaml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
     restart: unless-stopped
@@ -27,9 +25,11 @@ services:
     container_name: gestorflow-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=pedro_admin
-      - GF_SECURITY_ADMIN_PASSWORD=TuaPasswordForteAqui
-    ports:
-      - "127.0.0.1:3000:3000" # 🚀 Também fechado ao mundo exterior.
+      - GF_SECURITY_ADMIN_PASSWORD=$apr1$u0VoVaUz$NzsAPnwy7gjUMUagBtcMi1
+      # 🚀 Configurações essenciais para o Grafana funcionar atrás do /grafana/
+      - GF_SERVER_DOMAIN=gestorflow.178.104.156.13.nip.io
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
     restart: unless-stopped
     volumes:
       - grafana_data:/var/lib/grafana
@@ -39,3 +39,9 @@ services:
 volumes:
   loki_data:
   grafana_data:
+
+# 🚀 A PONTE DE REDE: Dizemos a esta stack para partilhar a rede com o teu ERP
+networks:
+  default:
+    name: gestorflowfinal_default
+    external: true
