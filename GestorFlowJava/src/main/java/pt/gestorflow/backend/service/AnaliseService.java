@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.AnaliseAnaliticaDTO;
@@ -9,6 +10,7 @@ import pt.gestorflow.backend.repository.AnaliseRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j // 1. O Lombok trata da criação do Logger automaticamente!
 @Service
 @RequiredArgsConstructor
 public class AnaliseService {
@@ -20,12 +22,15 @@ public class AnaliseService {
     public List<AnaliseAnaliticaDTO> obterDashboard() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🚀 O MAPEAMENTO INDUSTRIAL: Da Base de Dados (Projection) para o objeto da API (DTO)
-        return analiseRepository.obterAnaliseVendasCompras(utilizadorId).stream()
+        // 2. Registo de Auditoria (INFO): Importante para saber quem está a ver as finanças da empresa.
+        log.info("A gerar Dashboard Analítico para o utilizador ID: {}", utilizadorId);
+
+        // Extraímos para uma variável para podermos logar o tamanho final antes de devolver
+        List<AnaliseAnaliticaDTO> resultados = analiseRepository.obterAnaliseVendasCompras(utilizadorId).stream()
                 .map(proj -> {
                     AnaliseAnaliticaDTO dto = new AnaliseAnaliticaDTO();
 
-                    // 🚀 MAPEAMENTO ATUALIZADO: Os 4 campos distintos em vez de 2!
+                    // 🚀 MAPEAMENTO ATUALIZADO
                     dto.setCentroCustoCodigo(proj.getCentroCustoCodigo());
                     dto.setCentroCustoNome(proj.getCentroCustoNome());
                     dto.setSeccaoCodigo(proj.getSeccaoCodigo());
@@ -44,5 +49,10 @@ public class AnaliseService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+
+        // 3. Registo de Sucesso (DEBUG): Ajuda-te a ver se as queries estão a devolver o que devem, mas não enche os logs em produção a menos que peças.
+        log.debug("Dashboard gerado com sucesso para utilizador ID: {}. Total de secções agregadas: {}", utilizadorId, resultados.size());
+
+        return resultados;
     }
 }

@@ -1,10 +1,12 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO DOS ERROS
 import { StockService } from '../../services/stock.service';
 import { ArtigoService } from '../../services/artigo.service';
 import { ClienteService } from '../../services/cliente.service';
 import { FornecedorService } from '../../services/fornecedor.service';
+import { LogService } from '../../core/services/log.service'; // 🚀 INJEÇÃO DO INSPETOR
 
 import { MovimentoStock } from '../../core/models/stock.model';
 import { Artigo } from '../../core/models/artigo.model';
@@ -46,7 +48,8 @@ export class AcertosStockComponent implements OnInit {
     private clienteService: ClienteService,
     private fornecedorService: FornecedorService,
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 SERVIÇO DECLARADO NO CONSTRUTOR
   ) {}
 
   ngOnInit() {
@@ -63,7 +66,7 @@ export class AcertosStockComponent implements OnInit {
       this.cd.detectChanges();
     });
 
-    // 🚀 OUVINTE DINÂMICO PARA AS VALIDAÇÕES OBRIGATÓRIAS
+    // OUVINTE DINÂMICO PARA AS VALIDAÇÕES OBRIGATÓRIAS
     this.formAcerto.get('tipo')?.valueChanges.subscribe(tipoSelecionado => {
         const controlCliente = this.formAcerto.get('clienteId');
         const controlFornecedor = this.formAcerto.get('fornecedorId');
@@ -89,7 +92,6 @@ export class AcertosStockComponent implements OnInit {
       tipo: ['ENTRADA', [Validators.required]],
       quantidade: [1, [Validators.required, Validators.min(0.001)]],
       motivo: ['', [Validators.required]],
-      // 🚀 Como o default é ENTRADA, o cliente já começa como obrigatório
       clienteId: [null, [Validators.required]],
       fornecedorId: [null]
     });
@@ -104,15 +106,18 @@ export class AcertosStockComponent implements OnInit {
     forkJoin({
         clientes: this.clienteService.listar(),
         fornecedores: this.fornecedorService.listar()
-    }).subscribe(res => {
-        // Fallback seguro caso a API devolva paginação ou lista direta
-        this.listaClientes = (res.clientes as any).content || res.clientes;
-        this.listaFornecedores = (res.fornecedores as any).content || res.fornecedores;
+    }).subscribe({
+      next: (res) => {
+        // 🚀 ADEUS ANY: Tratamento nativo com o fallback content
+        this.listaClientes = res.clientes.content || res.clientes;
+        this.listaFornecedores = res.fornecedores.content || res.fornecedores;
+        this.logService.debug('Dados de Clientes e Fornecedores carregados para Acertos de Stock.');
         this.cd.detectChanges();
+      },
+      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar dados auxiliares do stock', e)
     });
   }
 
-  // --- LÓGICA DO MODAL DE ACERTOS ---
   abrirModalNovo(mercadoriaIdPadrao: number | null = null) {
     this.formAcerto.reset({ 
         mercadoriaId: mercadoriaIdPadrao,
@@ -125,35 +130,30 @@ export class AcertosStockComponent implements OnInit {
     modal.show();
   }
 
-  // --- 🛡️ LÓGICA DO MODAL DE HISTÓRICO ---
   abrirHistoricoArtigo(artigo: Artigo) {
     this.artigoSelecionadoParaHistorico = artigo.nome;
-    this.historicoArtigoSelecionado = []; // Mostra "A carregar..." visualmente
+    this.historicoArtigoSelecionado = []; 
     
-    // Liga o interruptor: O Modal aparece no ecrã imediatamente
     this.mostrarModalHistorico = true; 
     
     this.stockService.obterHistoricoDoArtigo(artigo.id!).subscribe({
-      next: (res: any) => {
-        console.log("CHEGOU AO ANGULAR:", res);
-        // Assim que o Java responde, os dados entram na variável e o Angular pinta a tabela
+      // 🚀 ADEUS ANY E CONSOLE.LOGS AMADORES
+      next: (res) => {
         this.historicoArtigoSelecionado = res.content || res || []; 
-
-        this.cd.detectChanges(); // Garante que o Angular atualiza a view com os novos dados
+        this.logService.debug(`Histórico carregado para o artigo ${artigo.id}.`); // 🚀 RASTREABILIDADE
+        this.cd.detectChanges(); 
       },
-      error: (err: any) => {
-        console.error('Erro ao buscar histórico do artigo:', err);
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error(`Erro ao buscar histórico do artigo ${artigo.id}`, err); // 🚀 CAIXA NEGRA
         Swal.fire('Erro', 'Não foi possível carregar o histórico deste artigo.', 'error');
-        this.mostrarModalHistorico = false; // Fecha em caso de erro
+        this.mostrarModalHistorico = false; 
       }
     });
   }
 
   fecharModalHistorico() {
-    // Desliga o interruptor: O Modal desaparece
     this.mostrarModalHistorico = false;
   }
-  // ----------------------------------------------------------------------
 
   guardarAcerto() {
     if (this.formAcerto.invalid) {
@@ -175,22 +175,29 @@ export class AcertosStockComponent implements OnInit {
           confirmButtonText: 'Sim, registar saída!',
           cancelButtonText: 'Cancelar'
         }).then((result) => {
-          if (result.isConfirmed) this.executarRegisto(formValues);
+          if (result.isConfirmed) {
+            this.logService.warn(`Acerto de stock vai forçar saldo negativo no artigo ${artigo.id}.`); // 🚀 RASTREABILIDADE DE RISCO
+            this.executarRegisto(formValues);
+          }
         });
     } else {
         this.executarRegisto(formValues);
     }
   }
 
-  private executarRegisto(formValues: any) {
+  private executarRegisto(formValues: Record<string, any>) { // 🚀 RECORD EM VEZ DE ANY SOLTO
     this.stockService.registarAcerto(formValues).subscribe({
-      next: (novoAcerto: any) => {
-        this.artigoService.atualizarStockNaMemoria(formValues.mercadoriaId, novoAcerto.stockAposMovimento); 
+      next: (novoAcerto) => {
+        this.logService.info(`Acerto de stock registado para o artigo ID ${formValues['mercadoriaId']}. Tipo: ${formValues['tipo']}`); // 🚀 CAIXA NEGRA
+        this.artigoService.atualizarStockNaMemoria(formValues['mercadoriaId']!, novoAcerto.stockAposMovimento!);
+        
         const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
         Toast.fire({ icon: 'success', title: 'Acerto registado com sucesso!' });
+        
         bootstrap.Modal.getInstance(document.getElementById('modalAcerto'))?.hide();
       },
-      error: (e: any) => {
+      error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error('Falha ao registar o acerto de stock', e); // 🚀 CAIXA NEGRA
         Swal.fire({
           icon: 'error',
           title: 'Erro ao guardar',

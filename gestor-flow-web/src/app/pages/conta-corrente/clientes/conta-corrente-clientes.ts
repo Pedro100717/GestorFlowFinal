@@ -1,10 +1,12 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 1. IMPORT OBRIGATÓRIO DOS ERROS HTTP
 import { ContaCorrenteService } from '../../../services/conta-corrente.service';
 import { ContaCorrenteResumo, ContaCorrenteExtrato } from '../../../core/models/conta-corrente.model';
+import { LogService } from '../../../core/services/log.service'; // 🚀 2. INJEÇÃO DO NOSSO INSPETOR
 import Swal from 'sweetalert2';
 
-// 🚀 DECLARAÇÃO GLOBAL (Obrigatório, igual aos Centros de Custo)
+// 🚀 DECLARAÇÃO GLOBAL
 declare var bootstrap: any;
 
 @Component({
@@ -29,7 +31,8 @@ export class ContaCorrenteClientesComponent implements OnInit {
 
   constructor(
     private ccService: ContaCorrenteService,
-    private cd: ChangeDetectorRef // 🚀 INJEÇÃO PARA ACORDAR O ANGULAR
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 3. SERVIÇO DECLARADO
   ) {}
 
   ngOnInit(): void {
@@ -46,11 +49,12 @@ export class ContaCorrenteClientesComponent implements OnInit {
         } else {
           this.resumoClientes = [];
         }
+        this.logService.debug('Resumo de contas correntes de clientes carregado com sucesso.', this.resumoClientes.length); // 🚀 RASTREABILIDADE
         this.carregando = false;
-        this.cd.detectChanges(); // Atualiza a vista
+        this.cd.detectChanges();
       },
-      error: (err) => {
-        console.error(err);
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error('Erro ao carregar o resumo das contas correntes dos clientes', err); // 🚀 CAIXA NEGRA
         this.carregando = false;
         Swal.fire('Erro', 'Não foi possível carregar os dados de resumo dos clientes.', 'error');
       }
@@ -68,7 +72,7 @@ export class ContaCorrenteClientesComponent implements OnInit {
     this.carregandoExtrato = true;
     this.extratoCliente = []; 
 
-    // 🚀 SET TIMEOUT PARA EVITAR ATROPELAMENTOS NO DOM
+    // SET TIMEOUT PARA EVITAR ATROPELAMENTOS NO DOM
     setTimeout(() => {
       const offcanvasEl = document.getElementById('offcanvasExtrato');
       if (offcanvasEl) {
@@ -81,11 +85,12 @@ export class ContaCorrenteClientesComponent implements OnInit {
     this.ccService.obterExtratoCliente(cliente.clienteId!).subscribe({
       next: (dados) => {
         this.extratoCliente = dados;
+        this.logService.debug(`Extrato carregado com sucesso para o cliente ${cliente.clienteId}`); // 🚀 RASTREABILIDADE
         this.carregandoExtrato = false;
-        this.cd.detectChanges(); // Atualiza a gaveta com os dados
+        this.cd.detectChanges(); 
       },
-      error: (err) => {
-        console.error(err);
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error(`Erro ao carregar extrato do cliente ${cliente.clienteId}`, err); // 🚀 CAIXA NEGRA
         this.carregandoExtrato = false;
         this.cd.detectChanges();
         Swal.fire('Erro', 'Não foi possível carregar o extrato do cliente selecionado.', 'error');
@@ -93,7 +98,6 @@ export class ContaCorrenteClientesComponent implements OnInit {
     });
   }
 
-  // 🚀 MÉTODO ATUALIZADO PARA EXPORTAR O EXTRATO EM PDF
   exportarExtratoPdf(): void {
     if (!this.clienteSelecionado || !this.clienteSelecionado.clienteId) {
       Swal.fire('Aviso', 'Nenhum cliente selecionado para exportação.', 'warning');
@@ -107,11 +111,12 @@ export class ContaCorrenteClientesComponent implements OnInit {
       next: (blob: Blob) => {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
+        this.logService.info(`PDF de Conta Corrente exportado para o cliente ${this.clienteSelecionado?.clienteId}`); // 🚀 RASTREABILIDADE
         this.carregandoExtrato = false;
         this.cd.detectChanges();
       },
-      error: (err) => {
-        console.error('Erro ao exportar PDF:', err);
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error(`Erro ao exportar PDF do extrato do cliente ${this.clienteSelecionado?.clienteId}`, err); // 🚀 CAIXA NEGRA
         this.carregandoExtrato = false;
         this.cd.detectChanges();
         Swal.fire('Erro', 'Não foi possível gerar o extrato em PDF. Verifica o estado do servidor.', 'error');

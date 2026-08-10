@@ -2,6 +2,7 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.MovimentoPlaneadoDTO;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class PlaneamentoService {
@@ -28,10 +30,13 @@ public class PlaneamentoService {
 
     @Transactional
     public MovimentoPlaneadoDTO criarPlano(MovimentoPlaneadoDTO dto) {
-        // 🚀 O NOSSO GUARDIÃO: Valida as regras de negócio antes de fazer qualquer coisa!
-        validarPlano(dto);
-
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("A iniciar criação de um novo plano financeiro ({}) para o utilizador ID: {}", dto.getFrequencia(), utilizadorId);
+
+        // 🚀 GUARDIÃO AGORA COM CONTEXTO: Passamos o ID para rastrear quem falha a validação
+        validarPlano(dto, utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -39,26 +44,37 @@ public class PlaneamentoService {
         plano.setUtilizador(user);
         mapearDtoParaEntidade(dto, plano, utilizadorId);
 
-        return mapearEntidadeParaDto(planeamentoRepository.save(plano));
+        MovimentoPlaneado salvo = planeamentoRepository.save(plano);
+        log.debug("Plano financeiro ID: {} criado com sucesso.", salvo.getId());
+
+        return mapearEntidadeParaDto(salvo);
     }
 
     @Transactional
     public MovimentoPlaneadoDTO atualizarPlano(Long id, MovimentoPlaneadoDTO dto) {
-        // 🚀 O NOSSO GUARDIÃO: Valida as regras também na edição!
-        validarPlano(dto);
-
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Pedido de atualização do Plano ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
+        validarPlano(dto, utilizadorId);
 
         MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
 
         mapearDtoParaEntidade(dto, plano, utilizadorId);
-        return mapearEntidadeParaDto(planeamentoRepository.save(plano));
+
+        MovimentoPlaneado atualizado = planeamentoRepository.save(plano);
+        log.debug("Plano financeiro ID: {} atualizado com sucesso.", atualizado.getId());
+
+        return mapearEntidadeParaDto(atualizado);
     }
 
     @Transactional(readOnly = true)
     public List<MovimentoPlaneadoDTO> listarPlanos() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem de planeamento solicitada pelo utilizador ID: {}", utilizadorId);
+
         return planeamentoRepository.findAllByUtilizadorId(utilizadorId)
                 .stream()
                 .map(this::mapearEntidadeParaDto)
@@ -68,18 +84,28 @@ public class PlaneamentoService {
     @Transactional
     public void apagarPlano(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Auditoria Crítica: Pedido de eliminação definitiva do Plano ID: {} (Utilizador: {})", id, utilizadorId);
+
         MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
+
         planeamentoRepository.delete(plano);
+        log.debug("Plano ID: {} eliminado com sucesso da base de dados.", id);
     }
 
     @Transactional
     public void alternarStatus(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
         MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
 
         plano.setAtivo(!plano.getAtivo());
+
+        // 🛡️ INFO: Registo essencial para justificar quebras no Cash Flow
+        log.info("Auditoria: O utilizador ID: {} alterou o status do Plano ID: {} para {}", utilizadorId, id, plano.getAtivo() ? "ATIVO" : "INATIVO");
+
         planeamentoRepository.save(plano);
     }
 
@@ -87,19 +113,18 @@ public class PlaneamentoService {
     // --- REGRAS DE NEGÓCIO (VALIDAÇÕES) ---
     // =========================================================================
 
-    private void validarPlano(MovimentoPlaneadoDTO dto) {
-        // 1. SE NÃO FOR PONTUAL, A DATA DE FIM É OBRIGATÓRIA
+    private void validarPlano(MovimentoPlaneadoDTO dto, Long utilizadorId) {
         if (dto.getFrequencia() != FrequenciaMovimento.PONTUAL && dto.getDataFim() == null) {
+            log.warn("Validação falhou: Utilizador {} tentou criar plano recorrente sem data de fim.", utilizadorId);
             throw new IllegalArgumentException("A data de fim é obrigatória para movimentos recorrentes.");
         }
 
-        // 2. SEGURANÇA EXTRA: Se for pontual, garante que ninguém injeta uma data de fim por malícia
         if (dto.getFrequencia() == FrequenciaMovimento.PONTUAL && dto.getDataFim() != null) {
             dto.setDataFim(null);
         }
 
-        // BÓNUS: Validar se a data de fim não é anterior à data de início!
         if (dto.getDataFim() != null && dto.getDataFim().isBefore(dto.getDataInicio())) {
+            log.warn("Validação falhou: Utilizador {} definiu data de fim anterior à data de início.", utilizadorId);
             throw new IllegalArgumentException("A data de término não pode ser anterior à data de início.");
         }
     }
@@ -111,10 +136,13 @@ public class PlaneamentoService {
     @Transactional
     public void ignorarDataPlano(Long id, LocalDate dataAignorar) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        // 🛡️ INFO: Rastreio de manipulação de previsão de tesouraria
+        log.info("Auditoria Financeira: Utilizador ID: {} pediu para ignorar a data {} no Plano recorrente ID: {}", utilizadorId, dataAignorar, id);
+
         MovimentoPlaneado plano = planeamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano não encontrado."));
 
-        // Guarda a data na gaveta das exceções
         plano.getDatasIgnoradas().add(dataAignorar);
         planeamentoRepository.save(plano);
     }
@@ -123,14 +151,14 @@ public class PlaneamentoService {
     public MovimentoPlaneadoDTO criarExcecaoPlano(Long idOriginal, LocalDate dataOriginal, MovimentoPlaneadoDTO dtoNovo) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 1. Silencia o plano original APENAS naquela data
+        log.info("Auditoria Financeira: Utilizador ID: {} a criar exceção no Plano ID: {} para a data {}", utilizadorId, idOriginal, dataOriginal);
+
         MovimentoPlaneado planoOriginal = planeamentoRepository.findByIdAndUtilizadorId(idOriginal, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Plano original não encontrado."));
 
         planoOriginal.getDatasIgnoradas().add(dataOriginal);
         planeamentoRepository.save(planoOriginal);
 
-        // 2. Cria a nova exceção como um plano independente e PONTUAL
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -138,17 +166,18 @@ public class PlaneamentoService {
         novoPlanoExcecao.setUtilizador(user);
         mapearDtoParaEntidade(dtoNovo, novoPlanoExcecao, utilizadorId);
 
-        // Regra de Ferro: A exceção tem de ser pontual, senão criávamos um loop infinito de fantasmas!
         novoPlanoExcecao.setFrequencia(FrequenciaMovimento.PONTUAL);
         novoPlanoExcecao.setDataInicio(dtoNovo.getDataInicio());
-        novoPlanoExcecao.setDataFim(null); // Segurança: Pontual não tem fim
+        novoPlanoExcecao.setDataFim(null);
 
-        return mapearEntidadeParaDto(planeamentoRepository.save(novoPlanoExcecao));
+        MovimentoPlaneado excecaoSalva = planeamentoRepository.save(novoPlanoExcecao);
+        log.debug("Exceção criada com sucesso. Novo Plano Pontual ID: {}", excecaoSalva.getId());
+
+        return mapearEntidadeParaDto(excecaoSalva);
     }
 
-
     // =========================================================================
-    // --- MAPEAMENTOS (BUG CORRIGIDO E SEM IVA) ---
+    // --- MAPEAMENTOS ---
     // =========================================================================
 
     private void mapearDtoParaEntidade(MovimentoPlaneadoDTO dto, MovimentoPlaneado plano, Long utilizadorId) {
@@ -160,7 +189,6 @@ public class PlaneamentoService {
         plano.setDataFim(dto.getDataFim());
         plano.setAtivo(dto.getAtivo() != null ? dto.getAtivo() : true);
 
-        // 🛡️ Os parceiros são mapeados à entrada
         if (dto.getClienteId() != null) {
             plano.setCliente(clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId).orElse(null));
         } else {
@@ -193,7 +221,6 @@ public class PlaneamentoService {
             dto.setFornecedorId(plano.getFornecedor().getId());
         }
 
-        // 🚀 AQUI ESTÁ A LINHA QUE TE FALTOU: Transportar as exceções para o Angular!
         dto.setDatasIgnoradas(plano.getDatasIgnoradas());
 
         return dto;

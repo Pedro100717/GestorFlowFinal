@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DashboardService } from '../../services/dashboard.service';
 import { VendaResumo } from '../../core/models/dashboard.model';
+import { LogService } from '../../core/services/log.service'; // 🚀 1. IMPORT DO INSPETOR
 
 @Component({
   selector: 'app-dashboard',
@@ -14,7 +15,7 @@ export class DashboardComponent implements OnInit {
 
   dataHoje: Date = new Date();
   
-  // 🚀 NOVA VARIÁVEL: Controla o estado do menu (aberto/fechado)
+  // Controla o estado do menu (aberto/fechado)
   dropdownAberto: boolean = false;
 
   // Variáveis de Controlo do Filtro
@@ -31,7 +32,8 @@ export class DashboardComponent implements OnInit {
 
   constructor(
     private dashboardService: DashboardService,
-    private cd: ChangeDetectorRef 
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 2. INJEÇÃO DO LOG SERVICE
   ) {}
 
   ngOnInit() {
@@ -42,6 +44,9 @@ export class DashboardComponent implements OnInit {
         this.margemBruta = dados.margemBruta || 0;
         this.totalCompras = dados.totalCompras || 0;
         this.ultimasVendas = dados.ultimasVendas || [];
+        
+        // 🚀 RASTREABILIDADE SILENCIOSA: Sabemos sempre quando o ecrã atualizou os números
+        this.logService.debug('Painel de Dashboard renderizado com novos dados.'); 
         
         this.cd.detectChanges(); 
       }
@@ -64,9 +69,11 @@ export class DashboardComponent implements OnInit {
       this.dataInicio = '';
       this.dataFim = '';
       this.labelFiltroData = 'Todo o Histórico';
+      
+      this.logService.info('Filtro de Dashboard aplicado: Todo o Histórico'); // 🚀 CAIXA NEGRA
       this.aplicarFiltroPersonalizado(this.labelFiltroData);
       
-      this.dropdownAberto = false; // 🚀 FECHA O MENU
+      this.dropdownAberto = false; 
       return; 
     }
 
@@ -90,20 +97,23 @@ export class DashboardComponent implements OnInit {
 
     this.dataInicio = this.formatarData(inicio);
     this.dataFim = this.formatarData(fim);
+    
+    this.logService.info(`Filtro Rápido de Dashboard aplicado: ${this.labelFiltroData}`); // 🚀 CAIXA NEGRA
     this.aplicarFiltroPersonalizado(this.labelFiltroData);
     
-    this.dropdownAberto = false; // 🚀 FECHA O MENU AQUI TAMBÉM
+    this.dropdownAberto = false; 
   }
 
   aplicarFiltroPersonalizado(labelManual?: string) {
     if (!labelManual) {
       this.labelFiltroData = `${this.formatarParaBr(this.dataInicio)} a ${this.formatarParaBr(this.dataFim)}`;
+      this.logService.info(`Filtro Manual de Dashboard aplicado: ${this.dataInicio} até ${this.dataFim}`); // 🚀 CAIXA NEGRA
     }
     
     // Agora passamos as datas ao serviço! (Se for TUDO, vai passar strings vazias)
     this.dashboardService.carregarResumo(this.dataInicio, this.dataFim);
     
-    this.dropdownAberto = false; // 🚀 FECHA O MENU SE APLICADO MANUALMENTE
+    this.dropdownAberto = false; 
   }
 
   // Helpers de formatação
@@ -121,9 +131,8 @@ export class DashboardComponent implements OnInit {
   }
 
   abrirPainelFiltro() {
-    this.dropdownAberto = false; // Fecha o dropdown primeiro
+    this.dropdownAberto = false; 
     
-    // Pequeno timeout para garantir que o DOM processa o fecho do menu antes de abrir o offcanvas
     setTimeout(() => {
       const offcanvasElement = document.getElementById('offcanvasFiltroDatas');
       if (offcanvasElement && (window as any).bootstrap) {

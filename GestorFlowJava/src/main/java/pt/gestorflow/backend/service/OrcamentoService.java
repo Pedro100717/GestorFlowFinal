@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class OrcamentoService {
@@ -38,6 +40,9 @@ public class OrcamentoService {
     @Transactional
     public OrcamentoResponseDTO criarOrcamento(OrcamentoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("A iniciar criação de Orçamento para o cliente ID: {} (Utilizador: {})", dto.getClienteId(), utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -53,18 +58,24 @@ public class OrcamentoService {
 
         processarLinhasOrcamento(orcamento, dto, utilizadorId);
 
-        return converterParaDTO(orcamentoRepository.save(orcamento));
+        Orcamento salvo = orcamentoRepository.save(orcamento);
+        log.debug("Orçamento ID: {} criado com sucesso no valor total de: {}", salvo.getId(), salvo.getTotalComIva());
+
+        return converterParaDTO(salvo);
     }
 
     @Transactional
     public OrcamentoResponseDTO atualizarOrcamento(Long id, OrcamentoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
+        log.info("Pedido de atualização do Orçamento ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
         Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado ou sem permissão."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
-            throw new RuntimeException("Não é possível alterar um orçamento que já foi convertido em venda.");
+            log.warn("Tentativa de edição bloqueada: Orçamento ID: {} já convertido em venda.", id);
+            throw new IllegalArgumentException("Não é possível alterar um orçamento que já foi convertido em venda.");
         }
 
         if (dto.getClienteId() != null) {
@@ -78,10 +89,12 @@ public class OrcamentoService {
         orcamento.getLinhas().clear();
         processarLinhasOrcamento(orcamento, dto, utilizadorId);
 
-        return converterParaDTO(orcamentoRepository.save(orcamento));
+        Orcamento atualizado = orcamentoRepository.save(orcamento);
+        log.debug("Orçamento ID: {} atualizado com sucesso.", atualizado.getId());
+
+        return converterParaDTO(atualizado);
     }
 
-    // 🚀 OTIMIZAÇÃO: Carregamento de dados em memória para evitar N+1
     private void processarLinhasOrcamento(Orcamento orcamento, OrcamentoDTO dto, Long userId) {
         BigDecimal totalCustoGeral = BigDecimal.ZERO;
         BigDecimal totalSemIvaGeral = BigDecimal.ZERO;
@@ -145,11 +158,15 @@ public class OrcamentoService {
     @Transactional
     public void converterEmVenda(Long orcamentoId, Long contaBancariaId) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Ação Financeira: O utilizador ID: {} pediu a conversão do Orçamento ID: {} em Venda", utilizadorId, orcamentoId);
+
         Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(orcamentoId, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
-            throw new RuntimeException("Este orçamento já foi processado anteriormente.");
+            log.warn("Tentativa de conversão dupla bloqueada no Orçamento ID: {}", orcamentoId);
+            throw new IllegalArgumentException("Este orçamento já foi processado anteriormente.");
         }
 
         VendaDTO vendaDTO = new VendaDTO();
@@ -172,11 +189,15 @@ public class OrcamentoService {
 
         orcamento.setEstado(Orcamento.EstadoOrcamento.CONVERTIDO_VENDA);
         orcamentoRepository.save(orcamento);
+        log.debug("Orçamento ID: {} convertido com sucesso.", orcamentoId);
     }
 
     @Transactional(readOnly = true)
     public Page<OrcamentoResponseDTO> listarMeusOrcamentos(int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem de orçamentos solicitada pelo utilizador ID: {}. Página: {}", utilizadorId, pagina);
+
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataCriacaoSistema").descending());
         return orcamentoRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
     }
@@ -192,25 +213,35 @@ public class OrcamentoService {
     @Transactional
     public void eliminarOrcamento(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Pedido de eliminação do Orçamento ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
         Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
-            throw new RuntimeException("Não é possível eliminar um orçamento que já gerou vendas. Arquive-o ou anule a venda primeiro.");
+            log.warn("Tentativa de eliminação de orçamento já convertido (ID: {}) bloqueada.", id);
+            throw new IllegalArgumentException("Não é possível eliminar um orçamento que já gerou vendas. Arquive-o ou anule a venda primeiro.");
         }
         orcamentoRepository.delete(orcamento);
+        log.debug("Orçamento ID: {} eliminado com sucesso.", id);
     }
 
     @Transactional
     public OrcamentoResponseDTO alterarEstado(Long id, Orcamento.EstadoOrcamento novoEstado) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("A alterar o estado do Orçamento ID: {} para {} (Utilizador: {})", id, novoEstado, utilizadorId);
+
         Orcamento orcamento = orcamentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Orçamento não encontrado."));
 
         if (orcamento.getEstado() == Orcamento.EstadoOrcamento.CONVERTIDO_VENDA) {
-            throw new RuntimeException("Orçamento já convertido em venda.");
+            log.warn("Bloqueada alteração de estado no Orçamento ID: {}. Já se encontra convertido em venda.", id);
+            throw new IllegalArgumentException("Orçamento já convertido em venda.");
         }
         orcamento.setEstado(novoEstado);
+
         return converterParaDTO(orcamentoRepository.save(orcamento));
     }
 

@@ -12,7 +12,7 @@ export class AnaliticaService {
   // Aponta para os teus controllers
   private readonly API_CC = `${environment.apiUrl}/centros-custo`;
   private readonly API_SH = `${environment.apiUrl}/seccoes-homogeneas`;
-  private readonly API_ANALISE = `${environment.apiUrl}/analise`; // 🛡️ NOVO ENDPOINT
+  private readonly API_ANALISE = `${environment.apiUrl}/analise`; 
 
   private cacheCentros$: Observable<CentroCusto[]> | null = null;
   private cacheSeccoes$: Observable<SeccaoHomo[]> | null = null;
@@ -31,13 +31,18 @@ export class AnaliticaService {
     return this.cacheCentros$;
   }
 
-  criarCentro(dto: CentroCusto): Observable<CentroCusto> {
+  // 🚀 ADICIONADO: O espelho do GET /{id} do Backend
+  buscarCentroPorId(id: number): Observable<CentroCusto> {
+    return this.http.get<CentroCusto>(`${this.API_CC}/${id}`);
+  }
+
+  criarCentro(dto: Partial<CentroCusto>): Observable<CentroCusto> {
     return this.http.post<CentroCusto>(this.API_CC, dto).pipe(
       tap(() => this.cacheCentros$ = null)
     );
   }
 
-  atualizarCentro(id: number, dto: CentroCusto): Observable<CentroCusto> {
+  atualizarCentro(id: number, dto: Partial<CentroCusto>): Observable<CentroCusto> {
     return this.http.put<CentroCusto>(`${this.API_CC}/${id}`, dto).pipe(
       tap(() => this.cacheCentros$ = null)
     );
@@ -61,13 +66,18 @@ export class AnaliticaService {
     return this.cacheSeccoes$;
   }
 
-  criarSeccao(dto: SeccaoHomo): Observable<SeccaoHomo> {
+  // 🚀 ADICIONADO: O espelho do GET /{id} do Backend
+  buscarSeccaoPorId(id: number): Observable<SeccaoHomo> {
+    return this.http.get<SeccaoHomo>(`${this.API_SH}/${id}`);
+  }
+
+  criarSeccao(dto: Partial<SeccaoHomo>): Observable<SeccaoHomo> {
     return this.http.post<SeccaoHomo>(this.API_SH, dto).pipe(
       tap(() => this.cacheSeccoes$ = null)
     ); 
   }
 
-  atualizarSeccao(id: number, dto: SeccaoHomo): Observable<SeccaoHomo> {
+  atualizarSeccao(id: number, dto: Partial<SeccaoHomo>): Observable<SeccaoHomo> {
     return this.http.put<SeccaoHomo>(`${this.API_SH}/${id}`, dto).pipe(
       tap(() => this.cacheSeccoes$ = null)
     );
@@ -80,7 +90,7 @@ export class AnaliticaService {
   }
 
   // ==========================================
-  // DASHBOARD ANALÍTICO (O NOSSO MOTOR)
+  // DASHBOARD ANALÍTICO E RELATÓRIOS
   // ==========================================
   obterDashboardAnalitico(): Observable<AnaliseDashboard[]> {
     return this.http.get<AnaliseDashboard[]>(`${this.API_ANALISE}/dashboard`);

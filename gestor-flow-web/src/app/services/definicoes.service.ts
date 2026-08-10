@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs'; // 🚀 ADICIONADO O TAP
 import { environment } from '../../environments/environment';
 
 // 🚀 Interfaces espelhadas exatamente do teu Spring Boot
@@ -36,8 +36,18 @@ export class DefinicoesService {
     return this.http.get<PerfilUtilizadorDTO>(`${this.API_URL}/perfil`);
   }
 
-  atualizarPerfil(dados: PerfilUtilizadorDTO): Observable<any> {
-    return this.http.put<any>(`${this.API_URL}/perfil`, dados);
+  // 🚀 TIPAGEM CORRIGIDA E UX REATIVA: Atualiza a memória local após o sucesso!
+  atualizarPerfil(dados: PerfilUtilizadorDTO): Observable<PerfilUtilizadorDTO> {
+    return this.http.put<PerfilUtilizadorDTO>(`${this.API_URL}/perfil`, dados).pipe(
+      tap((perfilAtualizado) => {
+        // Assume que o backend devolve o perfil atualizado.
+        // Ao atualizarmos o localStorage, a tua Sidebar ou Topbar (que lêem de lá)
+        // vão mostrar o novo nome imediatamente, sem precisar de F5!
+        if (perfilAtualizado && perfilAtualizado.nome) {
+          localStorage.setItem('userName', perfilAtualizado.nome);
+        }
+      })
+    );
   }
 
   // ==========================================

@@ -1,10 +1,12 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO DOS ERROS HTTP
 import { ContaCorrenteService } from '../../../services/conta-corrente.service';
 import { ContaCorrenteResumo, ContaCorrenteExtrato } from '../../../core/models/conta-corrente.model';
-import Swal from 'sweetalert2'; // 🚀 Importado para manter o padrão de alertas dos clientes
+import { LogService } from '../../../core/services/log.service'; // 🚀 INJEÇÃO DO NOSSO INSPETOR
+import Swal from 'sweetalert2'; 
 
-// 🚀 1. A DECLARAÇÃO GLOBAL (Obrigatório para o Bootstrap funcionar como nos Modais)
+// 🚀 A DECLARAÇÃO GLOBAL
 declare var bootstrap: any;
 
 @Component({
@@ -29,7 +31,8 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
 
   constructor(
     private ccService: ContaCorrenteService,
-    private cd: ChangeDetectorRef // 🚀 2. INJEÇÃO PARA ACORDAR O ANGULAR
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 SERVIÇO DECLARADO NO CONSTRUTOR
   ) {}
 
   ngOnInit(): void {
@@ -46,11 +49,12 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
         } else {
           this.resumoFornecedores = [];
         }
+        this.logService.debug('Resumo de contas correntes de fornecedores carregado com sucesso.', this.resumoFornecedores.length); // 🚀 RASTREABILIDADE
         this.carregando = false;
-        this.cd.detectChanges(); // 🚀 Garante que a tabela é desenhada logo
+        this.cd.detectChanges();
       },
-      error: (err) => {
-        console.error(err);
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error('Erro ao carregar os resumos dos fornecedores', err); // 🚀 CAIXA NEGRA
         this.carregando = false;
         Swal.fire('Erro', 'Não foi possível carregar os resumos dos fornecedores.', 'error');
       }
@@ -68,7 +72,7 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
     this.carregandoExtrato = true;
     this.extratoFornecedor = []; 
 
-    // 🚀 3. SET TIMEOUT PARA NÃO HAVER ATROPELOS ENTRE O CLIQUE E A GAVETA
+    // SET TIMEOUT PARA NÃO HAVER ATROPELOS
     setTimeout(() => {
       const offcanvasEl = document.getElementById('offcanvasExtratoFornecedor');
       if (offcanvasEl) {
@@ -83,11 +87,12 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
     this.ccService.obterExtratoFornecedor(fornecedor.fornecedorId!).subscribe({
       next: (dados) => {
         this.extratoFornecedor = dados;
+        this.logService.debug(`Extrato carregado com sucesso para o fornecedor ${fornecedor.fornecedorId}`); // 🚀 RASTREABILIDADE
         this.carregandoExtrato = false;
-        this.cd.detectChanges(); // 🚀 Garante que o extrato aparece na gaveta
+        this.cd.detectChanges(); 
       },
-      error: (err) => {
-        console.error(err);
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error(`Erro ao carregar extrato do fornecedor ${fornecedor.fornecedorId}`, err); // 🚀 CAIXA NEGRA
         this.carregandoExtrato = false;
         this.cd.detectChanges();
         Swal.fire('Erro', 'Não foi possível carregar o extrato do fornecedor.', 'error');
@@ -95,7 +100,6 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
     });
   }
 
-  // 🚀 4. NOVO MÉTODO PARA EXPORTAR O EXTRATO DO FORNECEDOR EM PDF
   exportarExtratoPdf(): void {
     if (!this.fornecedorSelecionado || !this.fornecedorSelecionado.fornecedorId) {
       Swal.fire('Aviso', 'Nenhum fornecedor selecionado para exportação.', 'warning');
@@ -109,11 +113,12 @@ export class ContaCorrenteFornecedoresComponent implements OnInit {
       next: (blob: Blob) => {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
+        this.logService.info(`PDF de Conta Corrente exportado para o fornecedor ${this.fornecedorSelecionado?.fornecedorId}`); // 🚀 RASTREABILIDADE
         this.carregandoExtrato = false;
         this.cd.detectChanges();
       },
-      error: (err) => {
-        console.error('Erro ao exportar PDF do fornecedor:', err);
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error(`Erro ao exportar PDF do extrato do fornecedor ${this.fornecedorSelecionado?.fornecedorId}`, err); // 🚀 CAIXA NEGRA
         this.carregandoExtrato = false;
         this.cd.detectChanges();
         Swal.fire('Erro', 'Não foi possível gerar o extrato em PDF para este fornecedor.', 'error');

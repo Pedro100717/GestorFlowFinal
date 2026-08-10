@@ -1,8 +1,18 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap, catchError } from 'rxjs'; // <--- NOVO IMPORT
+import { HttpClient, HttpParams } from '@angular/common/http'; // 🚀 IMPORTADO: HttpParams
+import { BehaviorSubject, Observable, tap, catchError } from 'rxjs';
 import { Tarefa, EstadoTarefa } from '../core/models/tarefa.model';
 import { environment } from '../../environments/environment';
+import { LogService } from '../core/services/log.service';
+
+// 🚀 O CONTRATO ESTANDARDIZADO
+export interface PaginaSpring<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -15,31 +25,45 @@ export class TarefaService {
   private tarefasSubject = new BehaviorSubject<Tarefa[]>([]); // O "cofre"
   public tarefas$ = this.tarefasSubject.asObservable(); // A "montra"
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private logService: LogService
+  ) { }
 
-  // 1. Encher o cofre com dados da API (chamado apenas ao abrir a página)
-  carregarTarefasDaAPI(): void {
-    this.http.get<any>(this.API_URL).subscribe({
+  // 🚀 TIPAGEM E PAGINAÇÃO: O Kanban precisa de pedir muitas tarefas (ex: size=200)
+  carregarTarefasDaAPI(pagina: number = 0, tamanho: number = 200): void {
+    const params = new HttpParams()
+      .set('page', pagina.toString())
+      .set('size', tamanho.toString());
+
+    this.http.get<PaginaSpring<Tarefa>>(this.API_URL, { params }).subscribe({
       next: (dados) => {
-        const lista = dados.content || dados;
-        this.tarefasSubject.next(lista);
+        // Agora o TS sabe que é uma PaginaSpring, content existe garantidamente
+        this.tarefasSubject.next(dados.content);
+        this.logService.debug('Tarefas carregadas para a memória com sucesso.', dados.content.length)
       },
-      error: (err) => console.error('Erro ao carregar tarefas:', err)
+      error: (err) => this.logService.error('Erro ao carregar tarefas:', err)
     });
   }
 
-  // 2. Criar: Adiciona à memória automaticamente
-  criar(tarefa: Tarefa): Observable<Tarefa> {
+  // 🚀 ADICIONADO: Para links diretos /tarefas/45
+  buscarPorId(id: number): Observable<Tarefa> {
+    return this.http.get<Tarefa>(`${this.API_URL}/${id}`);
+  }
+
+  // 🚀 CORRIGIDO: Partial<Tarefa> porque ainda não há ID gerado
+  criar(tarefa: Partial<Tarefa>): Observable<Tarefa> {
     return this.http.post<Tarefa>(this.API_URL, tarefa).pipe(
       tap((novaTarefa) => {
         const listaAtual = this.tarefasSubject.getValue();
-        this.tarefasSubject.next([...listaAtual, novaTarefa]); // Junta a nova ao fim da lista
+        // Dica UX: Colocamos a nova tarefa no início da lista, e não no fim!
+        this.tarefasSubject.next([novaTarefa, ...listaAtual]); 
       })
     );
   }
 
-  // 3. Atualizar: Substitui a tarefa antiga pela nova na memória
-  atualizar(id: number, tarefa: Tarefa): Observable<Tarefa> {
+  // 🚀 CORRIGIDO: Partial<Tarefa>
+  atualizar(id: number, tarefa: Partial<Tarefa>): Observable<Tarefa> {
     return this.http.put<Tarefa>(`${this.API_URL}/${id}`, tarefa).pipe(
       tap((tarefaAtualizada) => {
         const listaAtual = this.tarefasSubject.getValue();
@@ -48,22 +72,18 @@ export class TarefaService {
     );
   }
 
-  // 4. Mudar Estado (O "arrastar" do Kanban): Atualiza a memória na hora!
-  mudarEstado(id: number, tarefa: Tarefa, novoEstado: EstadoTarefa): Observable<Tarefa> {
+  // 4. Mudar Estado (O "arrastar" do Kanban) - 🚀 TIPAGENS REFORÇADAS
+  mudarEstado(id: number, tarefa: Partial<Tarefa>, novoEstado: EstadoTarefa): Observable<Tarefa> {
     
-    // 1. Guardamos a lista antiga caso a internet vá abaixo e dê erro
     const listaAntiga = this.tarefasSubject.getValue();
+    const tarefaOtimista = { ...tarefa, estado: novoEstado } as Tarefa; // Cast seguro para o ecrã
     
-    // 2. Criamos a tarefa atualizada
-    const tarefaOtimista = { ...tarefa, estado: novoEstado };
-    
-    // 3. ATUALIZAMOS O ECRÃ IMEDIATAMENTE (Delay = 0ms)
+    // ATUALIZAÇÃO OTIMISTA (Zero Lag)
     this.tarefasSubject.next(listaAntiga.map(t => t.id === id ? tarefaOtimista : t));
 
-    // 4. Só agora enviamos para o Java, em background
+    // O Pedido real
     return this.http.put<Tarefa>(`${this.API_URL}/${id}`, tarefaOtimista).pipe(
-      catchError(erro => {
-        // Se o Java der erro, revertemos o ecrã para a posição original silenciosamente
+      catchError((erro) => {
         console.error('Erro ao mover a tarefa, revertendo...', erro);
         this.tarefasSubject.next(listaAntiga);
         throw erro;

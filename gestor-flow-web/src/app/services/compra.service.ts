@@ -1,8 +1,17 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, shareReplay, tap } from 'rxjs';
-import { Compra, TaxaIva } from '../core/models/compra.model'; // 🛡️ Tipagem forte ativada
+import { HttpClient, HttpParams } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO: HttpParams
+import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { Compra } from '../core/models/compra.model'; // 🛡️ Importação do IVA foi removida
 import { environment } from '../../environments/environment';
+
+// 🚀 O CONTRATO DE PAGINAÇÃO
+export interface Page<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -10,28 +19,38 @@ import { environment } from '../../environments/environment';
 export class CompraService {
 
   private readonly API_URL = `${environment.apiUrl}/compras`;
+  // 🗑️ API_IVA removido!
 
   // --- GESTÃO DE ESTADO (STATE MANAGEMENT) ---
   private comprasSubject = new BehaviorSubject<Compra[]>([]);
   public compras$ = this.comprasSubject.asObservable();
 
-  // 🛡️ ADEUS ANY! Cache agora protegida
-  private cacheTaxasIva$: Observable<TaxaIva[]> | null = null;
+  // 🗑️ Cache do IVA removida!
 
   constructor(private http: HttpClient) { }
 
-  carregarComprasDaAPI(): void {
-    this.http.get<any>(this.API_URL).subscribe({
+  // 🚀 CORRIGIDO: Substituição da colagem de strings suja por HttpParams seguro
+  carregarComprasDaAPI(pagina: number = 0, tamanho: number = 100): void {
+    const params = new HttpParams()
+      .set('page', pagina.toString())
+      .set('size', tamanho.toString());
+
+    this.http.get<Page<Compra>>(this.API_URL, { params }).subscribe({
       next: (dados) => {
-        const lista = dados.content || dados;
+        const lista = dados.content || [];
         this.comprasSubject.next(lista);
       },
       error: (err) => console.error('Erro ao carregar compras:', err)
     });
   }
 
-  // 🛡️ Parâmetro de entrada tipado
-  registar(compra: Compra): Observable<Compra> {
+  // O espelho do GET /{id} do Backend
+  buscarPorId(id: number): Observable<Compra> {
+    return this.http.get<Compra>(`${this.API_URL}/${id}`);
+  }
+
+  // TIPAGEM: Partial<Compra> porque uma nova compra não tem ID
+  registar(compra: Partial<Compra>): Observable<Compra> {
     return this.http.post<Compra>(this.API_URL, compra).pipe(
       tap((novaCompraRegistada) => {
         const listaAtual = this.comprasSubject.getValue();
@@ -40,8 +59,8 @@ export class CompraService {
     );
   }
 
-  // 🛡️ Parâmetro de entrada tipado
-  atualizar(id: number, compra: Compra): Observable<Compra> {
+  // TIPAGEM: Partial<Compra>
+  atualizar(id: number, compra: Partial<Compra>): Observable<Compra> {
     return this.http.put<Compra>(`${this.API_URL}/${id}`, compra).pipe(
       tap((compraAtualizada) => {
         const listaAtual = this.comprasSubject.getValue();
@@ -63,13 +82,5 @@ export class CompraService {
     );
   }
 
-  // 🛡️ Contrato garantido: Retorna TaxaIva[]
-  listarTaxasIva(): Observable<TaxaIva[]> {
-    if (!this.cacheTaxasIva$) {
-      this.cacheTaxasIva$ = this.http.get<TaxaIva[]>(`${this.API_URL}/taxas-iva`).pipe(
-        shareReplay(1)
-      );
-    }
-    return this.cacheTaxasIva$;
-  }
+  // 🗑️ listarTaxasIva() removido com sucesso! O componente que use o IvaService.
 }

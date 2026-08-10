@@ -2,6 +2,7 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.CentroCustoDTO;
@@ -13,19 +14,22 @@ import pt.gestorflow.backend.repository.UtilizadorRepository;
 
 import java.util.List;
 
+@Slf4j // 🚀 Lombok toma conta do recado
 @Service
 @RequiredArgsConstructor
 public class CentroCustoService {
 
     private final CentroCustoRepository repository;
-    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para associar a entidade no 'criar'
-    private final AuthService authService; // 🚀 A nossa nova fonte de verdade para segurança
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     @Transactional
     public CentroCustoResponseDTO criar(CentroCustoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ Garante que o utilizador existe antes de tentar associar
+        // 🛡️ Registo de Auditoria Financeira
+        log.info("Início da criação de um novo Centro de Custo ('{}') para o utilizador ID: {}", dto.getNome(), utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -34,12 +38,17 @@ public class CentroCustoService {
         cc.setCodigo(dto.getCodigo());
         cc.setUtilizador(user);
 
-        return converterParaDTO(repository.save(cc));
+        CentroCusto salvo = repository.save(cc);
+        log.debug("Centro de Custo '{}' criado com sucesso com o ID: {}", salvo.getNome(), salvo.getId());
+
+        return converterParaDTO(salvo);
     }
 
     @Transactional(readOnly = true)
     public List<CentroCustoResponseDTO> listar() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem de Centros de Custo solicitada pelo utilizador ID: {}", utilizadorId);
 
         return repository.findAllByUtilizadorId(utilizadorId)
                 .stream()
@@ -51,21 +60,24 @@ public class CentroCustoService {
     public CentroCustoResponseDTO atualizar(Long id, CentroCustoDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ Proteção IDOR: Só permite atualizar se o ID pertencer ao utilizador logado
+        log.info("Pedido de atualização do Centro de Custo ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
         CentroCusto cc = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
 
         cc.setNome(dto.getNome());
         cc.setCodigo(dto.getCodigo());
 
-        return converterParaDTO(repository.save(cc));
+        CentroCusto atualizado = repository.save(cc);
+        log.debug("Centro de Custo ID: {} atualizado com sucesso", atualizado.getId());
+
+        return converterParaDTO(atualizado);
     }
 
     @Transactional(readOnly = true)
     public CentroCustoResponseDTO buscarPorId(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ Proteção IDOR: Garante que um utilizador não lê dados de outro através do ID
         CentroCusto cc = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
 
@@ -76,11 +88,13 @@ public class CentroCustoService {
     public void eliminar(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ Proteção IDOR: Bloqueia tentativas de eliminação maliciosas via ID
+        log.info("Aviso Crítico: Pedido de eliminação do Centro de Custo ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
         CentroCusto cc = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Centro de Custo não encontrado ou acesso negado."));
 
         repository.delete(cc);
+        log.debug("Centro de Custo ID: {} eliminado com sucesso", id);
     }
 
     private CentroCustoResponseDTO converterParaDTO(CentroCusto cc) {

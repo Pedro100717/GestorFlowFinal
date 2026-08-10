@@ -1,8 +1,18 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, shareReplay, tap } from 'rxjs';
-import { Venda, TaxaIva } from '../core/models/venda.model'; // 🛡️ Importação limpa
+import { HttpClient, HttpParams } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO
+import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { Venda } from '../core/models/venda.model';
 import { environment } from '../../environments/environment';
+import { LogService } from '../core/services/log.service';
+
+// 🚀 O CONTRATO ESTANDARDIZADO
+export interface PaginaSpring<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -10,26 +20,40 @@ import { environment } from '../../environments/environment';
 export class VendaService {
 
   private readonly API_URL = `${environment.apiUrl}/vendas`;
+  private readonly REPORTS_URL = `${environment.apiUrl}/reports`; // 🚀 Rota para os PDFs
 
   private vendasSubject = new BehaviorSubject<Venda[]>([]);
   public vendas$ = this.vendasSubject.asObservable();
 
-  // 🛡️ Cache agora fortemente tipada
-  private cacheTaxasIva$: Observable<TaxaIva[]> | null = null;
+  constructor(
+    private http: HttpClient,
+    private logService: LogService
+  ) { }
 
-  constructor(private http: HttpClient) { }
+  // 🚀 CORRIGIDO: Paginação segura injetada na chamada
+  carregarVendasDaAPI(pagina: number = 0, tamanho: number = 100): void {
+    const params = new HttpParams()
+      .set('page', pagina.toString())
+      .set('size', tamanho.toString());
 
-  carregarVendasDaAPI(): void {
-    this.http.get<any>(this.API_URL).subscribe({
+    this.http.get<PaginaSpring<Venda>>(this.API_URL, { params }).subscribe({
       next: (dados) => {
-        const lista = dados.content || dados;
+        // Agora o TS sabe que a propriedade content existe!
+        const lista = dados.content || [];
         this.vendasSubject.next(lista);
+        this.logService.debug('Vendas carregadas para a memória com sucesso.', lista.length)
       },
-      error: (err) => console.error('Erro ao carregar vendas:', err)
+      error: (err) => this.logService.error('Erro ao carregar vendas:', err)
     });
   }
 
-  registar(venda: Venda): Observable<Venda> { // 🛡️ Tipado
+  // 🚀 ADICIONADO: A lupa para consultar uma fatura específica
+  buscarPorId(id: number): Observable<Venda> {
+    return this.http.get<Venda>(`${this.API_URL}/${id}`);
+  }
+
+  // 🚀 CORRIGIDO: Partial para não forçar o envio de campos autogerados (ID, nº de documento)
+  registar(venda: Partial<Venda>): Observable<Venda> { 
     return this.http.post<Venda>(this.API_URL, venda).pipe(
       tap((novaVendaRegistada) => {
         const listaAtual = this.vendasSubject.getValue();
@@ -38,7 +62,8 @@ export class VendaService {
     );
   }
 
-  atualizar(id: number, venda: Venda): Observable<Venda> { // 🛡️ Tipado
+  // 🚀 CORRIGIDO: Partial aplicado aqui também
+  atualizar(id: number, venda: Partial<Venda>): Observable<Venda> { 
     return this.http.put<Venda>(`${this.API_URL}/${id}`, venda).pipe(
       tap((vendaAtualizada) => {
         const listaAtual = this.vendasSubject.getValue();
@@ -60,13 +85,12 @@ export class VendaService {
     );
   }
 
-  // 🛡️ Contrato garantido: Retorna sempre um array de TaxaIva
-  listarTaxasIva(): Observable<TaxaIva[]> {
-    if (!this.cacheTaxasIva$) {
-      this.cacheTaxasIva$ = this.http.get<TaxaIva[]>(`${this.API_URL}/taxas-iva`).pipe(
-        shareReplay(1)
-      );
-    }
-    return this.cacheTaxasIva$;
+  // 🚀 ADICIONADO: Método vital para extração de PDFs em sistemas de faturação!
+  abrirPdfFatura(id: number): Observable<Blob> {
+    return this.http.get(`${this.REPORTS_URL}/vendas/pdf/${id}`, { responseType: 'blob' });
   }
+
+  // 🗑️ ATENÇÃO: O listarTaxasIva() foi apagado. 
+  // No componente de Vendas (venda.ts), injeta o IvaService no construtor 
+  // e consome o this.ivaService.listar() para preencheres os teus formulários!
 }

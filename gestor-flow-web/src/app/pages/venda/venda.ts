@@ -2,8 +2,9 @@ import { Component, OnInit, ChangeDetectorRef, AfterViewInit } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { Router } from '@angular/router'; 
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO PARA OS ERROS
 
-// 🚀 1. IMPORTAR AS ANIMAÇÕES DO ANGULAR
+// 🚀 IMPORTAR AS ANIMAÇÕES DO ANGULAR
 import { trigger, style, transition, animate } from '@angular/animations';
 
 import { VendaService } from '../../services/venda.service';
@@ -11,6 +12,8 @@ import { ArtigoService } from '../../services/artigo.service';
 import { ClienteService } from '../../services/cliente.service';
 import { AnaliticaService } from '../../services/analitica.service';
 import { TesourariaService } from '../../services/tesouraria.service'; 
+import { IvaService } from '../../services/iva.service'; 
+import { LogService } from '../../core/services/log.service'; // 🚀 INJEÇÃO DO NOSSO INSPETOR
 
 import { Venda, LinhaVenda, TaxaIva } from '../../core/models/venda.model'; 
 import { Artigo } from '../../core/models/artigo.model';
@@ -28,7 +31,6 @@ declare var bootstrap: any;
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './venda.html',
   styleUrl: './venda.scss',
-  // 🚀 2. INJETAR OS TRIGGERS DE ANIMAÇÃO
   animations: [
     trigger('expandirTabela', [
       transition(':enter', [
@@ -76,10 +78,12 @@ export class VendasComponent implements OnInit, AfterViewInit {
     private artigoService: ArtigoService,
     private clienteService: ClienteService,
     private analiticaService: AnaliticaService,
-    private tesourariaService: TesourariaService, 
+    private tesourariaService: TesourariaService,
+    private ivaService: IvaService, 
     private fb: FormBuilder,
     private cd: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private logService: LogService // 🚀 SERVIÇO DECLARADO NO CONSTRUTOR
   ) {}
 
   ngOnInit() {
@@ -230,17 +234,20 @@ export class VendasComponent implements OnInit, AfterViewInit {
       clientes: this.clienteService.listar(),
       centros: this.analiticaService.listarCentros(),
       seccoes: this.analiticaService.listarSeccoes(),
-      taxas: this.vendaService.listarTaxasIva()
+      taxas: this.ivaService.listar() 
     }).subscribe({
       next: (res) => {
-        this.listaArtigos = res.artigos.content || res.artigos;
-        this.listaClientes = res.clientes.content || res.clientes;
+        this.listaArtigos = res.artigos.content || [];
+        this.listaClientes = res.clientes.content || [];
         this.listaCentros = res.centros;
         this.listaSeccoes = res.seccoes;
         this.listaTaxasIva = res.taxas;
+        this.logService.debug('Dados auxiliares de Vendas carregados com sucesso.'); // 🚀 RASTREABILIDADE
         this.cd.detectChanges();
       },
-      error: (err) => console.error('Erro ao carregar dados:', err)
+      error: (err: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error('Erro ao carregar dados auxiliares de Vendas', err); // 🚀 CAIXA NEGRA
+      }
     });
   }
 
@@ -310,14 +317,18 @@ export class VendasComponent implements OnInit, AfterViewInit {
       if (result.isConfirmed) {
         this.vendaService.anular(venda.id!).subscribe({
           next: () => {
+            this.logService.info(`Fatura de venda ${venda.id} anulada com sucesso.`); // 🚀 RASTREABILIDADE
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Anulada!'});
             this.tesourariaService.notificarNovaTransacao(); 
             
             this.artigoService.listar().subscribe(res => {
-                this.listaArtigos = res.content || res;
+                this.listaArtigos = res.content || [];
             });
           },
-          error: (e) => Swal.fire('Erro', e.error?.message, 'error')
+          error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+            this.logService.error(`Falha ao anular fatura de venda ${venda.id}`, e); // 🚀 CAIXA NEGRA
+            Swal.fire('Erro', e.error?.message || 'Erro ao anular fatura.', 'error');
+          }
         });
       }
     });
@@ -342,11 +353,12 @@ export class VendasComponent implements OnInit, AfterViewInit {
     
     operacao$.subscribe({
       next: () => {
+        this.logService.debug(this.vendaEmEdicao ? `Fatura de venda ${this.vendaEmEdicao.id} atualizada.` : 'Nova fatura de venda registada.'); // 🚀 RASTREABILIDADE
         Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Fatura guardada com sucesso!' });
         this.tesourariaService.notificarNovaTransacao(); 
         
         this.artigoService.listar().subscribe(res => {
-            this.listaArtigos = res.content || res;
+            this.listaArtigos = res.content || []; 
         });
         
         this.planoOrigemId = null;
@@ -354,7 +366,10 @@ export class VendasComponent implements OnInit, AfterViewInit {
         
         bootstrap.Modal.getInstance(document.getElementById('modalVenda'))?.hide();
       },
-      error: (e: any) => Swal.fire('Erro ao Guardar', e.error?.message, 'error')
+      error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error('Falha ao guardar fatura de venda', e); // 🚀 CAIXA NEGRA
+        Swal.fire('Erro ao Guardar', e.error?.message || 'Falha ao guardar fatura.', 'error');
+      }
     });
   }
 }

@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -11,19 +12,23 @@ import pt.gestorflow.backend.model.*;
 import pt.gestorflow.backend.repository.PatrimonioRepository;
 import pt.gestorflow.backend.repository.UtilizadorRepository;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class PatrimonioService {
 
     private final PatrimonioRepository repository;
-    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para associar às novas entidades
-    private final AuthService authService; // 🚀 A nossa Chave Mestra
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     // --- MÉTODOS DE BUSCA E LISTAGEM ---
 
     @Transactional(readOnly = true)
     public Page<PatrimonioResponseDTO> listarPatrimonio(Pageable pageable) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem de património ativo solicitada pelo utilizador ID: {}", utilizadorId);
+
         return repository.findAllByUtilizadorIdAndAtivoTrue(utilizadorId, pageable)
                 .map(this::mapToDTO);
     }
@@ -42,27 +47,42 @@ public class PatrimonioService {
 
     @Transactional
     public PatrimonioResponseDTO criarViatura(PatrimonioViaturaDTO dto) {
-        Utilizador user = getUtilizadorSeguro();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Auditoria: O utilizador ID: {} está a registar uma nova Viatura (Matrícula: {})", utilizadorId, dto.getMatricula());
+
+        // 🚀 RESOLUÇÃO DO TEU AVISO: Validação explícita que dispara o Erro 400 no Handler
+        if (dto.getMatricula() != null && repository.existsByMatriculaAndUtilizadorId(dto.getMatricula(), utilizadorId)) {
+            log.warn("Bloqueada tentativa de registo de viatura com matrícula duplicada ({}) para o utilizador ID: {}", dto.getMatricula(), utilizadorId);
+            throw new IllegalArgumentException("Já existe uma viatura registada com esta matrícula.");
+        }
+
+        Utilizador user = getUtilizadorSeguro(utilizadorId);
         PatrimonioViatura p = new PatrimonioViatura();
 
-        // Passamos o user diretamente para não ir buscá-lo 2 vezes
         configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao(), user);
 
-        // ⚠️ CRÍTICA CONSTRUTIVA: No futuro, deves validar aqui se a matrícula já existe,
-        // porque a tua base de dados tem um "UNIQUE" constraint nesta coluna.
         p.setMatricula(dto.getMatricula());
         p.setMarca(dto.getMarca());
         p.setModelo(dto.getModelo());
         p.setValidadeSeguro(dto.getValidadeSeguro());
         p.setProximaInspecao(dto.getProximaInspecao());
 
-        return mapToDTO(repository.save(p));
+        PatrimonioViatura salvo = repository.save(p);
+        log.debug("Viatura registada com sucesso (ID: {})", salvo.getId());
+
+        return mapToDTO(salvo);
     }
 
     @Transactional
     public PatrimonioResponseDTO criarImovel(PatrimonioImovelDTO dto) {
-        Utilizador user = getUtilizadorSeguro();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Auditoria: O utilizador ID: {} está a registar um novo Imóvel ({})", utilizadorId, dto.getNome());
+
+        Utilizador user = getUtilizadorSeguro(utilizadorId);
         PatrimonioImovel p = new PatrimonioImovel();
+
         configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao(), user);
 
         p.setMorada(dto.getMorada());
@@ -74,8 +94,13 @@ public class PatrimonioService {
 
     @Transactional
     public PatrimonioResponseDTO criarFerramenta(PatrimonioFerramentaDTO dto) {
-        Utilizador user = getUtilizadorSeguro();
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Auditoria: O utilizador ID: {} está a registar uma nova Ferramenta ({})", utilizadorId, dto.getNome());
+
+        Utilizador user = getUtilizadorSeguro(utilizadorId);
         PatrimonioFerramenta p = new PatrimonioFerramenta();
+
         configurarBasePatrimonio(p, dto.getNome(), dto.getDataAquisicao(), dto.getValorAquisicao(), user);
 
         p.setNumeroSerie(dto.getNumeroSerie());
@@ -90,24 +115,25 @@ public class PatrimonioService {
     public void eliminar(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Validação de dono antes do soft delete
+        log.info("Auditoria Crítica: O utilizador ID: {} pediu a eliminação (Soft Delete) do património ID: {}", utilizadorId, id);
+
         Patrimonio p = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Património não encontrado ou acesso negado."));
 
         p.setAtivo(false);
         repository.save(p);
+
+        log.debug("Património ID: {} desativado com sucesso.", id);
     }
 
     // --- MÉTODOS AUXILIARES E MAPPER ---
 
-    // 🚀 Extrai o utilizador da BD garantindo a identidade através do Token
-    private Utilizador getUtilizadorSeguro() {
-        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+    // 🚀 Otimizado para receber o ID já calculado e não ir buscá-lo de novo ao SecurityContext
+    private Utilizador getUtilizadorSeguro(Long utilizadorId) {
         return utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado no sistema."));
     }
 
-    // Agora recebe o Utilizador por parâmetro em vez de o tentar ir adivinhar
     private void configurarBasePatrimonio(Patrimonio p, String nome, java.time.LocalDate data, java.math.BigDecimal valor, Utilizador user) {
         p.setNome(nome);
         p.setDataAquisicao(data);

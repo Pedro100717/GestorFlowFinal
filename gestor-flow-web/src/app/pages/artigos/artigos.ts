@@ -1,8 +1,10 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 1. IMPORT OBRIGATÓRIO DOS ERROS
 import { ArtigoService } from '../../services/artigo.service';
 import { Artigo } from '../../core/models/artigo.model';
+import { LogService } from '../../core/services/log.service'; // 🚀 2. INJEÇÃO DO NOSSO INSPETOR
 import Swal from 'sweetalert2';
 import * as bootstrap from 'bootstrap';
 
@@ -25,7 +27,8 @@ export class ArtigosComponent implements OnInit {
   constructor(
     private artigoService: ArtigoService,
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 3. SERVIÇO DECLARADO
   ) {}
 
   ngOnInit() {
@@ -91,8 +94,12 @@ export class ArtigosComponent implements OnInit {
 
     if (this.idEmEdicao) {
       this.artigoService.atualizar(this.idEmEdicao, dados).subscribe({
-        next: () => this.finalizarAcao('Artigo atualizado!'),
-        error: (e) => {
+        next: () => {
+          this.logService.debug(`Artigo ${this.idEmEdicao} atualizado com sucesso via interface.`); // 🚀 RASTREABILIDADE
+          this.finalizarAcao('Artigo atualizado!');
+        },
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao atualizar o artigo', e); // 🚀 CAIXA NEGRA PRIMEIRO
           this.isGuardando = false; // 🚀 ABRE A PORTA DE NOVO
           Swal.fire({
             icon: 'error',
@@ -104,8 +111,12 @@ export class ArtigosComponent implements OnInit {
       });
     } else {
       this.artigoService.criar(dados).subscribe({
-        next: () => this.finalizarAcao('Artigo criado! O stock começa a 0.'),
-        error: (e) => {
+        next: () => {
+          this.logService.debug('Novo artigo criado com sucesso via interface.'); // 🚀 RASTREABILIDADE
+          this.finalizarAcao('Artigo criado! O stock começa a 0.');
+        },
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao criar o artigo', e); // 🚀 CAIXA NEGRA PRIMEIRO
           this.isGuardando = false; // 🚀 ABRE A PORTA DE NOVO
           Swal.fire({
             icon: 'error',
@@ -132,9 +143,11 @@ export class ArtigosComponent implements OnInit {
       if (result.isConfirmed) {
         this.artigoService.apagar(id).subscribe({
           next: () => {
+            this.logService.info(`Artigo ${id} apagado com sucesso pelo utilizador.`); // 🚀 RASTREABILIDADE
             Swal.fire('Eliminado!', 'O artigo foi apagado.', 'success');
           },
-          error: (e) => {
+          error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+            this.logService.error(`Falha ao eliminar o artigo ${id}`, e); // 🚀 CAIXA NEGRA
             Swal.fire('Erro!', 'Não foi possível apagar. Pode estar associado a orçamentos, compras ou vendas.', 'error');
           }
         });

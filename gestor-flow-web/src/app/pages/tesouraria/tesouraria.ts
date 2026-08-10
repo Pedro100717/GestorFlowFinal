@@ -11,6 +11,7 @@ import { TesourariaService } from '../../services/tesouraria.service';
 import { ClienteService } from '../../services/cliente.service'; 
 import { FornecedorService } from '../../services/fornecedor.service';
 import { PlaneamentoService } from '../../services/planeamento.service';
+import { LogService } from '../../core/services/log.service'; // 🚀 INJEÇÃO DO NOSSO INSPETOR
 
 import { 
   ContaBancaria, Movimento, DocumentoPendente, 
@@ -122,7 +123,8 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     private fornecedorService: FornecedorService,
     private fb: FormBuilder,
     private cd: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private logService: LogService // 🚀 SERVIÇO DECLARADO NO CONSTRUTOR
   ) {}
 
   toggleExpand() {
@@ -173,10 +175,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   // =========================================================================
 
   carregarPlanos() {
-    this.planeamentoService.listarPlanos().subscribe(planos => {
-      this.listaPlanos = planos;
-      this.gerarTabelaSimulador(); 
-      this.cd.detectChanges();
+    this.planeamentoService.listarPlanos().subscribe({
+      next: (planos) => {
+        this.listaPlanos = planos;
+        this.gerarTabelaSimulador(); 
+        this.cd.detectChanges();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Erro ao carregar planos de planeamento', e); // 🚀 CAIXA NEGRA
+      }
     });
   }
 
@@ -216,12 +223,16 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
     operacao.subscribe({
       next: () => {
+        this.logService.info('Planeamento guardado com sucesso.'); // 🚀 RASTREABILIDADE
         Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Planeamento guardado!' });
         bootstrap.Modal.getInstance(document.getElementById('modalPlaneamento'))?.hide();
         this.carregarPlanos();
         this.carregarSimulador();
       },
-      error: (e) => Swal.fire('Erro', 'Falha ao guardar o planeamento.', 'error')
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Falha ao guardar o planeamento', e); // 🚀 CAIXA NEGRA
+        Swal.fire('Erro', 'Falha ao guardar o planeamento.', 'error');
+      }
     });
   }
 
@@ -238,20 +249,30 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       if (result.isConfirmed && plano.id) {
         this.planeamentoService.apagarPlano(plano.id).subscribe({
           next: () => {
+            this.logService.info(`Plano apagado com sucesso: ID ${plano.id}`); // 🚀 RASTREABILIDADE
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano apagado!', timer: 2000, showConfirmButton: false });
             this.carregarPlanos();
             this.carregarSimulador();
           },
-          error: () => Swal.fire('Erro', 'Não foi possível apagar o plano.', 'error')
+          error: (e: HttpErrorResponse) => {
+            this.logService.error(`Falha ao apagar o plano ID ${plano.id}`, e); // 🚀 CAIXA NEGRA
+            Swal.fire('Erro', 'Não foi possível apagar o plano.', 'error');
+          }
         });
       }
     });
   }
 
   alternarStatusPlano(plano: MovimentoPlaneado) {
-    this.planeamentoService.alternarStatus(plano.id!).subscribe(() => {
-      this.carregarPlanos();
-      this.carregarSimulador();
+    this.planeamentoService.alternarStatus(plano.id!).subscribe({
+      next: () => {
+        this.logService.debug(`Status alternado para o plano ID ${plano.id}`); // 🚀 RASTREABILIDADE
+        this.carregarPlanos();
+        this.carregarSimulador();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.logService.error(`Erro ao alternar status do plano ID ${plano.id}`, e); // 🚀 CAIXA NEGRA
+      }
     });
   }
 
@@ -279,11 +300,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       if (result.isConfirmed) {
         this.planeamentoService.ignorarDataPlano(planoOriginal.id!, dataProjetada).subscribe({
           next: () => {
+            this.logService.info(`Data ${dataProjetada} ignorada para o plano ${planoOriginal.id}`); // 🚀 RASTREABILIDADE
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Mês ignorado!', timer: 2000, showConfirmButton: false });
             this.carregarPlanos();
             this.carregarSimulador();
           },
-          error: () => Swal.fire('Erro', 'Não foi possível ignorar a data.', 'error')
+          error: (e: HttpErrorResponse) => {
+            this.logService.error(`Erro ao ignorar data do plano ${planoOriginal.id}`, e); // 🚀 CAIXA NEGRA
+            Swal.fire('Erro', 'Não foi possível ignorar a data.', 'error');
+          }
         });
       } else if (result.isDenied) {
         this.apagarPlano(planoOriginal);
@@ -341,9 +366,12 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
                dataInicio: dadosEditados.data, 
                valorBase: dadosEditados.valor 
            };
-           this.planeamentoService.atualizarPlano(planoOriginal.id!, dto).subscribe(() => {
-             this.carregarPlanos();
-             this.carregarSimulador();
+           this.planeamentoService.atualizarPlano(planoOriginal.id!, dto).subscribe({
+             next: () => {
+               this.carregarPlanos();
+               this.carregarSimulador();
+             },
+             error: (e: HttpErrorResponse) => this.logService.error('Erro ao atualizar plano pontual', e)
            });
            return;
         }
@@ -369,11 +397,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
             };
             this.planeamentoService.criarExcecaoPlano(planoOriginal.id!, dataProjetadaOriginal, dtoExcecao as MovimentoPlaneado).subscribe({
               next: () => {
+                this.logService.info(`Exceção criada para o plano ID ${planoOriginal.id} na data ${dataProjetadaOriginal}`);
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Exceção criada com sucesso!', timer: 2000, showConfirmButton: false });
                 this.carregarPlanos();
                 this.carregarSimulador();
               },
-              error: () => Swal.fire('Erro', 'Não foi possível criar a exceção.', 'error')
+              error: (e: HttpErrorResponse) => {
+                this.logService.error('Erro ao criar exceção de plano', e);
+                Swal.fire('Erro', 'Não foi possível criar a exceção.', 'error');
+              }
             });
           } else if (resultAcao.isDenied) {
             const dtoAtualizado = { 
@@ -384,11 +416,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
             };
             this.planeamentoService.atualizarPlano(planoOriginal.id!, dtoAtualizado).subscribe({
               next: () => {
+                this.logService.info(`Plano base atualizado: ID ${planoOriginal.id}`);
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano base updated!', timer: 2000, showConfirmButton: false });
                 this.carregarPlanos();
                 this.carregarSimulador();
               },
-              error: () => Swal.fire('Erro', 'Não foi possível atualizar o plano.', 'error')
+              error: (e: HttpErrorResponse) => {
+                this.logService.error('Erro ao atualizar plano base', e);
+                Swal.fire('Erro', 'Não foi possível atualizar o plano.', 'error');
+              }
             });
           }
         });
@@ -420,6 +456,7 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
+        this.logService.debug(`A redirecionar planeamento ID ${plano.id} para o ecrã de ${tipoFatura}`);
         this.router.navigate([rota], {
           state: {
             planoOrigemId: plano.id,
@@ -446,7 +483,9 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
         this.desenharGrafico(dados);
         this.cd.detectChanges();
       },
-      error: (e) => console.error('Erro a carregar simulador:', e)
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Erro ao carregar simulador de tesouraria', e); // 🚀 CAIXA NEGRA
+      }
     });
   }
 
@@ -507,8 +546,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
     
-    // 🚀 ALTERADO: O limite de projeção base passa a gerar até 5 anos (Filtro Máximo) 
-    // para garantir que os planos infinitos povoam a tabela quando o utilizador escolhe prazos largos.
     let limiteProjecao = new Date(hoje.getFullYear() + 5, hoje.getMonth(), hoje.getDate());
 
     this.listaPlanos.filter(p => p.ativo !== false).forEach(p => {
@@ -630,11 +667,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       if (result.isConfirmed) {
         this.tesourariaService.alterarDataPrevista(linha.documento!.id, linha.documento!.tipo, result.value).subscribe({
           next: () => {
+            this.logService.info(`Data prevista alterada para o documento ID ${linha.documento!.id}`);
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Data updated!', timer: 2000, showConfirmButton: false });
             this.carregarPendentes();
             this.carregarSimulador();
           },
-          error: () => Swal.fire('Erro', 'Não foi possível alterar a previsão.', 'error')
+          error: (e: HttpErrorResponse) => {
+            this.logService.error('Erro ao alterar data prevista do documento', e);
+            Swal.fire('Erro', 'Não foi possível alterar a previsão.', 'error');
+          }
         });
       }
     });
@@ -708,7 +749,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     this.formFiltros.valueChanges.subscribe(() => this.aplicarFiltrosTabela());
   }
 
-  // 🚀 MODIFICADO: Sistema de filtragem recalibrado para os novos horizontes estratégicos
   aplicarFiltrosTabela() {
     if (!this.formFiltros) return;
     
@@ -725,7 +765,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       if (filtros.natureza === 'REAIS' && linha.isProjecao) return false;
       if (filtros.natureza === 'PLANOS' && !linha.isProjecao) return false;
 
-      // Cálculo dinâmico das novas balizas do horizonte temporal
       if (filtros.periodo !== 'TUDO') {
         const dataLinha = new Date(linha.dataObj);
         
@@ -757,7 +796,6 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   exportarEvolucaoPdf() {
     const filtros = this.formFiltros.value;
-    const params = `?fluxo=${filtros.fluxo}&natureza=${filtros.natureza}&periodo=${filtros.periodo}`;
 
     Swal.fire({
       title: 'A gerar documento...',
@@ -766,14 +804,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       didOpen: () => Swal.showLoading()
     });
 
-    this.tesourariaService.extrairEvolucaoPdf(params).subscribe({
+    this.tesourariaService.extrairEvolucaoPdf(filtros.fluxo, filtros.natureza, filtros.periodo).subscribe({
       next: (blob: Blob) => {
         Swal.close();
+        this.logService.info('PDF de evolução de tesouraria exportado com sucesso.');
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
       },
-      error: (err) => {
-        console.error('Erro ao gerar PDF:', err);
+      error: (err: HttpErrorResponse) => {
+        this.logService.error('Erro ao gerar PDF de evolução de tesouraria', err); // 🚀 CAIXA NEGRA
         Swal.fire('Erro', 'Não foi possível extrair a evolução em PDF.', 'error');
       }
     });
@@ -796,14 +835,20 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
   }
 
   carregarEntidades() {
-    this.clienteService.listar().subscribe((res: unknown) => {
-      const pageRes = res as { content?: Cliente[] };
-      this.clientes = pageRes.content ? pageRes.content : (res as Cliente[]);
+    this.clienteService.listar().subscribe({
+      next: (res: unknown) => {
+        const pageRes = res as { content?: Cliente[] };
+        this.clientes = pageRes.content ? pageRes.content : (res as Cliente[]);
+      },
+      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar lista de clientes na tesouraria', e)
     });
 
-    this.fornecedorService.listar().subscribe((res: unknown) => {
-      const pageRes = res as { content?: Fornecedor[] };
-      this.fornecedores = pageRes.content ? pageRes.content : (res as Fornecedor[]);
+    this.fornecedorService.listar().subscribe({
+      next: (res: unknown) => {
+        const pageRes = res as { content?: Fornecedor[] };
+        this.fornecedores = pageRes.content ? pageRes.content : (res as Fornecedor[]);
+      },
+      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar lista de fornecedores na tesouraria', e)
     });
   }
 
@@ -814,7 +859,9 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
         this.gerarTabelaSimulador();
         this.cd.detectChanges();
       },
-      error: (e: HttpErrorResponse) => console.error('Erro ao carregar pendentes:', e.message)
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Erro ao carregar documentos pendentes de tesouraria', e); // 🚀 CAIXA NEGRA
+      }
     });
   }
 
@@ -834,11 +881,18 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
       ...this.formConfirmacao.value,
       documentoId: this.docParaConfirmar.id,
       tipoDocumento: this.docParaConfirmar.tipo
-    }).subscribe(() => {
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Liquidado!', timer: 2000 });
-      bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'))?.hide();
-      this.carregarDadosIniciais();
-      if (this.abaAtiva === 'simulador') this.carregarSimulador();
+    }).subscribe({
+      next: () => {
+        this.logService.info(`Documento pendente liquidado: ID ${this.docParaConfirmar?.id}`);
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Liquidado!', timer: 2000 });
+        bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'))?.hide();
+        this.carregarDadosIniciais();
+        if (this.abaAtiva === 'simulador') this.carregarSimulador();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Erro ao confirmar transação de pagamento', e);
+        Swal.fire('Erro', 'Não foi possível efetuar o pagamento.', 'error');
+      }
     });
   }
 
@@ -854,9 +908,16 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   guardarConta() {
     if (this.formConta.invalid) return;
-    this.tesourariaService.criarConta(this.formConta.value).subscribe(() => {
-      bootstrap.Modal.getInstance(document.getElementById('modalConta'))?.hide();
-      this.carregarSimulador();
+    this.tesourariaService.criarConta(this.formConta.value).subscribe({
+      next: () => {
+        this.logService.info('Nova conta bancária criada.');
+        bootstrap.Modal.getInstance(document.getElementById('modalConta'))?.hide();
+        this.carregarSimulador();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Erro ao criar conta bancária', e);
+        Swal.fire('Erro', 'Não foi possível criar a conta.', 'error');
+      }
     });
   }
 
@@ -868,10 +929,17 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   registarMovimento() {
     if (this.formMovimento.invalid) return;
-    this.tesourariaService.registarMovimento(this.formMovimento.value).subscribe(() => {
-      bootstrap.Modal.getInstance(document.getElementById('modalMovimento'))?.hide();
-      if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
-      this.carregarSimulador();
+    this.tesourariaService.registarMovimento(this.formMovimento.value).subscribe({
+      next: () => {
+        this.logService.info('Movimento manual de tesouraria registado.');
+        bootstrap.Modal.getInstance(document.getElementById('modalMovimento'))?.hide();
+        if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
+        this.carregarSimulador();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Erro ao registar movimento manual', e);
+        Swal.fire('Erro', 'Não foi possível registar o movimento.', 'error');
+      }
     });
   }
 
@@ -882,19 +950,33 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   realizarTransferencia() {
     if (this.formTransferencia.invalid) return;
-    this.tesourariaService.realizarTransferencia(this.formTransferencia.value).subscribe(() => {
-      bootstrap.Modal.getInstance(document.getElementById('modalTransferencia'))?.hide();
-      if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
+    this.tesourariaService.realizarTransferencia(this.formTransferencia.value).subscribe({
+      next: () => {
+        this.logService.info('Transferência entre contas bancárias efetuada.');
+        bootstrap.Modal.getInstance(document.getElementById('modalTransferencia'))?.hide();
+        if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
+      },
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Erro ao realizar transferência bancária', e);
+        Swal.fire('Erro', 'Não foi possível realizar a transferência.', 'error');
+      }
     });
   }
 
   anularMovimento(mov: Movimento) {
     Swal.fire({ title: 'Anular?', text: 'Saldo será revertido.', icon: 'warning', showCancelButton: true }).then(r => {
       if (r.isConfirmed) {
-        this.tesourariaService.anularMovimento(mov.id!).subscribe(() => {
-          if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
-          this.carregarPendentes();
-          this.carregarSimulador();
+        this.tesourariaService.anularMovimento(mov.id!).subscribe({
+          next: () => {
+            this.logService.warn(`Movimento de tesouraria anulado: ID ${mov.id}`);
+            if (this.contaSelecionada) this.verExtrato(this.contaSelecionada);
+            this.carregarPendentes();
+            this.carregarSimulador();
+          },
+          error: (e: HttpErrorResponse) => {
+            this.logService.error(`Erro ao anular movimento ID ${mov.id}`, e);
+            Swal.fire('Erro', 'Não foi possível anular o movimento.', 'error');
+          }
         });
       }
     });

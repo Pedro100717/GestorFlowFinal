@@ -3,16 +3,16 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms'; 
 import { AnaliticaService } from '../../../services/analitica.service';
 import { AnaliseDashboard } from '../../../core/models/analitica.model';
+import { LogService } from '../../../core/services/log.service'; // 🚀 1. IMPORTAR O LOGSERVICE
+import Swal from 'sweetalert2'; // 🚀 IMPORTAR O SWEETALERT PARA O PDF
 
 interface GrupoCentroCusto {
   centroCustoCodigo: string;
   centroCustoNome: string;
   seccoes: AnaliseDashboard[];
-  
   subtotalVendasSemIva: number;
   subtotalComprasSemIva: number;
   subtotalMargemBruta: number;
-  
   subtotalIvaVendas: number;
   subtotalIvaCompras: number;
   subtotalSaldoIva: number;
@@ -49,7 +49,8 @@ export class AnaliseComponent implements OnInit {
 
   constructor(
     private analiticaService: AnaliticaService,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 2. INJETAR O SERVIÇO
   ) {}
 
   ngOnInit() {
@@ -61,11 +62,12 @@ export class AnaliseComponent implements OnInit {
     this.analiticaService.obterDashboardAnalitico().subscribe({
       next: (dados) => {
         this.processarDados(dados);
+        this.logService.debug('Dashboard analítico carregado e processado com sucesso.', dados.length); // 🚀 LOG DE SUCESSO SILENCIOSO
         this.carregando = false;
         this.cd.detectChanges();
       },
       error: (e) => {
-        console.error('Erro ao carregar análise:', e);
+        this.logService.error('Erro ao carregar análise do dashboard', e); // 🚀 ADEUS CONSOLE.ERROR
         this.carregando = false;
       }
     });
@@ -104,7 +106,6 @@ export class AnaliseComponent implements OnInit {
     });
 
     this.gruposTodos = Array.from(mapa.values());
-    
     this.listaCentros = Array.from(centrosMap.entries()).map(([codigo, nome]) => ({ codigo, nome })).sort((a, b) => a.nome.localeCompare(b.nome));
     this.listaSeccoes = Array.from(seccoesMap.entries()).map(([codigo, nome]) => ({ codigo, nome })).sort((a, b) => a.nome.localeCompare(b.nome));
 
@@ -128,11 +129,9 @@ export class AnaliseComponent implements OnInit {
         this.gruposExibidos.push(this.clonarERecalcularGrupo(g, seccoesFiltradas));
       }
     });
-    
     this.recalcularTotais();
   }
 
-  // 🚀 O MOTOR MATEMÁTICO: Recalcula subtotais se uma secção for escondida
   private clonarERecalcularGrupo(grupoOriginal: GrupoCentroCusto, seccoes: AnaliseDashboard[]): GrupoCentroCusto {
     return {
       centroCustoCodigo: grupoOriginal.centroCustoCodigo,
@@ -162,18 +161,18 @@ export class AnaliseComponent implements OnInit {
   }
 
   gerarPdfDashboard() {
-    this.carregando = true; // Feedback visual opcional
+    this.carregando = true;
     this.analiticaService.extrairPdfDashboard().subscribe({
       next: (blob: Blob) => {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
+        this.logService.info('Exportação de PDF Analítico concluída com sucesso.'); // 🚀 LOG DE SUCESSO SILENCIOSO
         this.carregando = false;
       },
       error: (err) => {
-        console.error('Erro na exportação:', err);
+        this.logService.error('Erro na exportação do PDF Analítico', err); // 🚀 ADEUS CONSOLE.ERROR
         this.carregando = false;
-        // Se usares SweetAlert, podes adicionar aqui:
-        // Swal.fire('Erro', 'Não foi possível gerar o PDF.', 'error');
+        Swal.fire('Erro', 'Não foi possível gerar o PDF.', 'error'); // 🚀 UX GARANTIDA
       }
     });
   }

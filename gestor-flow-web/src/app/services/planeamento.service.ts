@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http'; // 🚀 IMPORTADO: HttpParams
 import { Observable } from 'rxjs';
 import { MovimentoPlaneado } from '../core/models/tesouraria.model';
 import { environment } from '../../environments/environment';
@@ -17,15 +17,22 @@ export class PlaneamentoService {
   // 🚀 CRUD DE PLANEAMENTO BASE
   // =========================================================================
   
+  // 🚀 ADICIONADO: O espelho do GET /{id} do Backend
+  buscarPorId(id: number): Observable<MovimentoPlaneado> {
+    return this.http.get<MovimentoPlaneado>(`${this.API_URL}/${id}`);
+  }
+
   listarPlanos(): Observable<MovimentoPlaneado[]> {
     return this.http.get<MovimentoPlaneado[]>(this.API_URL);
   }
 
-  criarPlano(plano: MovimentoPlaneado): Observable<MovimentoPlaneado> {
+  // 🚀 TIPAGEM CORRIGIDA: Partial para permitir criar sem ID
+  criarPlano(plano: Partial<MovimentoPlaneado>): Observable<MovimentoPlaneado> {
     return this.http.post<MovimentoPlaneado>(this.API_URL, plano);
   }
 
-  atualizarPlano(id: number, plano: MovimentoPlaneado): Observable<MovimentoPlaneado> {
+  // 🚀 TIPAGEM CORRIGIDA
+  atualizarPlano(id: number, plano: Partial<MovimentoPlaneado>): Observable<MovimentoPlaneado> {
     return this.http.put<MovimentoPlaneado>(`${this.API_URL}/${id}`, plano);
   }
 
@@ -33,7 +40,6 @@ export class PlaneamentoService {
     return this.http.delete<void>(`${this.API_URL}/${id}`);
   }
 
-  // Ativar ou desativar uma projeção no simulador sem a apagar
   alternarStatus(id: number): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/${id}/toggle`, {});
   }
@@ -42,13 +48,15 @@ export class PlaneamentoService {
   // 🚀 MÁQUINA DO TEMPO: EXCEÇÕES (ESTILO GOOGLE CALENDAR)
   // =========================================================================
 
-  // 1. Apaga/Silencia o plano apenas num mês específico
+  // 🚀 REESCRITO: Uso de HttpParams para URLs seguros
   ignorarDataPlano(id: number, dataAignorar: string): Observable<void> {
-    return this.http.delete<void>(`${this.API_URL}/${id}/excecao?data=${dataAignorar}`);
+    const params = new HttpParams().set('data', dataAignorar);
+    return this.http.delete<void>(`${this.API_URL}/${id}/excecao`, { params });
   }
 
-  // 2. Edita o plano apenas num mês específico (Cria uma exceção pontual)
-  criarExcecaoPlano(id: number, dataOriginal: string, planoExcecao: MovimentoPlaneado): Observable<MovimentoPlaneado> {
-    return this.http.post<MovimentoPlaneado>(`${this.API_URL}/${id}/excecao?data=${dataOriginal}`, planoExcecao);
+  // 🚀 REESCRITO: Uso de HttpParams e Partial
+  criarExcecaoPlano(id: number, dataOriginal: string, planoExcecao: Partial<MovimentoPlaneado>): Observable<MovimentoPlaneado> {
+    const params = new HttpParams().set('data', dataOriginal);
+    return this.http.post<MovimentoPlaneado>(`${this.API_URL}/${id}/excecao`, planoExcecao, { params });
   }
 }

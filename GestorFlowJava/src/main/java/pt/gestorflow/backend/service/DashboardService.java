@@ -2,6 +2,7 @@ package pt.gestorflow.backend.service;
 
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.PageRequest;
 import pt.gestorflow.backend.dto.DashboardDTO;
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+@Slf4j // 🚀 Anotação Mágica
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -27,20 +29,22 @@ public class DashboardService {
     public DashboardDTO getResumo(LocalDate inicio, LocalDate fim) {
         Long userId = authService.getUtilizadorAutenticadoId();
 
-        // 🚀 O Tratamento de Fallback: Se não houver filtro, varremos todo o histórico possível.
         LocalDate dataInicioSegura = (inicio != null) ? inicio : LocalDate.of(2000, 1, 1);
         LocalDate dataFimSegura = (fim != null) ? fim : LocalDate.of(2100, 12, 31);
 
-        // Passamos as datas seguras aos Repositórios com IVA
+        // 🛡️ DEBUG: Registo leve para garantir que os filtros de datas estão a passar bem do Angular para o Spring
+        log.debug("A gerar Dashboard para utilizador ID: {} (Período: {} a {})", userId, dataInicioSegura, dataFimSegura);
+
         BigDecimal totalCompras = compraRepository.totalGastos(userId, dataInicioSegura, dataFimSegura);
         BigDecimal totalVendas = vendaRepository.totalVendasReais(userId, dataInicioSegura, dataFimSegura);
 
-        //Obter os totais brutos
         BigDecimal vendasBase = vendaRepository.totalVendasBase(userId, dataInicioSegura, dataFimSegura);
         BigDecimal comprasBase = compraRepository.totalComprasBase(userId, dataInicioSegura, dataFimSegura);
 
-        //calcular margem
-        BigDecimal margemBruta = vendasBase.subtract(comprasBase);
+        // 🚀 CORREÇÃO CRÍTICA: Prevenir NullPointerException nas operações matemáticas
+        BigDecimal vendasSeguras = vendasBase != null ? vendasBase : BigDecimal.ZERO;
+        BigDecimal comprasSeguras = comprasBase != null ? comprasBase : BigDecimal.ZERO;
+        BigDecimal margemBruta = vendasSeguras.subtract(comprasSeguras);
 
         BigDecimal valorStock = artigoRepository.valorTotalStock(userId);
 
@@ -50,11 +54,13 @@ public class DashboardService {
                 .map(this::converterVendaParaDTO)
                 .toList();
 
+        log.debug("Dashboard gerado com sucesso. Margem bruta: {}", margemBruta);
+
         return DashboardDTO.builder()
                 .totalVendas(totalVendas != null ? totalVendas : BigDecimal.ZERO)
                 .totalCompras(totalCompras != null ? totalCompras : BigDecimal.ZERO)
                 .valorStock(valorStock != null ? valorStock : BigDecimal.ZERO)
-                .margemBruta(margemBruta != null ? margemBruta : BigDecimal.ZERO)
+                .margemBruta(margemBruta) // Já vem protegida de cima
                 .ultimasVendas(ultimasVendasDTO)
                 .build();
     }
@@ -72,7 +78,6 @@ public class DashboardService {
             dto.setClienteNome("Consumidor Final");
         }
 
-        // A nossa Lógica de Designação Inteligente
         if (venda.getLinhas() == null || venda.getLinhas().isEmpty()) {
             dto.setDesignacao("Fatura #" + venda.getId());
         } else {

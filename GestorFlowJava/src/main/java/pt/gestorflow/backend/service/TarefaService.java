@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,21 +22,22 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class TarefaService {
 
     private final TarefaRepository repository;
     private final ClienteRepository clienteRepository;
-    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para o vínculo seguro
-    private final AuthService authService; // 🚀 A nossa Chave Mestra
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     @Transactional
     public TarefaResponseDTO criar(TarefaDTO dto) {
-        // 🚀 1. ID Blindado do Token
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🚀 2. Busca a entidade física
+        log.info("A criar nova Tarefa ('{}') para o utilizador ID: {}", dto.getTitulo(), utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -46,23 +48,32 @@ public class TarefaService {
         t.setDataLimite(dto.getDataLimite());
         t.setUtilizador(user);
 
-        t.setEstado(dto.getEstado() != null ? dto.getEstado() : Tarefa.EstadoTarefa.PENDENTE);
+        Tarefa.EstadoTarefa estadoAtribuido = dto.getEstado() != null ? dto.getEstado() : Tarefa.EstadoTarefa.PENDENTE;
+        t.setEstado(estadoAtribuido);
+
+        // 🚀 CORREÇÃO: Se a tarefa já nascer concluída, regista a data de imediato!
+        if (estadoAtribuido == Tarefa.EstadoTarefa.CONCLUIDA) {
+            t.setDataConclusao(LocalDateTime.now());
+        }
 
         if (dto.getClienteId() != null) {
-            // 🛡️ PROTEÇÃO IDOR: Garante que o cliente pertence a este utilizador
             Cliente c = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
             t.setCliente(c);
         }
 
-        return converterParaDTO(repository.save(t));
+        Tarefa salva = repository.save(t);
+        log.debug("Tarefa criada com sucesso com o ID: {}", salva.getId());
+
+        return converterParaDTO(salva);
     }
 
     @Transactional
     public TarefaResponseDTO atualizar(Long id, TarefaDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Impede editar tarefas de terceiros
+        log.info("A atualizar a Tarefa ID: {} (Utilizador ID: {})", id, utilizadorId);
+
         Tarefa t = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Tarefa não encontrada ou acesso negado."));
 
@@ -72,9 +83,9 @@ public class TarefaService {
         t.setDataLimite(dto.getDataLimite());
 
         if (dto.getEstado() != null) {
-            // 🛡️ Gestão Automática de Conclusão
             if (dto.getEstado() == Tarefa.EstadoTarefa.CONCLUIDA && t.getEstado() != Tarefa.EstadoTarefa.CONCLUIDA) {
                 t.setDataConclusao(LocalDateTime.now());
+                log.debug("Tarefa ID: {} marcada como CONCLUÍDA.", id);
             } else if (dto.getEstado() != Tarefa.EstadoTarefa.CONCLUIDA) {
                 t.setDataConclusao(null);
             }
@@ -96,7 +107,8 @@ public class TarefaService {
     public Page<TarefaResponseDTO> listarMinhasTarefas(int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // Ordenação estável: Prioridade -> Data Limite -> ID (para evitar saltos na paginação)
+        log.debug("Listagem paginada de tarefas solicitada pelo utilizador ID: {}", utilizadorId);
+
         Pageable pageable = PageRequest.of(pagina, tamanho,
                 Sort.by("prioridade").descending()
                         .and(Sort.by("dataLimite").ascending())
@@ -109,6 +121,8 @@ public class TarefaService {
     @Transactional(readOnly = true)
     public List<TarefaResponseDTO> listarPorEstado(Tarefa.EstadoTarefa estado) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem de tarefas pelo estado {} solicitada pelo utilizador ID: {}", estado, utilizadorId);
 
         return repository.findAllByUtilizadorIdAndEstado(utilizadorId, estado).stream()
                 .map(this::converterParaDTO)
@@ -129,10 +143,13 @@ public class TarefaService {
     public void eliminar(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
+        log.info("O utilizador ID: {} pediu a eliminação da Tarefa ID: {}", utilizadorId, id);
+
         Tarefa t = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Tarefa não encontrada ou acesso negado."));
 
         repository.delete(t);
+        log.debug("Tarefa ID: {} eliminada com sucesso.", id);
     }
 
     private TarefaResponseDTO converterParaDTO(Tarefa t) {

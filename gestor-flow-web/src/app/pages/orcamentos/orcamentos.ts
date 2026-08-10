@@ -1,12 +1,15 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators, FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 1. IMPORT OBRIGATÓRIO DOS ERROS
 import { OrcamentoService } from '../../services/orcamento.service';
 import { ClienteService } from '../../services/cliente.service';
 import { ArtigoService } from '../../services/artigo.service';
 import { VendaService } from '../../services/venda.service'; 
 import { TesourariaService } from '../../services/tesouraria.service'; 
 import { Orcamento } from '../../core/models/orcamento.model';
+import { LogService } from '../../core/services/log.service';
+import { IvaService } from '../../services/iva.service';
 
 // IMPORTAR O SWEETALERT2
 import Swal from 'sweetalert2';
@@ -23,26 +26,27 @@ declare var bootstrap: any;
 export class OrcamentosComponent implements OnInit {
 
   listaOrcamentos: Orcamento[] = [];
-  listaClientes: any[] = [];
-  listaArtigos: any[] = [];
-  listaTaxasIva: any[] = [];
-  listaContas: any[] = []; 
+  listaClientes: any[] = []; // ⚠️ Dica: Substituir 'any' por 'Cliente'
+  listaArtigos: any[] = [];  // ⚠️ Dica: Substituir 'any' por 'Artigo'
+  listaTaxasIva: any[] = []; // ⚠️ Dica: Substituir 'any' por 'TaxaIva'
+  listaContas: any[] = [];   // ⚠️ Dica: Substituir 'any' por 'ContaBancaria'
   
   formOrcamento!: FormGroup;
   idEmEdicao: number | null = null;
   totalGeralPrevisto: number = 0;
 
-  orcamentoParaConverter: any = null;
+  orcamentoParaConverter: any = null; // ⚠️ Dica: Substituir por 'Orcamento'
   contaSelecionadaParaConversao: number | null = null;
 
   constructor(
     private orcamentoService: OrcamentoService,
     private clienteService: ClienteService,
     private artigoService: ArtigoService,
-    private vendaService: VendaService,
+    private ivaService: IvaService,
     private tesourariaService: TesourariaService, 
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 3. SERVIÇO DECLARADO
   ) {}
 
   ngOnInit() {
@@ -78,9 +82,21 @@ export class OrcamentosComponent implements OnInit {
     this.orcamentoService.carregarOrcamentosDaAPI();
     this.tesourariaService.carregarContasDaAPI(); 
 
-    this.clienteService.listar().subscribe(d => this.listaClientes = d.content || d);
-    this.artigoService.listar().subscribe(d => this.listaArtigos = d.content || d);
-    this.vendaService.listarTaxasIva().subscribe(d => this.listaTaxasIva = d);
+    this.clienteService.listar().subscribe({
+      next: (d: any) => this.listaClientes = d.content || d, // 🚀 Tipagem resolvida
+      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar clientes no Orçamento', e)
+    });
+    
+    this.artigoService.listar().subscribe({
+      next: (d: any) => this.listaArtigos = d.content || d, // 🚀 Tipagem resolvida
+      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar artigos no Orçamento', e)
+    });
+
+    // 🚀 BATE NO SERVIÇO CORRETO E COM A TIPAGEM RESOLVIDA
+    this.ivaService.listar().subscribe({
+      next: (d: any[]) => this.listaTaxasIva = d, 
+      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar IVAs no Orçamento', e)
+    });
   }
 
   adicionarLinha(itemPreenchido: any = null) {
@@ -185,11 +201,13 @@ export class OrcamentosComponent implements OnInit {
 
     request$.subscribe({
       next: () => {
+        this.logService.info(this.idEmEdicao ? `Orçamento ${this.idEmEdicao} atualizado.` : 'Novo orçamento guardado.'); // 🚀 RASTREABILIDADE
         const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
         Toast.fire({ icon: 'success', title: this.idEmEdicao ? 'Orçamento atualizado!' : 'Orçamento guardado!' });
         this.fecharModal();
       },
-      error: (e: any) => {
+      error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+        this.logService.error('Erro ao guardar o orçamento', e); // 🚀 CAIXA NEGRA
         Swal.fire({
           icon: 'error',
           title: 'Erro ao guardar',
@@ -228,6 +246,7 @@ export class OrcamentosComponent implements OnInit {
   executarConversao(orcamentoId: number, contaId: number) {
     this.orcamentoService.converterEmVenda(orcamentoId, contaId).subscribe({
         next: () => {
+            this.logService.info(`Orçamento ${orcamentoId} convertido em fatura/venda na conta ${contaId}.`); // 🚀 RASTREABILIDADE
             Swal.fire('Faturado!', 'As vendas foram geradas, o stock abatido e o saldo atualizado.', 'success');
             
             this.tesourariaService.notificarNovaTransacao(); 
@@ -235,7 +254,8 @@ export class OrcamentosComponent implements OnInit {
             const modalConta = bootstrap.Modal.getInstance(document.getElementById('modalEscolherConta'));
             if(modalConta) modalConta.hide();
         },
-        error: (e) => {
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error(`Falha ao converter orçamento ${orcamentoId}`, e); // 🚀 CAIXA NEGRA
           Swal.fire('Erro na Conversão', e.error?.message || 'Falha ao converter o orçamento.', 'error');
         }
     });
@@ -259,7 +279,6 @@ export class OrcamentosComponent implements OnInit {
     return data.toISOString().split('T')[0];
   }
 
-  // 🚀 MÉTODO DO PDF CORRIGIDO PARA ACEITAR NUMBER OU UNDEFINED
   visualizarPdf(id: number | undefined) {
     if (!id) {
       Swal.fire('Atenção', 'Este orçamento ainda não tem um ID válido.', 'warning');
@@ -268,11 +287,12 @@ export class OrcamentosComponent implements OnInit {
 
     this.orcamentoService.abrirPdfOrcamento(id).subscribe({
       next: (arquivoBlob: Blob) => {
+        this.logService.debug(`PDF gerado para orçamento ${id}.`); // 🚀 RASTREABILIDADE
         const fileURL = URL.createObjectURL(arquivoBlob);
         window.open(fileURL, '_blank');
       },
-      error: (erro) => {
-        console.error('Erro ao abrir o PDF:', erro);
+      error: (erro: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA E ADEUS CONSOLE.ERROR
+        this.logService.error(`Falha na geração do PDF para o orçamento ${id}`, erro); // 🚀 CAIXA NEGRA
         Swal.fire({
           icon: 'error',
           title: 'Erro na Geração',

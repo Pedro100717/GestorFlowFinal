@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -17,33 +18,36 @@ import pt.gestorflow.backend.repository.UtilizadorRepository;
 
 import java.time.LocalDateTime;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class MovimentoStockService {
 
     private final MovimentoStockRepository movimentoRepository;
     private final ArtigoRepository artigoRepository;
-    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para o registo de acerto
-    private final AuthService authService; // 🚀 A nossa nova Chave Mestra
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     @Transactional
     public MovimentoStockResponseDTO registarAcerto(MovimentoStockDTO dto) {
-        // 🚀 1. Obtém o ID blindado do Token
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🚀 2. Busca a entidade física do Utilizador para o log de auditoria
+        // 🛡️ INFO: Registo de Auditoria Anti-Fraude!
+        log.info("Auditoria: O utilizador ID: {} está a tentar um acerto manual de stock ({}) para o artigo ID: {}. Quantidade: {}",
+                utilizadorId, dto.getTipo(), dto.getMercadoriaId(), dto.getQuantidade());
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
-        // 🛡️ PROTEÇÃO IDOR: Garante que o artigo pertence à empresa do utilizador
         Artigo artigo = artigoRepository.findByIdAndUtilizadorId(dto.getMercadoriaId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
 
         if (!(artigo instanceof Mercadoria mercadoria)) {
-            throw new RuntimeException("Apenas mercadorias possuem controlo de stock.");
+            // 🚀 Corrigido para IllegalArgumentException e com log.warn silencioso
+            log.warn("Bloqueada tentativa de acerto de stock num Serviço (Artigo ID: {}) pelo Utilizador ID: {}", dto.getMercadoriaId(), utilizadorId);
+            throw new IllegalArgumentException("Apenas mercadorias possuem controlo de stock.");
         }
 
-        // Atualiza o stock na entidade Mercadoria
         if (dto.getTipo() == MovimentoStock.TipoMovimentoStock.ENTRADA) {
             mercadoria.setStockAtual(mercadoria.getStockAtual().add(dto.getQuantidade()));
         } else {
@@ -52,10 +56,9 @@ public class MovimentoStockService {
 
         artigoRepository.save(mercadoria);
 
-        // Cria o registo de movimento
         MovimentoStock mov = new MovimentoStock();
         mov.setMercadoria(mercadoria);
-        mov.setUtilizador(user); // 🚀 Injeção segura da entidade obtida via Token
+        mov.setUtilizador(user);
         mov.setTipo(dto.getTipo());
         mov.setQuantidade(dto.getQuantidade());
         mov.setMotivo(dto.getMotivo());
@@ -64,6 +67,8 @@ public class MovimentoStockService {
 
         MovimentoStock movGuardado = movimentoRepository.save(mov);
 
+        log.debug("Acerto manual registado com sucesso (Movimento ID: {}). Novo stock: {}", movGuardado.getId(), mercadoria.getStockAtual());
+
         return converterParaDTO(movGuardado);
     }
 
@@ -71,7 +76,6 @@ public class MovimentoStockService {
     public MovimentoStockResponseDTO buscarPorId(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Impede que espreitem movimentos de stock de outros utilizadores
         MovimentoStock movimento = movimentoRepository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Movimento de stock não encontrado ou acesso negado."));
 
@@ -82,6 +86,8 @@ public class MovimentoStockService {
     public Page<MovimentoStockResponseDTO> listarHistorico(int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
+        log.debug("Listagem de histórico de acertos manuais solicitada pelo utilizador ID: {}. Página: {}", utilizadorId, pagina);
+
         Pageable pageable = PageRequest.of(pagina, tamanho);
         return movimentoRepository.buscarApenasAcertosManuais(utilizadorId, pageable)
                 .map(this::converterParaDTO);
@@ -90,6 +96,8 @@ public class MovimentoStockService {
     @Transactional(readOnly = true)
     public Page<MovimentoStockResponseDTO> listarPorArtigo(Long artigoId, int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem de movimentos do artigo ID: {} solicitada pelo utilizador ID: {}. Página: {}", artigoId, utilizadorId, pagina);
 
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataMovimento").descending());
 

@@ -1,10 +1,11 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 IMPORT DOS ERROS HTTP
 import { FornecedorService } from '../../services/fornecedor.service';
 import { Fornecedor } from '../../core/models/fornecedor.model';
+import { LogService } from '../../core/services/log.service'; // 🚀 INJEÇÃO DO INSPETOR
 
-// 1. IMPORTAR O SWEETALERT2
 import Swal from 'sweetalert2';
 
 declare var bootstrap: any;
@@ -25,20 +26,20 @@ export class FornecedoresComponent implements OnInit {
   constructor(
     private fornecedorService: FornecedorService,
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 SERVIÇO DECLARADO NO CONSTRUTOR
   ) {}
 
   ngOnInit() {
     this.inicializarFormulario();
 
-    // --- A MÁGICA REATIVA ---
-    // 1. O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
+    // O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
     this.fornecedorService.fornecedores$.subscribe(fornecedores => {
       this.listaFornecedores = fornecedores;
       this.cd.detectChanges();
     });
 
-    // 2. Manda o serviço encher o cofre pela primeira vez
+    // Manda o serviço encher o cofre pela primeira vez
     this.fornecedorService.carregarFornecedoresDaAPI();
   }
 
@@ -49,13 +50,11 @@ export class FornecedoresComponent implements OnInit {
       email: ['', [Validators.email]],
       telefone: [''],
       morada: [''],
-      website: [''] // Campo novo
+      website: [''] 
     });
   }
 
   get f() { return this.formFornecedor.controls; }
-
-  // --- AÇÕES ---
 
   abrirModalNovo() {
     this.idEmEdicao = null;
@@ -81,9 +80,12 @@ export class FornecedoresComponent implements OnInit {
 
     if (this.idEmEdicao) {
       this.fornecedorService.atualizar(this.idEmEdicao, dados).subscribe({
-        next: () => this.finalizar('Fornecedor atualizado!'),
-        // 2. ERRO ELEGANTE AQUI
-        error: (e: any) => {
+        next: () => {
+          this.logService.debug(`Fornecedor ${this.idEmEdicao} atualizado com sucesso.`); // 🚀 RASTREABILIDADE
+          this.finalizar('Fornecedor atualizado!');
+        },
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao atualizar fornecedor', e); // 🚀 CAIXA NEGRA
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -94,9 +96,12 @@ export class FornecedoresComponent implements OnInit {
       });
     } else {
       this.fornecedorService.criar(dados).subscribe({
-        next: () => this.finalizar('Fornecedor criado!'),
-        // 2. ERRO ELEGANTE AQUI
-        error: (e: any) => {
+        next: () => {
+          this.logService.debug('Novo fornecedor criado com sucesso.'); // 🚀 RASTREABILIDADE
+          this.finalizar('Fornecedor criado!');
+        },
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao criar fornecedor', e); // 🚀 CAIXA NEGRA
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -109,24 +114,24 @@ export class FornecedoresComponent implements OnInit {
   }
 
   eliminarFornecedor(id: number) {
-    // 3. O FIM DO "confirm()" FEIO
     Swal.fire({
       title: 'Tem a certeza?',
       text: "Este fornecedor será apagado permanentemente!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#dc3545', // Vermelho
-      cancelButtonColor: '#6c757d',  // Cinzento
+      confirmButtonColor: '#dc3545', 
+      cancelButtonColor: '#6c757d',  
       confirmButtonText: 'Sim, eliminar!',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
-      
       if (result.isConfirmed) {
         this.fornecedorService.apagar(id).subscribe({
           next: () => {
+            this.logService.info(`Fornecedor ${id} eliminado com sucesso.`); // 🚀 RASTREABILIDADE
             Swal.fire('Eliminado!', 'O fornecedor foi apagado com sucesso.', 'success');
           },
-          error: (e: any) => {
+          error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+            this.logService.error(`Falha ao eliminar fornecedor ${id}`, e); // 🚀 CAIXA NEGRA
             Swal.fire('Erro!', 'Este fornecedor não pode ser apagado porque já tem compras associadas.', 'error');
           }
         });
@@ -135,7 +140,6 @@ export class FornecedoresComponent implements OnInit {
   }
 
   finalizar(msg: string) {
-    // 4. TOAST DE SUCESSO NO CANTO SUPERIOR
     const Toast = Swal.mixin({
       toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
     });

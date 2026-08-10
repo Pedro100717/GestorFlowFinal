@@ -1,8 +1,10 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO DOS ERROS
 import { ClienteService } from '../../services/cliente.service';
 import { Cliente } from '../../core/models/cliente.model';
+import { LogService } from '../../core/services/log.service'; // 🚀 INJEÇÃO DO NOSSO INSPETOR
 
 // 1. IMPORTAR O SWEETALERT2
 import Swal from 'sweetalert2';
@@ -25,20 +27,21 @@ export class ClientesComponent implements OnInit {
   constructor(
     private clienteService: ClienteService,
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 SERVIÇO DECLARADO NO CONSTRUTOR
   ) {}
 
   ngOnInit() {
     this.inicializarFormulario();
 
     // --- A MÁGICA REATIVA ---
-    // 1. O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
+    // O ecrã fica à escuta do cofre. Se a memória mudar, a tabela atualiza na hora!
     this.clienteService.clientes$.subscribe(clientes => {
       this.listaClientes = clientes;
       this.cd.detectChanges();
     });
 
-    // 2. Manda o serviço encher o cofre pela primeira vez
+    // Manda o serviço encher o cofre pela primeira vez
     this.clienteService.carregarClientesDaAPI();
   }
 
@@ -81,9 +84,12 @@ export class ClientesComponent implements OnInit {
 
     if (this.idEmEdicao) {
       this.clienteService.atualizar(this.idEmEdicao, dados).subscribe({
-        next: () => this.finalizar('Cliente atualizado!'),
-        // 2. ERRO ELEGANTE AQUI
-        error: (e: any) => {
+        next: () => {
+          this.logService.debug(`Cliente ${this.idEmEdicao} atualizado com sucesso.`); // 🚀 RASTREABILIDADE
+          this.finalizar('Cliente atualizado!');
+        },
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao atualizar cliente', e); // 🚀 CAIXA NEGRA
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -94,9 +100,12 @@ export class ClientesComponent implements OnInit {
       });
     } else {
       this.clienteService.criar(dados).subscribe({
-        next: () => this.finalizar('Cliente criado com sucesso!'),
-        // 2. ERRO ELEGANTE AQUI
-        error: (e: any) => {
+        next: () => {
+          this.logService.debug('Novo cliente criado com sucesso.'); // 🚀 RASTREABILIDADE
+          this.finalizar('Cliente criado com sucesso!');
+        },
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao criar cliente', e); // 🚀 CAIXA NEGRA
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -109,14 +118,13 @@ export class ClientesComponent implements OnInit {
   }
 
   eliminarCliente(id: number) {
-    // 3. O FIM DO "confirm()" FEIO
     Swal.fire({
       title: 'Tem a certeza?',
       text: "Isto apagará o histórico deste cliente permanentemente!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#dc3545', // Vermelho
-      cancelButtonColor: '#6c757d',  // Cinzento
+      confirmButtonColor: '#dc3545', 
+      cancelButtonColor: '#6c757d',  
       confirmButtonText: 'Sim, eliminar!',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
@@ -124,9 +132,11 @@ export class ClientesComponent implements OnInit {
       if (result.isConfirmed) {
         this.clienteService.apagar(id).subscribe({
           next: () => {
+            this.logService.info(`Cliente ${id} eliminado com sucesso.`); // 🚀 RASTREABILIDADE
             Swal.fire('Eliminado!', 'O cliente foi apagado com sucesso.', 'success');
           },
-          error: (e: any) => {
+          error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+            this.logService.error(`Falha ao eliminar cliente ${id}`, e); // 🚀 CAIXA NEGRA
             Swal.fire('Erro!', 'Este cliente não pode ser apagado porque já tem vendas associadas.', 'error');
           }
         });
@@ -135,7 +145,7 @@ export class ClientesComponent implements OnInit {
   }
 
   finalizar(msg: string) {
-    // 4. TOAST DE SUCESSO NO CANTO SUPERIOR
+    // TOAST DE SUCESSO NO CANTO SUPERIOR
     const Toast = Swal.mixin({
       toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
     });

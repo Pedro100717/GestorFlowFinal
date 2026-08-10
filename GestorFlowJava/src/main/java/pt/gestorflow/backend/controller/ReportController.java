@@ -1,5 +1,9 @@
 package pt.gestorflow.backend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag; // 🚀 Documentação OpenAPI
+import lombok.RequiredArgsConstructor; // 🚀 O Lombok substitui o construtor manual
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,11 +25,11 @@ import pt.gestorflow.backend.repository.FornecedorRepository;
 import pt.gestorflow.backend.model.Orcamento;
 import pt.gestorflow.backend.model.Cliente;
 import pt.gestorflow.backend.model.LinhaOrcamento;
-import pt.gestorflow.backend.model.Empresa; // 🚀 Adicionado para a Empresa
+import pt.gestorflow.backend.model.Empresa;
 
 import pt.gestorflow.backend.service.TesourariaService;
 import pt.gestorflow.backend.service.PlaneamentoService;
-import pt.gestorflow.backend.service.EmpresaService; // 🚀 Adicionado para a Empresa
+import pt.gestorflow.backend.service.EmpresaService;
 import pt.gestorflow.backend.dto.DocumentoPendenteDTO;
 import pt.gestorflow.backend.dto.MovimentoPlaneadoDTO;
 import pt.gestorflow.backend.model.FrequenciaMovimento;
@@ -35,15 +39,17 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
 
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j // 🚀 Telemetria de entrada e auditoria
 @RestController
 @RequestMapping("/api/reports")
+@RequiredArgsConstructor // 🚀 Injeção automática via Lombok (adeus construtor manual!)
+@Tag(name = "Relatórios e PDFs", description = "Endpoints para geração e exportação de documentos em formato PDF")
 public class ReportController {
 
     private final PdfGeneratorService pdfGeneratorService;
@@ -54,28 +60,7 @@ public class ReportController {
     private final FornecedorRepository fornecedorRepository;
     private final TesourariaService tesourariaService;
     private final PlaneamentoService planeamentoService;
-    private final EmpresaService empresaService; // 🚀 Nova Injeção do Cão de Guarda
-
-    // 🚀 CONSTRUTOR ATUALIZADO
-    public ReportController(PdfGeneratorService pdfGeneratorService,
-                            OrcamentoRepository orcamentoRepository,
-                            AnaliseService analiseService,
-                            ContaCorrenteService contaCorrenteService,
-                            ClienteRepository clienteRepository,
-                            FornecedorRepository fornecedorRepository,
-                            TesourariaService tesourariaService,
-                            PlaneamentoService planeamentoService,
-                            EmpresaService empresaService) {
-        this.pdfGeneratorService = pdfGeneratorService;
-        this.orcamentoRepository = orcamentoRepository;
-        this.analiseService = analiseService;
-        this.contaCorrenteService = contaCorrenteService;
-        this.clienteRepository = clienteRepository;
-        this.fornecedorRepository = fornecedorRepository;
-        this.tesourariaService = tesourariaService;
-        this.planeamentoService = planeamentoService;
-        this.empresaService = empresaService; // 🚀 Inicializado
-    }
+    private final EmpresaService empresaService;
 
     private static class LinhaTimeline {
         LocalDate data;
@@ -97,11 +82,12 @@ public class ReportController {
     // ==========================================
     // ORÇAMENTOS
     // ==========================================
+    @Operation(summary = "Exportar Orçamento em PDF", description = "Gera e descarrega o documento PDF de um orçamento específico.")
     @GetMapping("/orcamento/pdf/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadOrcamentoPdf(@PathVariable Long id) {
+        log.info("Auditoria de Relatórios: Pedido de exportação de PDF para o Orçamento ID: {}", id);
 
-        // 🚀 1. BARREIRA DE SEGURANÇA
         Empresa empresa = empresaService.obterEmpresaValidada();
 
         Orcamento orcamentoEntity = orcamentoRepository.findById(id)
@@ -110,7 +96,6 @@ public class ReportController {
         Map<String, Object> variables = new HashMap<>();
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        // 🚀 2. INJETAR OS DADOS REAIS DA EMPRESA
         variables.put("empresaNome", empresa.getNomeFiscal());
         variables.put("empresaNif", empresa.getNif());
         variables.put("empresaMorada", empresa.getMoradaCompleta() != null ? empresa.getMoradaCompleta() : "");
@@ -174,11 +159,12 @@ public class ReportController {
     // ==========================================
     // DASHBOARD ANALÍTICO
     // ==========================================
+    @Operation(summary = "Exportar Dashboard Analítico em PDF", description = "Gera o relatório PDF com o resumo analítico e centros de custo.")
     @GetMapping("/dashboard/pdf")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadDashboardPdf() {
+        log.info("Auditoria de Relatórios: Pedido de exportação do Dashboard Analítico em PDF.");
 
-        // 🚀 1. BARREIRA DE SEGURANÇA
         Empresa empresa = empresaService.obterEmpresaValidada();
 
         List<pt.gestorflow.backend.dto.AnaliseAnaliticaDTO> dados = analiseService.obterDashboard();
@@ -187,7 +173,6 @@ public class ReportController {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
         variables.put("dataExtracao", java.time.LocalDateTime.now().format(dateFormatter));
 
-        // 🚀 2. INJETAR OS DADOS REAIS DA EMPRESA
         variables.put("empresaNome", empresa.getNomeFiscal());
         variables.put("empresaNif", empresa.getNif());
         variables.put("empresaMorada", empresa.getMoradaCompleta() != null ? empresa.getMoradaCompleta() : "");
@@ -283,11 +268,12 @@ public class ReportController {
     // ==========================================
     // EXTRATO CONTA CORRENTE - CLIENTES
     // ==========================================
+    @Operation(summary = "Exportar Extrato de Cliente em PDF", description = "Gera o extrato de conta corrente de um cliente em formato PDF.")
     @GetMapping("/conta-corrente/cliente/pdf/{clienteId}")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadExtratoClientePdf(@PathVariable Long clienteId) {
+        log.info("Auditoria de Relatórios: Pedido de extrato em PDF para o Cliente ID: {}", clienteId);
 
-        // 🚀 1. BARREIRA DE SEGURANÇA
         Empresa empresa = empresaService.obterEmpresaValidada();
 
         List<ContaCorrenteExtratoDTO> extrato = contaCorrenteService.obterExtratoCliente(clienteId);
@@ -301,7 +287,6 @@ public class ReportController {
         variables.put("nomeCliente", nomeCliente);
         variables.put("dataExtracao", java.time.LocalDate.now().format(dateFormatter));
 
-        // 🚀 2. INJETAR OS DADOS REAIS DA EMPRESA
         variables.put("empresaNome", empresa.getNomeFiscal());
         variables.put("empresaNif", empresa.getNif());
         variables.put("empresaMorada", empresa.getMoradaCompleta() != null ? empresa.getMoradaCompleta() : "");
@@ -343,11 +328,12 @@ public class ReportController {
     // ==========================================
     // EXTRATO CONTA CORRENTE - FORNECEDORES
     // ==========================================
+    @Operation(summary = "Exportar Extrato de Fornecedor em PDF", description = "Gera o extrato de conta corrente de um fornecedor em formato PDF.")
     @GetMapping("/conta-corrente/fornecedor/pdf/{fornecedorId}")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadExtratoFornecedorPdf(@PathVariable Long fornecedorId) {
+        log.info("Auditoria de Relatórios: Pedido de extrato em PDF para o Fornecedor ID: {}", fornecedorId);
 
-        // 🚀 1. BARREIRA DE SEGURANÇA
         Empresa empresa = empresaService.obterEmpresaValidada();
 
         List<ContaCorrenteExtratoDTO> extrato = contaCorrenteService.obterExtratoFornecedor(fornecedorId);
@@ -361,7 +347,6 @@ public class ReportController {
         variables.put("nomeCliente", nomeEntidade);
         variables.put("dataExtracao", java.time.LocalDate.now().format(dateFormatter));
 
-        // 🚀 2. INJETAR OS DADOS REAIS DA EMPRESA
         variables.put("empresaNome", empresa.getNomeFiscal());
         variables.put("empresaNif", empresa.getNif());
         variables.put("empresaMorada", empresa.getMoradaCompleta() != null ? empresa.getMoradaCompleta() : "");
@@ -403,6 +388,7 @@ public class ReportController {
     // ==========================================
     // EVOLUÇÃO DE SALDO (TESOURARIA)
     // ==========================================
+    @Operation(summary = "Exportar Evolução de Saldo em PDF", description = "Gera o relatório de projeção e evolução de tesouraria com filtros aplicados.")
     @GetMapping("/tesouraria/evolucao/pdf")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadEvolucaoSaldoPdf(
@@ -410,7 +396,8 @@ public class ReportController {
             @RequestParam(defaultValue = "TUDO") String natureza,
             @RequestParam(defaultValue = "TUDO") String periodo) {
 
-        // 🚀 1. BARREIRA DE SEGURANÇA
+        log.info("Auditoria de Relatórios: Pedido de exportação da Evolução de Tesouraria em PDF. (Fluxo: {}, Natureza: {}, Período: {})", fluxo, natureza, periodo);
+
         Empresa empresa = empresaService.obterEmpresaValidada();
 
         List<LinhaTimeline> timeline = new ArrayList<>();
@@ -497,7 +484,6 @@ public class ReportController {
         variables.put("linhas", linhasPdf);
         variables.put("filtroLabel", String.format("Filtros Ativos: Fluxo [%s] | Origem [%s] | Período [%s]", fluxo, natureza, periodo));
 
-        // 🚀 2. INJETAR OS DADOS REAIS DA EMPRESA
         variables.put("empresaNome", empresa.getNomeFiscal());
         variables.put("empresaNif", empresa.getNif());
         variables.put("empresaMorada", empresa.getMoradaCompleta() != null ? empresa.getMoradaCompleta() : "");

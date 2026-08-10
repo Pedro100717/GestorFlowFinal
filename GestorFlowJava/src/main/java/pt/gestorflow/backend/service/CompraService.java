@@ -2,6 +2,7 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class CompraService {
@@ -42,6 +44,8 @@ public class CompraService {
     @Transactional
     public CompraResponseDTO registarCompra(CompraDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        log.info("Início do registo de nova Compra para o fornecedor ID: {} (Utilizador: {})", dto.getFornecedorId(), utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -59,7 +63,8 @@ public class CompraService {
 
         BigDecimal totalFatura = BigDecimal.ZERO;
 
-        // 🚀 PROCESSAMENTO LINHA A LINHA
+        log.debug("A processar {} linhas de compra...", dto.getLinhas().size());
+
         for (LinhaCompraDTO linhaDto : dto.getLinhas()) {
             Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId()));
@@ -67,17 +72,14 @@ public class CompraService {
             TxIva taxaIva = txIvaRepository.findById(linhaDto.getTaxaIvaId())
                     .orElseThrow(() -> new EntityNotFoundException("Taxa de IVA não encontrada: " + linhaDto.getTaxaIvaId()));
 
-            // 1. Cálculos Financeiros da Linha
             BigDecimal totalSemIva = linhaDto.getQuantidade().multiply(linhaDto.getPrecoUnitario());
             BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100)).add(BigDecimal.ONE);
             BigDecimal totalLinhaComIva = totalSemIva.multiply(fatorIva).setScale(2, RoundingMode.HALF_UP);
 
             totalFatura = totalFatura.add(totalLinhaComIva);
 
-            // 2. Gestão de Stock e Preço Médio
             processarEntradaStock(artigo, linhaDto.getQuantidade(), linhaDto.getPrecoUnitario(), user, fornecedor.getNome());
 
-            // 3. Criação da Entidade LinhaCompra
             LinhaCompra linha = new LinhaCompra();
             linha.setArtigo(artigo);
             linha.setTaxaIva(taxaIva);
@@ -86,7 +88,6 @@ public class CompraService {
             linha.setTotalLinha(totalLinhaComIva);
             linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
 
-            // Analítica da Linha
             if (linhaDto.getCentroCustoId() != null) {
                 centroCustoRepository.findByIdAndUtilizadorId(linhaDto.getCentroCustoId(), utilizadorId).ifPresent(linha::setCentroCusto);
             }
@@ -94,28 +95,31 @@ public class CompraService {
                 seccaoHomoRepository.findByIdAndUtilizadorId(linhaDto.getSeccaoHomoId(), utilizadorId).ifPresent(linha::setSeccaoHomo);
             }
 
-            compra.addLinha(linha); // Liga a linha ao cabeçalho da fatura
+            compra.addLinha(linha);
         }
 
         compra.setTotal(totalFatura);
         Compra compraGuardada = compraRepository.save(compra);
 
-        // O MOTOR DE ABATE (MÁQUINA DO TEMPO)
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
                         LocalDate dataAIgnorar = dto.getDataCompra() != null ? dto.getDataCompra() : LocalDate.now();
                         plano.getDatasIgnoradas().add(dataAIgnorar);
                         movimentoPlaneadoRepository.save(plano);
+                        log.debug("Abate realizado no Plano Origem ID: {}", plano.getId());
                     });
         }
 
+        log.debug("Compra ID: {} registada com sucesso. Valor total: {}", compraGuardada.getId(), totalFatura);
         return converterParaDTO(compraGuardada);
     }
 
     @Transactional
     public CompraResponseDTO atualizarCompra(Long id, CompraDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        log.info("Pedido de atualização da Compra ID: {} (Utilizador: {})", id, utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -123,13 +127,15 @@ public class CompraService {
                 .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
 
         if (compra.getEstadoPagamento() != EstadoPagamento.PENDENTE) {
-            throw new IllegalStateException("Apenas faturas de compra PENDENTES podem ser editadas.");
+            // 🚀 Corrigido para IllegalArgumentException e adicionado log.warn
+            log.warn("Bloqueada edição da Compra ID: {} (Estado atual: {})", id, compra.getEstadoPagamento());
+            throw new IllegalArgumentException("Apenas faturas de compra PENDENTES podem ser editadas.");
         }
 
         Fornecedor fornecedor = fornecedorRepository.findByIdAndUtilizadorId(dto.getFornecedorId(), utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado."));
 
-        // 1. Reverter o stock de todas as linhas antigas
+        // Reverter stock
         for (LinhaCompra linhaAntiga : compra.getLinhas()) {
             if (linhaAntiga.getArtigo() instanceof Mercadoria mercAntiga) {
                 artigoService.removerStock(mercAntiga.getId(), linhaAntiga.getQuantidade());
@@ -138,11 +144,9 @@ public class CompraService {
             }
         }
 
-        // 2. Limpar as linhas antigas (O JPA trata de apagar da base de dados graças ao orphanRemoval)
         compra.getLinhas().clear();
         BigDecimal totalFatura = BigDecimal.ZERO;
 
-        // 3. Aplicar as novas linhas
         for (LinhaCompraDTO linhaDto : dto.getLinhas()) {
             Artigo artigo = artigoRepository.findByIdAndUtilizadorId(linhaDto.getArtigoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado."));
@@ -180,12 +184,17 @@ public class CompraService {
         compra.setNumeroFaturaFornecedor(dto.getNumeroFaturaFornecedor());
         compra.setTotal(totalFatura);
 
-        return converterParaDTO(compraRepository.save(compra));
+        Compra atualizada = compraRepository.save(compra);
+        log.debug("Compra ID: {} atualizada com sucesso. Novo valor: {}", atualizada.getId(), totalFatura);
+
+        return converterParaDTO(atualizada);
     }
 
     @Transactional
     public void eliminar(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        log.info("Aviso Crítico: Pedido de eliminação da Compra ID: {} (Utilizador: {})", id, utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -193,10 +202,11 @@ public class CompraService {
                 .orElseThrow(() -> new EntityNotFoundException("Compra não encontrada ou acesso negado."));
 
         if (compra.getEstadoPagamento() == EstadoPagamento.PAGO || compra.getEstadoPagamento() == EstadoPagamento.PARCIALMENTE_PAGO) {
-            throw new IllegalStateException("Não podes apagar uma compra que já tem pagamentos registados.");
+            // 🚀 Corrigido para IllegalArgumentException e adicionado log.warn
+            log.warn("Bloqueada eliminação da Compra ID: {}. Fatura já contém pagamentos.", id);
+            throw new IllegalArgumentException("Não podes apagar uma compra que já tem pagamentos registados.");
         }
 
-        // Reverter stock de todas as linhas antes de apagar
         for (LinhaCompra linha : compra.getLinhas()) {
             if (linha.getArtigo() instanceof Mercadoria mercadoria) {
                 artigoService.removerStock(mercadoria.getId(), linha.getQuantidade());
@@ -206,6 +216,7 @@ public class CompraService {
         }
 
         compraRepository.delete(compra);
+        log.debug("Compra ID: {} eliminada com sucesso da base de dados.", id);
     }
 
     @Transactional(readOnly = true)
@@ -219,6 +230,8 @@ public class CompraService {
     @Transactional(readOnly = true)
     public Page<CompraResponseDTO> listarMinhasCompras(int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+        log.debug("Listagem de compras solicitada pelo utilizador ID: {}. Página: {}", utilizadorId, pagina);
+
         Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by("dataCompra").descending());
         return compraRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
     }
@@ -287,7 +300,6 @@ public class CompraService {
             dto.setContaBancariaNome(c.getContaBancaria().getNome());
         }
 
-        // Mapeamento das Linhas
         if (c.getLinhas() != null) {
             List<LinhaCompraResponseDTO> linhasDto = c.getLinhas().stream().map(linha -> {
                 LinhaCompraResponseDTO lDto = new LinhaCompraResponseDTO();

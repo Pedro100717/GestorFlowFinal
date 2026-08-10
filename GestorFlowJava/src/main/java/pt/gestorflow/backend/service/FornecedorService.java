@@ -2,6 +2,7 @@ package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.FornecedorDTO;
@@ -13,27 +14,30 @@ import pt.gestorflow.backend.repository.UtilizadorRepository;
 
 import java.util.List;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class FornecedorService {
 
     private final FornecedorRepository repository;
-    private final UtilizadorRepository utilizadorRepository; // 🚀 Necessário para associar a entidade
-    private final AuthService authService; // 🚀 A nossa Chave Mestra de Segurança
+    private final UtilizadorRepository utilizadorRepository;
+    private final AuthService authService;
 
     @Transactional
     public FornecedorResponseDTO criar(FornecedorDTO dto) {
-        // 🚀 1. Obtém o ID blindado do Token
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("A iniciar criação de novo fornecedor para o utilizador ID: {}", utilizadorId);
 
         // 🛡️ Validação de NIF duplicado restrita ao contexto deste utilizador
         if (dto.getNif() != null && !dto.getNif().isBlank()) {
             if (repository.existsByNifAndUtilizadorId(dto.getNif(), utilizadorId)) {
-                throw new RuntimeException("Já existe um fornecedor com este NIF na sua conta.");
+                // 🚀 Corrigido para IllegalArgumentException e log de aviso
+                log.warn("Bloqueada tentativa de criar fornecedor com NIF duplicado ({}) para o utilizador ID: {}", dto.getNif(), utilizadorId);
+                throw new IllegalArgumentException("Já existe um fornecedor com este NIF na sua conta.");
             }
         }
 
-        // 🚀 2. Busca a entidade física do Utilizador
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -41,31 +45,43 @@ public class FornecedorService {
         mapearDtoParaEntidade(dto, f);
         f.setUtilizador(user);
 
-        return converterParaDTO(repository.save(f));
+        Fornecedor salvo = repository.save(f);
+        log.debug("Fornecedor criado com sucesso com o ID: {}", salvo.getId());
+
+        return converterParaDTO(salvo);
     }
 
     @Transactional
     public FornecedorResponseDTO atualizar(Long id, FornecedorDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Garante que só edita fornecedores da própria conta
+        log.info("Pedido de atualização do Fornecedor ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
         Fornecedor f = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
         // 🛡️ Validação de NIF para evitar duplicação em registos diferentes
         if (dto.getNif() != null && !dto.getNif().isBlank() && !dto.getNif().equals(f.getNif())) {
             if (repository.existsByNifAndUtilizadorId(dto.getNif(), utilizadorId)) {
-                throw new RuntimeException("Já existe outro fornecedor com este NIF na sua conta.");
+                // 🚀 Corrigido para IllegalArgumentException e log de aviso
+                log.warn("Bloqueada tentativa de atualizar fornecedor ID: {} com NIF duplicado ({}) para o utilizador ID: {}", id, dto.getNif(), utilizadorId);
+                throw new IllegalArgumentException("Já existe outro fornecedor com este NIF na sua conta.");
             }
         }
 
         mapearDtoParaEntidade(dto, f);
-        return converterParaDTO(repository.save(f));
+
+        Fornecedor atualizado = repository.save(f);
+        log.debug("Fornecedor ID: {} atualizado com sucesso", atualizado.getId());
+
+        return converterParaDTO(atualizado);
     }
 
     @Transactional(readOnly = true)
     public List<FornecedorResponseDTO> listar() {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem de fornecedores solicitada pelo utilizador ID: {}", utilizadorId);
 
         return repository.findAllByUtilizadorId(utilizadorId)
                 .stream()
@@ -77,18 +93,19 @@ public class FornecedorService {
     public void eliminar(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Impede que um utilizador apague dados de terceiros manipulando o ID
+        log.info("Pedido de eliminação do Fornecedor ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
         Fornecedor f = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
         repository.delete(f);
+        log.debug("Fornecedor ID: {} eliminado com sucesso", id);
     }
 
     @Transactional(readOnly = true)
     public FornecedorResponseDTO buscarPorId(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ PROTEÇÃO IDOR: Detalhes do fornecedor só visíveis para o dono
         Fornecedor fornecedor = repository.findByIdAndUtilizadorId(id, utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 

@@ -2,8 +2,8 @@ import { Component, OnInit, ChangeDetectorRef, AfterViewInit } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { Router } from '@angular/router'; 
+import { HttpErrorResponse } from '@angular/common/http'; 
 
-// 🚀 IMPORTAR AS ANIMAÇÕES DO ANGULAR
 import { trigger, style, transition, animate } from '@angular/animations';
 
 import { CompraService } from '../../services/compra.service';
@@ -11,6 +11,8 @@ import { ArtigoService } from '../../services/artigo.service';
 import { FornecedorService } from '../../services/fornecedor.service';
 import { AnaliticaService } from '../../services/analitica.service';
 import { TesourariaService } from '../../services/tesouraria.service'; 
+import { IvaService } from '../../services/iva.service'; 
+import { LogService } from '../../core/services/log.service'; // 🚀 IMPORT OBRIGATÓRIO DO INSPETOR
 
 import { Compra, LinhaCompra, TaxaIva } from '../../core/models/compra.model'; 
 import { Artigo } from '../../core/models/artigo.model';
@@ -27,8 +29,7 @@ declare var bootstrap: any;
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './compras.html',
-  styleUrl: './compras.scss', // 🚀 ADICIONADO: Obrigatório para a vista de telemóvel funcionar!
-  // 🚀 INJETAR OS TRIGGERS DE ANIMAÇÃO (Têm de ficar aqui devido ao *ngIf)
+  styleUrl: './compras.scss', 
   animations: [
     trigger('expandirTabela', [
       transition(':enter', [
@@ -69,7 +70,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
   planoOrigemDescricao: string = '';
   planoOrigemData: string | null = null;
 
-  // 🚀 CONTROLO DE EXPANSÃO DE LINHAS NA TABELA
   faturasExpandidas: { [key: number]: boolean } = {};
 
   constructor(
@@ -77,10 +77,12 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     private artigoService: ArtigoService,
     private fornecedorService: FornecedorService,
     private analiticaService: AnaliticaService,
-    private tesourariaService: TesourariaService, 
+    private tesourariaService: TesourariaService,
+    private ivaService: IvaService, 
     private fb: FormBuilder,
     private cd: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private logService: LogService // 🚀 INJEÇÃO DO LOG SERVICE
   ) {}
 
   ngOnInit() {
@@ -97,7 +99,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
       Toast.fire({ icon: 'info', title: 'A preparar despesa a partir do planeamento.' });
     }
 
-    // 🚀 OUVIR MUDANÇAS NAS LINHAS PARA RECALCULAR O TOTAL GERAL
     this.formCompra.get('linhas')?.valueChanges.subscribe(() => this.calcularTotalGeral());
 
     this.compraService.compras$.subscribe((comprasAtualizadas) => {
@@ -118,26 +119,19 @@ export class ComprasComponent implements OnInit, AfterViewInit {
       dataVencimento: [this.getDataAtual(), [Validators.required]], 
       fornecedorId: [null, [Validators.required]],
       numeroFaturaFornecedor: [''],
-      
-      // 🚀 O NOVO MOTOR: Array de Linhas vazio ao iniciar
       linhas: this.fb.array([])
     });
   }
-
-  // --- MÉTODOS DE EXPANSÃO DA TABELA ---
 
   toggleExpandir(id: number | undefined): void {
     if (!id) return;
     this.faturasExpandidas[id] = !this.faturasExpandidas[id];
   }
 
-  // --- MÉTODOS DO FORMARRAY ---
-
   get linhas(): FormArray {
     return this.formCompra.get('linhas') as FormArray;
   }
 
-  // A "Fábrica" que gera os cartões cinzentos das linhas
   criarLinha(dadosLinha?: LinhaCompra): FormGroup {
     return this.fb.group({
       artigoId: [dadosLinha?.artigoId || null, [Validators.required]],
@@ -162,8 +156,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // --- MATEMÁTICA ---
-
   calcularTotalLinha(index: number): number {
     const linha = this.linhas.at(index);
     const qtd = linha.get('quantidade')?.value || 0;
@@ -186,8 +178,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     this.totalCalculado = total;
   }
 
-  // --- UTILITÁRIOS ---
-
   getDataAtual(): string {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -203,13 +193,10 @@ export class ComprasComponent implements OnInit, AfterViewInit {
 
   get f() { return this.formCompra.controls; }
 
-  // 🛡️ Método auxiliar para validação de erros nas linhas
   campoLinhaInvalido(index: number, campo: string): boolean {
     const control = this.linhas.at(index).get(campo);
     return !!(control && control.invalid && (control.dirty || control.touched));
   }
-
-  // --- CICLO DE VIDA DOS DADOS ---
 
   carregarTudo() {
     this.compraService.carregarComprasDaAPI();
@@ -219,28 +206,27 @@ export class ComprasComponent implements OnInit, AfterViewInit {
       fornecedores: this.fornecedorService.listar(),
       centros: this.analiticaService.listarCentros(),
       seccoes: this.analiticaService.listarSeccoes(),
-      taxas: this.compraService.listarTaxasIva()
+      taxas: this.ivaService.listar() 
     }).subscribe({
       next: (res) => {
-        this.listaArtigos = res.artigos.content || res.artigos;
-        this.listaFornecedores = res.fornecedores;
+        this.listaArtigos = res.artigos.content || [];
+        this.listaFornecedores = res.fornecedores.content || []; 
         this.listaCentros = res.centros;
         this.listaSeccoes = res.seccoes;
         this.listaTaxasIva = res.taxas;
         this.cd.detectChanges();
+        this.logService.debug('Dados auxiliares de Compras carregados com sucesso.'); // 🚀 RASTREABILIDADE
       },
-      error: (err) => console.error('Erro ao carregar dados:', err)
+      error: (err: HttpErrorResponse) => this.logService.error('Erro ao carregar dados auxiliares de Compras', err) // 🚀 ADEUS CONSOLE.ERROR
     });
   }
 
   abrirModalNovo() {
     this.compraEmEdicao = null; 
     
-    // 1. Limpar as linhas antigas e inserir a primeira linha em branco
     this.linhas.clear();
     this.adicionarLinha();
 
-    // 2. Preencher o cabeçalho
     this.formCompra.patchValue({     
         dataCompra: this.getDataAtual(), 
         dataVencimento: this.planoOrigemData ? this.formatarDataParaInput(this.planoOrigemData) : this.getDataAtual(), 
@@ -248,7 +234,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
         numeroFaturaFornecedor: ''
     });
 
-    // Se vier do planeamento, tenta enfiar a descrição na primeira linha
     if (this.planoOrigemDescricao) {
         this.linhas.at(0).patchValue({ designacaoPersonalizada: this.planoOrigemDescricao });
     }
@@ -266,17 +251,15 @@ export class ComprasComponent implements OnInit, AfterViewInit {
 
     this.compraEmEdicao = compra;
 
-    // 1. Limpar e reconstruir o FormArray com as linhas que vieram da BD
     this.linhas.clear();
     if (compra.linhas && compra.linhas.length > 0) {
       compra.linhas.forEach(linhaBD => {
         this.linhas.push(this.criarLinha(linhaBD));
       });
     } else {
-      this.adicionarLinha(); // Proteção contra faturas sem linhas
+      this.adicionarLinha(); 
     }
 
-    // 2. Preencher o Cabeçalho
     this.formCompra.patchValue({
       dataCompra: this.formatarDataParaInput(compra.dataCompra),
       dataVencimento: this.formatarDataParaInput(compra.dataVencimento), 
@@ -309,15 +292,18 @@ export class ComprasComponent implements OnInit, AfterViewInit {
       if (result.isConfirmed) {
         this.compraService.eliminar(compra.id!).subscribe({
           next: () => {
+            this.logService.info(`Fatura de compra ${compra.id} eliminada com sucesso.`); // 🚀 CAIXA NEGRA
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Fatura eliminada e stock reposto!'});
             this.tesourariaService.notificarNovaTransacao(); 
             
-            // 🚀 Atualizar o Stock após anulação
             this.artigoService.listar().subscribe(res => {
-                this.listaArtigos = res.content || res;
+                this.listaArtigos = res.content || [];
             });
           },
-          error: (e) => Swal.fire('Erro Interno', e.error?.message || 'Falha ao anular.', 'error')
+          error: (e: HttpErrorResponse) => {
+            this.logService.error(`Falha ao anular fatura de compra ${compra.id}`, e); // 🚀 CAIXA NEGRA
+            Swal.fire('Erro Interno', e.error?.message || 'Falha ao anular.', 'error'); // 🚀 UX
+          }
         });
       }
     });
@@ -326,7 +312,6 @@ export class ComprasComponent implements OnInit, AfterViewInit {
   guardarCompra() {
     if (this.formCompra.invalid) {
       this.formCompra.markAllAsTouched();
-      // Garante que o Angular marca também os campos dentro do FormArray a vermelho
       this.linhas.controls.forEach(control => control.markAllAsTouched());
       Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'error', title: 'Preenche os campos obrigatórios nas linhas!'});
       return;
@@ -341,22 +326,25 @@ export class ComprasComponent implements OnInit, AfterViewInit {
         ? this.compraService.atualizar(this.compraEmEdicao.id!, payload)
         : this.compraService.registar(payload);
     
-        operacao$.subscribe({
-          next: () => {
-            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: this.compraEmEdicao ? 'Atualizado com sucesso!' : 'Registado com sucesso!' });
-            this.tesourariaService.notificarNovaTransacao();
-            
-            // 🚀 Atualizar o Stock no ecrã
-            this.artigoService.listar().subscribe(res => {
-                this.listaArtigos = res.content || res;
-            });
-    
-            this.planoOrigemId = null;
-            this.planoOrigemDescricao = '';
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalCompra'));
-            modal?.hide();
-          },
-      error: (e: any) => Swal.fire({ icon: 'error', title: 'Falha a gravar', text: e.error?.message, confirmButtonColor: '#0d6efd'})
+    operacao$.subscribe({
+      next: () => {
+        this.logService.debug(this.compraEmEdicao ? `Fatura de compra ${this.compraEmEdicao.id} atualizada.` : 'Nova fatura de compra registada.'); // 🚀 RASTREABILIDADE
+        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: this.compraEmEdicao ? 'Atualizado com sucesso!' : 'Registado com sucesso!' });
+        this.tesourariaService.notificarNovaTransacao();
+        
+        this.artigoService.listar().subscribe(res => {
+            this.listaArtigos = res.content || [];
+        });
+
+        this.planoOrigemId = null;
+        this.planoOrigemDescricao = '';
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCompra'));
+        modal?.hide();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.logService.error('Falha ao guardar fatura de compra', e); // 🚀 CAIXA NEGRA
+        Swal.fire({ icon: 'error', title: 'Falha a gravar', text: e.error?.message, confirmButtonColor: '#0d6efd'}); // 🚀 UX
+      }
     });
   }
 }

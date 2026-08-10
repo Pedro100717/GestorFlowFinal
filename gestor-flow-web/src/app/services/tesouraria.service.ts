@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO
 import { BehaviorSubject, Observable, tap } from 'rxjs';
-import { ContaBancaria, Movimento } from '../core/models/tesouraria.model';
+import { ContaBancaria, Movimento, DocumentoPendente } from '../core/models/tesouraria.model';
 import { environment } from '../../environments/environment';
+import { LogService } from '../core/services/log.service';
 
-// 🚀 CONTRATO DO SIMULADOR (Fonte da Verdade)
+// 🚀 CONTRATO DO SIMULADOR
 export interface PontoSimulacao {
   label: string;
   saldoProjetado: number;
@@ -15,13 +16,38 @@ export interface SimuladorTesourariaDTO {
   pontos: PontoSimulacao[];
 }
 
+// 🚀 A INTERFACE DE PAGINAÇÃO
+export interface PaginaSpring<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+// 🚀 DTOs DE COMANDO (Garantem que o Frontend envia exatamente o que o Java espera)
+export interface TransferenciaDTO {
+  contaOrigemId: number;
+  contaDestinoId: number;
+  valor: number;
+  descricao?: string;
+}
+
+export interface ConfirmacaoPagamentoDTO {
+  documentoId: number;
+  tipoDocumento: string;
+  contaBancariaId: number;
+  dataPagamento: string;
+  valorAPagar: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class TesourariaService {
 
   private readonly API_URL = `${environment.apiUrl}/tesouraria`;
-  private readonly REPORTS_URL = `${environment.apiUrl}/reports`; // 🚀 Rota base para os relatórios
+  private readonly REPORTS_URL = `${environment.apiUrl}/reports`;
 
   // --- OS COFRES PRINCIPAIS ---
   private contasSubject = new BehaviorSubject<ContaBancaria[]>([]);
@@ -30,12 +56,15 @@ export class TesourariaService {
   private movimentosSubject = new BehaviorSubject<Movimento[]>([]);
   public movimentos$ = this.movimentosSubject.asObservable();
 
-  // --- A NOVA SUPER CACHE PARA TIRAR O DELAY DOS EXTRATOS ---
+  // --- A NOVA SUPER CACHE ---
   private extratosCache = new Map<number, Movimento[]>();
   
   private contaAtivaId: number | null = null;
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private logService: LogService
+  ) { }
 
   // =========================================================================
   // --- 🚀 MÁQUINA DO TEMPO (SIMULADOR DE TESOURARIA) ---
@@ -45,9 +74,15 @@ export class TesourariaService {
     return this.http.get<SimuladorTesourariaDTO>(`${this.API_URL}/simulador`);
   }
 
-  // 🚀 NOVO MÉTODO: Extração da Evolução em PDF
-  extrairEvolucaoPdf(queryParams: string): Observable<Blob> {
-    return this.http.get(`${this.REPORTS_URL}/tesouraria/evolucao/pdf${queryParams}`, {
+  // 🚀 CORRIGIDO: O Serviço recebe os dados estruturados e delega no HttpParams a segurança
+  extrairEvolucaoPdf(fluxo: string, natureza: string, periodo: string): Observable<Blob> {
+    const params = new HttpParams()
+      .set('fluxo', fluxo)
+      .set('natureza', natureza)
+      .set('periodo', periodo);
+
+    return this.http.get(`${this.REPORTS_URL}/tesouraria/evolucao/pdf`, {
+      params,
       responseType: 'blob'
     });
   }
@@ -58,12 +93,16 @@ export class TesourariaService {
 
   carregarContasDaAPI(): void {
     this.http.get<ContaBancaria[]>(`${this.API_URL}/contas`).subscribe({
-      next: (dados) => this.contasSubject.next(dados),
-      error: (e) => console.error('Erro ao carregar contas:', e)
+      next: (dados) => {
+        this.contasSubject.next(dados);
+        this.logService.debug('Contas bancárias carregadas com sucesso.', dados.length)
+      },
+      error: (e) => this.logService.error('Erro ao carregar contas:', e)
     });
   }
 
-  obterExtrato(contaId: number): void {
+  // 🚀 CORRIGIDO: Adição de parâmetros de paginação (ex: 500 registos para a vista de extrato)
+  obterExtrato(contaId: number, pagina: number = 0, tamanho: number = 500): void {
     this.contaAtivaId = contaId;
 
     if (this.extratosCache.has(contaId)) {
@@ -73,19 +112,25 @@ export class TesourariaService {
 
     this.movimentosSubject.next([]);
 
-    this.http.get<any>(`${this.API_URL}/contas/${contaId}/extrato`).subscribe({
+    const params = new HttpParams()
+      .set('page', pagina.toString())
+      .set('size', tamanho.toString());
+
+    this.http.get<PaginaSpring<Movimento>>(`${this.API_URL}/contas/${contaId}/extrato`, { params }).subscribe({
       next: (dados) => {
-        const lista = dados.content || dados;
+        const lista = dados.content || [];
         this.extratosCache.set(contaId, lista);
         if (this.contaAtivaId === contaId) {
           this.movimentosSubject.next(lista);
         }
+        this.logService.debug(`Extrato da conta ${contaId} carregado com sucesso.`, lista.length)
       },
-      error: (e) => console.error('Erro ao carregar extrato:', e)
+      error: (e) => this.logService.error('Erro ao carregar extrato:', e)
     });
   }
 
-  criarConta(conta: any): Observable<ContaBancaria> {
+  // 🚀 CORRIGIDO: Partial<ContaBancaria>
+  criarConta(conta: Partial<ContaBancaria>): Observable<ContaBancaria> {
     return this.http.post<ContaBancaria>(`${this.API_URL}/contas`, conta).pipe(
       tap((novaConta) => {
         const lista = this.contasSubject.getValue();
@@ -94,24 +139,25 @@ export class TesourariaService {
     );
   }
 
-  registarMovimento(movimento: any): Observable<Movimento> {
+  // 🚀 CORRIGIDO: Partial<Movimento>
+  registarMovimento(movimento: Partial<Movimento>): Observable<Movimento> {
     return this.http.post<Movimento>(`${this.API_URL}/movimentos`, movimento).pipe(
       tap((novoMovimento) => {
         const contas = this.contasSubject.getValue();
         this.contasSubject.next(contas.map(c => {
           if (c.id === movimento.contaId) {
-            const variacao = movimento.tipo === 'CREDITO' ? movimento.valor : -movimento.valor;
+            const variacao = movimento.tipo === 'CREDITO' ? (movimento.valor || 0) : -(movimento.valor || 0);
             return { ...c, saldo: c.saldo + variacao };
           }
           return c;
         }));
 
-        if (this.extratosCache.has(movimento.contaId)) {
-           const movsAtuais = this.extratosCache.get(movimento.contaId)!;
+        if (novoMovimento.contaId && this.extratosCache.has(novoMovimento.contaId)) {
+           const movsAtuais = this.extratosCache.get(novoMovimento.contaId)!;
            const novaLista = [novoMovimento, ...movsAtuais];
-           this.extratosCache.set(movimento.contaId, novaLista);
+           this.extratosCache.set(novoMovimento.contaId, novaLista);
            
-           if (this.contaAtivaId === movimento.contaId) {
+           if (this.contaAtivaId === novoMovimento.contaId) {
              this.movimentosSubject.next(novaLista);
            }
         }
@@ -119,8 +165,9 @@ export class TesourariaService {
     );
   }
 
-  realizarTransferencia(dados: any): Observable<any> {
-    return this.http.post<any>(`${this.API_URL}/transferencias`, dados).pipe(
+  // 🚀 CORRIGIDO: Uso do DTO tipado
+  realizarTransferencia(dados: TransferenciaDTO): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/transferencias`, dados).pipe(
       tap(() => {
         const contas = this.contasSubject.getValue();
         this.contasSubject.next(contas.map(c => {
@@ -140,26 +187,24 @@ export class TesourariaService {
   }
 
   // =========================================================================
-  // --- COMUNICAÇÃO E SEGREGAÇÃO DE FUNÇÕES (O NOVO FLUXO) ---
+  // --- COMUNICAÇÃO E SEGREGAÇÃO DE FUNÇÕES ---
   // =========================================================================
 
-  listarPendentes(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.API_URL}/pendentes`);
+  // 🚀 CORRIGIDO: Tipagem da lista de Pendentes
+  listarPendentes(): Observable<DocumentoPendente[]> {
+    return this.http.get<DocumentoPendente[]>(`${this.API_URL}/pendentes`);
   }
 
-  confirmarTransacao(dados: any): Observable<any> {
-    return this.http.post<any>(`${this.API_URL}/confirmar-pagamento`, dados).pipe(
-      tap(() => {
-        this.notificarNovaTransacao();
-      })
+  // 🚀 CORRIGIDO: Uso do DTO de confirmação
+  confirmarTransacao(dados: ConfirmacaoPagamentoDTO): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/confirmar-pagamento`, dados).pipe(
+      tap(() => this.notificarNovaTransacao())
     );
   }
 
   anularMovimento(id: number): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/movimentos/${id}`).pipe(
-      tap(() => {
-        this.notificarNovaTransacao();
-      })
+      tap(() => this.notificarNovaTransacao())
     );
   }
 
@@ -172,6 +217,7 @@ export class TesourariaService {
     }
   }
 
+  // 🚀 CORRIGIDO: Payload estruturado na chamada PATCH
   alterarDataPrevista(id: number, tipo: string, novaData: string): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/previsao/${tipo}/${id}`, { novaData });
   }

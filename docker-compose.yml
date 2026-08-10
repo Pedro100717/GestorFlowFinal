@@ -11,6 +11,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    # BLINDAGEM DE LOGS - DB (Leve)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build: ./GestorFlowJava
@@ -24,6 +30,12 @@ services:
     depends_on:
       - db
     restart: unless-stopped
+    # BLINDAGEM DE LOGS - BACKEND (Pesado - 500MB no total)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
 
   frontend:
     build: ./gestor-flow-web
@@ -36,6 +48,12 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    # BLINDAGEM DE LOGS - FRONTEND (Leve)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:

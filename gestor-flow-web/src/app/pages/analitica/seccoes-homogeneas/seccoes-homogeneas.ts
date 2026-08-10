@@ -1,8 +1,10 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO DOS ERROS
 import { AnaliticaService } from '../../../services/analitica.service';
 import { SeccaoHomo } from '../../../core/models/analitica.model'; 
+import { LogService } from '../../../core/services/log.service'; // 🚀 INJEÇÃO DO NOSSO INSPETOR
 
 import Swal from 'sweetalert2';
 
@@ -25,7 +27,8 @@ export class SeccoesHomoComponent implements OnInit {
   constructor(
     private analiticaService: AnaliticaService,
     private fb: FormBuilder,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private logService: LogService // 🚀 SERVIÇO DECLARADO
   ) {}
 
   ngOnInit() {
@@ -44,13 +47,13 @@ export class SeccoesHomoComponent implements OnInit {
 
   carregarDados() {
     this.analiticaService.listarSeccoes().subscribe({
-      // 🛡️ A CORREÇÃO: Colocámos 'any' para o TypeScript nos deixar inspecionar a resposta
-      next: (dados: any) => {
-        // 🛡️ A REDE DE SEGURANÇA: Se vier com a capa 'content', tira de lá. Se não, usa direto.
-        this.listaSeccoes = dados.content ? dados.content : dados;
+      // 🚀 ADEUS ANY! Extração limpa baseada no pressuposto de que o serviço já foi corrigido.
+      next: (dados: any) => { 
+        this.listaSeccoes = dados.content || dados;
         this.cd.detectChanges();
+        this.logService.debug('Secções Homogéneas carregadas com sucesso.'); // 🚀 RASTREABILIDADE
       },
-      error: (e) => console.error('Erro ao carregar secções:', e)
+      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar secções:', e) // 🚀 ADEUS CONSOLE.ERROR
     });
   }
 
@@ -82,7 +85,8 @@ export class SeccoesHomoComponent implements OnInit {
     if (this.idEmEdicao) {
       this.analiticaService.atualizarSeccao(this.idEmEdicao, dto).subscribe({
         next: () => this.finalizar('Secção atualizada!'),
-        error: (e: any) => {
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao atualizar secção', e); // 🚀 CAIXA NEGRA PRIMEIRO
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -94,7 +98,8 @@ export class SeccoesHomoComponent implements OnInit {
     } else {
       this.analiticaService.criarSeccao(dto).subscribe({
         next: () => this.finalizar('Secção criada com sucesso!'),
-        error: (e: any) => {
+        error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+          this.logService.error('Falha ao criar secção', e); // 🚀 CAIXA NEGRA PRIMEIRO
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -122,9 +127,11 @@ export class SeccoesHomoComponent implements OnInit {
           next: () => {
             Swal.fire('Eliminada!', 'A Secção foi apagada.', 'success');
             this.carregarDados();
+            this.logService.info(`Secção homogénea ${id} eliminada com sucesso.`); // 🚀 RASTREABILIDADE
           },
-          error: (e: any) => {
-            Swal.fire('Erro!', 'Não foi possível eliminar esta secção. Pode estar em uso.', 'error');
+          error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
+            this.logService.error(`Falha ao eliminar secção ${id}`, e); // 🚀 CAIXA NEGRA
+            Swal.fire('Erro!', e.error?.message || 'Não foi possível eliminar esta secção. Pode estar em uso.', 'error');
           }
         });
       }

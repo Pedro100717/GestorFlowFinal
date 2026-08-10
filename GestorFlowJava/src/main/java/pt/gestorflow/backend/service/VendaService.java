@@ -3,6 +3,7 @@ package pt.gestorflow.backend.service;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
 public class VendaService {
@@ -44,6 +46,9 @@ public class VendaService {
     @Transactional
     public VendaResponseDTO registarVenda(VendaDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Auditoria Comercial: A iniciar registo de nova venda para o cliente ID: {} (Utilizador: {})", dto.getClienteId(), utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -62,13 +67,11 @@ public class VendaService {
         BigDecimal totalGeralSemIva = BigDecimal.ZERO;
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
-        // 🚀 OTIMIZAÇÃO DE ALTA PERFORMANCE: PRÉ-CARREGAR DEPENDÊNCIAS EM LOTE
         Map<Long, Artigo> mapaArtigos = carregarArtigos(dto.getLinhas(), utilizadorId);
         Map<Long, TxIva> mapaIvas = carregarIvas(dto.getLinhas());
         Map<Long, CentroCusto> mapaCentros = carregarCentrosCusto(dto.getLinhas(), utilizadorId);
         Map<Long, SeccaoHomo> mapaSeccoes = carregarSeccoesHomo(dto.getLinhas(), utilizadorId);
 
-        // PROCESSAMENTO LINHA A LINHA (Agora apenas consulta a RAM)
         for (LinhaVendaDTO linhaDto : dto.getLinhas()) {
             Artigo artigo = mapaArtigos.get(linhaDto.getArtigoId());
             if (artigo == null) throw new EntityNotFoundException("Artigo não encontrado: " + linhaDto.getArtigoId());
@@ -76,7 +79,6 @@ public class VendaService {
             TxIva taxaIva = mapaIvas.get(linhaDto.getTaxaIvaId());
             if (taxaIva == null) throw new EntityNotFoundException("Taxa de IVA não encontrada para a linha.");
 
-            // 1. Desconto de Stock
             if (artigo instanceof Mercadoria mercadoria) {
                 artigoService.removerStock(mercadoria.getId(), linhaDto.getQuantidade());
 
@@ -90,7 +92,6 @@ public class VendaService {
                 movimentoStockRepository.save(mov);
             }
 
-            // 2. Cálculos Financeiros
             BigDecimal totalLinhaSemIva = linhaDto.getPrecoUnitario().multiply(linhaDto.getQuantidade());
             BigDecimal fatorIva = taxaIva.getValor().divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).add(BigDecimal.ONE);
             BigDecimal totalLinhaComIva = totalLinhaSemIva.multiply(fatorIva).setScale(2, RoundingMode.HALF_UP);
@@ -104,7 +105,6 @@ public class VendaService {
             linha.setTotalLinhaComIva(totalLinhaComIva);
             linha.setDesignacaoPersonalizada(linhaDto.getDesignacaoPersonalizada());
 
-            // 3. Analítica na Linha (O(1) Memory Lookup)
             if (linhaDto.getCentroCustoId() != null) {
                 linha.setCentroCusto(mapaCentros.get(linhaDto.getCentroCustoId()));
             }
@@ -123,22 +123,26 @@ public class VendaService {
 
         Venda vendaGuardada = vendaRepository.save(venda);
 
-        // O MOTOR DE ABATE
         if (dto.getPlanoOrigemId() != null) {
             movimentoPlaneadoRepository.findByIdAndUtilizadorId(dto.getPlanoOrigemId(), utilizadorId)
                     .ifPresent(plano -> {
                         LocalDate dataAIgnorar = dto.getDataVenda() != null ? dto.getDataVenda() : LocalDate.now();
                         plano.getDatasIgnoradas().add(dataAIgnorar);
                         movimentoPlaneadoRepository.save(plano);
+                        log.debug("Data {} ignorada no Plano ID: {} (Convertido em Venda)", dataAIgnorar, plano.getId());
                     });
         }
 
+        log.debug("Venda registada com sucesso (ID: {}, Total: {})", vendaGuardada.getId(), vendaGuardada.getTotalComIva());
         return converterParaDTO(vendaGuardada);
     }
 
     @Transactional
     public VendaResponseDTO atualizarVenda(Long id, VendaDTO dto) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("Auditoria Comercial: Pedido de atualização da Venda ID: {} pelo utilizador ID: {}", id, utilizadorId);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -146,7 +150,9 @@ public class VendaService {
                 .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
 
         if (venda.getEstadoPagamento() != EstadoPagamento.PENDENTE) {
-            throw new IllegalStateException("Não podes alterar uma venda que já tenha pagamentos na Tesouraria.");
+            log.warn("Bloqueada tentativa de editar Venda ID: {} que já se encontra na Tesouraria.", id);
+            // 🚀 CORREÇÃO PARA ERRO 400
+            throw new IllegalArgumentException("Não podes alterar uma venda que já tenha pagamentos na Tesouraria.");
         }
 
         Cliente cliente = clienteRepository.findByIdAndUtilizadorId(dto.getClienteId(), utilizadorId)
@@ -155,7 +161,6 @@ public class VendaService {
         venda.setDataVenda(dto.getDataVenda() != null ? dto.getDataVenda() : venda.getDataVenda());
         venda.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : venda.getDataVencimento());
 
-        // 1. Reverter stock das linhas antigas
         for (LinhaVenda linhaAntiga : venda.getLinhas()) {
             if (linhaAntiga.getArtigo() instanceof Mercadoria mercadoria) {
                 artigoService.adicionarStock(mercadoria.getId(), linhaAntiga.getQuantidade());
@@ -176,13 +181,11 @@ public class VendaService {
         BigDecimal totalGeralSemIva = BigDecimal.ZERO;
         BigDecimal totalGeralComIva = BigDecimal.ZERO;
 
-        // 🚀 OTIMIZAÇÃO: Carregar os mapas para a atualização
         Map<Long, Artigo> mapaArtigos = carregarArtigos(dto.getLinhas(), utilizadorId);
         Map<Long, TxIva> mapaIvas = carregarIvas(dto.getLinhas());
         Map<Long, CentroCusto> mapaCentros = carregarCentrosCusto(dto.getLinhas(), utilizadorId);
         Map<Long, SeccaoHomo> mapaSeccoes = carregarSeccoesHomo(dto.getLinhas(), utilizadorId);
 
-        // 3. Aplicar novas linhas a partir da memória
         for (LinhaVendaDTO linhaDto : dto.getLinhas()) {
             Artigo art = mapaArtigos.get(linhaDto.getArtigoId());
             if (art == null) throw new EntityNotFoundException("Artigo não encontrado.");
@@ -232,12 +235,16 @@ public class VendaService {
         venda.setTotalSemIva(totalGeralSemIva);
         venda.setTotalComIva(totalGeralComIva);
 
+        log.debug("Venda ID: {} atualizada com sucesso.", id);
         return converterParaDTO(vendaRepository.save(venda));
     }
 
     @Transactional
     public void anularVenda(Long id) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("ALERTA FISCAL: O utilizador ID: {} pediu a anulação definitiva da Venda ID: {}", utilizadorId, id);
+
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -245,7 +252,9 @@ public class VendaService {
                 .orElseThrow(() -> new EntityNotFoundException("Venda não encontrada ou acesso negado."));
 
         if (venda.getEstadoPagamento() == EstadoPagamento.PAGO || venda.getEstadoPagamento() == EstadoPagamento.PARCIALMENTE_PAGO) {
-            throw new IllegalStateException("Não é possível anular uma venda que já foi recebida na tesouraria (parcial ou totalmente).");
+            log.warn("Bloqueada tentativa de anular Venda ID: {} que já tem pagamentos registados.", id);
+            // 🚀 CORREÇÃO PARA ERRO 400
+            throw new IllegalArgumentException("Não é possível anular uma venda que já foi recebida na tesouraria (parcial ou totalmente).");
         }
 
         for (LinhaVenda linha : venda.getLinhas()) {
@@ -264,6 +273,7 @@ public class VendaService {
         }
 
         vendaRepository.delete(venda);
+        log.info("Venda ID: {} eliminada. Stock reposto.", id);
     }
 
     @Transactional(readOnly = true)
@@ -274,6 +284,8 @@ public class VendaService {
         return converterParaDTO(venda);
     }
 
+    // 🚀 OTIMIZAÇÃO: @Transactional de leitura para evitar dirty checking
+    @Transactional(readOnly = true)
     public List<TxIva> listarTaxasIva() {
         return txIvaRepository.findAll();
     }
@@ -281,6 +293,9 @@ public class VendaService {
     @Transactional(readOnly = true)
     public Page<VendaResponseDTO> listarMinhasVendas(int pagina, int tamanho) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.debug("Listagem paginada de Vendas solicitada pelo utilizador ID: {}", utilizadorId);
+
         Pageable pageable = PageRequest.of(pagina, tamanho,
                 Sort.by("dataVenda").descending().and(Sort.by("id").descending()));
         return vendaRepository.findAllByUtilizadorId(utilizadorId, pageable).map(this::converterParaDTO);
