@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  promtail-local:
+    image: grafana/promtail:2.9.0
+    container_name: gestorflow-promtail-mac
+    volumes:
+      # Lê os logs do teu Docker local
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro 
+      - ./promtail-local.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped

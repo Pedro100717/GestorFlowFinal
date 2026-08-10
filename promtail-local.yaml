@@ -1,0 +1,22 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  # 🚀 Aqui o teu Mac liga-se à Hetzner pela internet!
+  - url: https://gestorflow.178.104.156.13.nip.io/loki/api/v1/push
+    basic_auth:
+      username: pedro_admin
+      password: TuaPasswordForteAqui # A password que colocaste no .htpasswd
+
+scrape_configs:
+  - job_name: mac_docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: dockerlogs_local
+          __path__: /var/lib/docker/containers/*/*log
