@@ -10,9 +10,20 @@ clients:
 
 scrape_configs:
   - job_name: docker
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: dockerlogs
-          __path__: /var/lib/docker/containers/*/*log
+    # 🚀 O Promtail passa a falar com o Docker para descobrir os nomes
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # 1. Extrai o nome do contentor e remove a barra inicial (ex: "/gestorflow-db" passa a "gestorflow-db")
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      
+      # 2. Mantém a distinção entre erros (stderr) e informação (stdout)
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'stream'
+      
+      # 3. Injeta a etiqueta "job" de forma manual para não quebrar os teus filtros atuais
+      - target_label: 'job'
+        replacement: 'dockerlogs'
