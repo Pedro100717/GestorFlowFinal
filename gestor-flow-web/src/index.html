@@ -6,6 +6,16 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <!-- Google Analytics Base (Sem o config) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-H26RJJ3NPC"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    
+    // NOTA: O Angular controlará os page views no app.component.ts
+  </script>
 </head>
 <body>
   <app-root></app-root>

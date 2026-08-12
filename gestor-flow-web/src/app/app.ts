@@ -1,12 +1,31 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, OnInit } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+
+// Declara a função global gtag
+declare let gtag: Function;
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrls: ['./app.scss'] // (Ou .css, dependendo do que usas)
 })
-export class App {
-  protected readonly title = signal('gestor-flow-web');
+export class AppComponent implements OnInit {
+  
+  // O teu ID real
+  private readonly measurementId = 'G-H26RJJ3NPC';
+
+  constructor(private router: Router) {}
+
+  ngOnInit(): void {
+    // Fica à escuta de cada vez que o utilizador muda de página com sucesso
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe((event: any) => {
+      // Avisa o Google Analytics da nova página
+      gtag('config', this.measurementId, {
+        page_path: event.urlAfterRedirects
+      });
+    });
+  }
 }
