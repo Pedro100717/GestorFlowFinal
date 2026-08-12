@@ -25,7 +25,7 @@ services:
     container_name: gestorflow-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=pedro_admin
-      - GF_SECURITY_ADMIN_PASSWORD=$apr1$u0VoVaUz$NzsAPnwy7gjUMUagBtcMi1
+      - GF_SECURITY_ADMIN_PASSWORD=Miglei10072001
       # 🚀 Configurações essenciais para o Grafana funcionar atrás do /grafana/
       - GF_SERVER_DOMAIN=gestorflow.178.104.156.13.nip.io
       - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
