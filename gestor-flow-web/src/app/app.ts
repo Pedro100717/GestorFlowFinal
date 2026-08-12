@@ -1,28 +1,27 @@
 import { Component, OnInit } from '@angular/core';
-import { Router, NavigationEnd } from '@angular/router';
+// O RouterOutlet tem de voltar a ser importado do @angular/router
+import { Router, NavigationEnd, RouterOutlet } from '@angular/router'; 
 import { filter } from 'rxjs/operators';
 
-// Declara a função global gtag
 declare let gtag: Function;
 
 @Component({
   selector: 'app-root',
-  templateUrl: './app.html',
-  styleUrls: ['./app.scss'] // (Ou .css, dependendo do que usas)
+  standalone: true, // Mantém a tua arquitetura standalone
+  imports: [RouterOutlet], // Injeta o RouterOutlet para o app.html o reconhecer
+  templateUrl: './app.html', // Aponta para o teu HTML correto
+  styleUrls: ['./app.scss'] // Assumindo a extensão correta pelos teus logs
 })
-export class AppComponent implements OnInit {
+export class App implements OnInit { // O nome da classe volta a ser "App"
   
-  // O teu ID real
   private readonly measurementId = 'G-H26RJJ3NPC';
 
   constructor(private router: Router) {}
 
   ngOnInit(): void {
-    // Fica à escuta de cada vez que o utilizador muda de página com sucesso
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
-      // Avisa o Google Analytics da nova página
       gtag('config', this.measurementId, {
         page_path: event.urlAfterRedirects
       });
