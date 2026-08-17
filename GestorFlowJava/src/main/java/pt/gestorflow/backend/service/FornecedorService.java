@@ -3,6 +3,8 @@ package pt.gestorflow.backend.service;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.gestorflow.backend.dto.FornecedorDTO;
@@ -78,15 +80,14 @@ public class FornecedorService {
     }
 
     @Transactional(readOnly = true)
-    public List<FornecedorResponseDTO> listar() {
+    public Page<FornecedorResponseDTO> listar(Pageable pageable) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        log.debug("Listagem de fornecedores solicitada pelo utilizador ID: {}", utilizadorId);
+        log.debug("Listagem paginada de fornecedores solicitada pelo utilizador ID: {}", utilizadorId);
 
-        return repository.findAllByUtilizadorId(utilizadorId)
-                .stream()
-                .map(this::converterParaDTO)
-                .toList();
+        // 🚀 O Page do Spring já faz o map diretamente para o teu DTO
+        return repository.findAllByUtilizadorId(utilizadorId, pageable)
+                .map(this::converterParaDTO);
     }
 
     @Transactional

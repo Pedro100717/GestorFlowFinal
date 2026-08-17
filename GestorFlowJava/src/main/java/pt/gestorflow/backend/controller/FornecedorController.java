@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.tags.Tag; // 🚀 Documentação OpenAPI
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,11 +26,11 @@ public class FornecedorController {
     private final FornecedorService service;
 
     // 🛡️ CONTRATO UNIFICADO: Passou a ResponseEntity<List<...>>
-    @Operation(summary = "Listar Fornecedores", description = "Devolve a lista completa de fornecedores associados à conta do utilizador.")
+    @Operation(summary = "Listar Fornecedores", description = "Devolve a lista paginada de fornecedores associados à conta do utilizador.")
     @GetMapping
-    public ResponseEntity<List<FornecedorResponseDTO>> listar() {
-        log.debug("Pedido HTTP GET recebido: /api/fornecedores");
-        return ResponseEntity.ok(service.listar());
+    public ResponseEntity<Page<FornecedorResponseDTO>> listar(Pageable pageable) {
+        log.debug("Pedido HTTP GET recebido: /api/fornecedores (Página: {}, Tamanho: {})", pageable.getPageNumber(), pageable.getPageSize());
+        return ResponseEntity.ok(service.listar(pageable));
     }
 
     // 🛡️ ADICIONADO: O Angular precisa disto para carregar a ficha do Fornecedor na edição
