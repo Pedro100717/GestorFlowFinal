@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { superAdminGuard } from './core/guards/super-admin.guard';
+
 import { LoginComponent } from './pages/login/login';
 import { LayoutComponent } from './components/layout/layout';
 import { DashboardComponent } from './pages/dashboard/dashboard';
@@ -20,9 +22,10 @@ import { TarefasComponent } from './pages/tarefas/tarefas';
 
 import { ContaCorrenteClientesComponent } from './pages/conta-corrente/clientes/conta-corrente-clientes';
 import { ContaCorrenteFornecedoresComponent } from './pages/conta-corrente/fornecedores/conta-corrente-fornecedores';
-
-// 🚀 NOVO IMPORT
 import { DefinicoesComponent } from './pages/definicoes/definicoes';
+
+// 🚀 IMPORT DO NOVO COMPONENTE DO BACKOFFICE (Ajusta o caminho conforme a tua pasta)
+import { AdminSuporteComponent } from './pages/admin/suporte/admin-suporte';
 
 export const routes: Routes = [
   // 1. Rotas de Entrada
@@ -37,6 +40,15 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'dashboard', component: DashboardComponent, title: 'Dashboard' },
+      
+      // 🚀 ROTA DO BACKOFFICE (Duplamente protegida)
+      { 
+        path: 'admin/suporte', 
+        component: AdminSuporteComponent, 
+        canActivate: [superAdminGuard], 
+        title: 'GestorFlow - Backoffice Suporte' 
+      },
+
       { path: 'artigos', component: ArtigosComponent, title: 'Gestão de Artigos' },
       { path: 'clientes', component: ClientesComponent, title: 'Gestão de Clientes' },
       { path: 'fornecedores', component: FornecedoresComponent, title: 'Gestão de Fornecedores' },
@@ -67,7 +79,7 @@ export const routes: Routes = [
         title: 'C.C. Fornecedores' 
       },
 
-      // 🚀 DEFINIÇÕES
+      // --- DEFINIÇÕES ---
       { 
         path: 'definicoes', 
         component: DefinicoesComponent, 

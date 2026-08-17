@@ -1,6 +1,6 @@
 <div id="wrapper">
     
-    <!-- 🚀 A SOMBRA DO TELEMÓVEL: Clicar aqui fora fecha o menu -->
+    <!-- A SOMBRA DO TELEMÓVEL: Clicar aqui fora fecha o menu -->
     <div class="sidebar-backdrop d-md-none" [class.show]="isMobileMenuOpen" (click)="fecharMenuMobile()"></div>
 
     <div id="sidebar" class="text-white border-end" [class.toggled]="isMobileMenuOpen">
@@ -11,13 +11,12 @@
                 <img src="/assets/gestorflow-logo.svg" alt="G" style="height: 38px; width: 38px; min-width: 38px;">
             </div>
 
-            <!-- A classe logo-text vai gerir a animação no CSS -->
             <div class="logo-text d-flex align-items-baseline ms-2">
                 <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 800; font-size: 1.45rem; color: #FFFFFF; letter-spacing: 1px;">ESTOR</span>
                 <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 300; font-size: 1.45rem; color: #94A3B8; letter-spacing: 1px;">FLOW</span>
             </div>
 
-            <!-- 🚀 O BOTÃO 'X': Só aparece no telemóvel -->
+            <!-- O BOTÃO 'X': Só aparece no telemóvel -->
             <button class="btn btn-link text-white ms-auto d-md-none p-0" (click)="fecharMenuMobile()">
                 <i class="bi bi-x-lg fs-4"></i>
             </button>
@@ -26,13 +25,12 @@
 
         <div class="list-group list-group-flush my-3">
             
-            <!-- 🚀 Adiciona (click)="fecharMenuMobile()" nos links de páginas finais -->
             <a routerLink="/app/dashboard" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-speedometer2"></i> 
                 <span class="sidebar-text">Dashboard</span>
             </a>
 
-            <a routerLink="/app/analitica/dashboard" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
+            <a routerLink="/app/analitica/dashboard" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-pie-chart"></i> 
                 <span class="sidebar-text">Análise Analítica</span>
             </a>
@@ -50,24 +48,24 @@
             </a>
 
             <div *ngIf="menuParamAberto" [@animarSubmenu] class="list-group-submenu" id="menuAnalitica">
-                <a routerLink="/app/analitica/centros-custo" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
+                <a routerLink="/app/analitica/centros-custo" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-building"></i> <span class="sidebar-text">Centros Custo</span>
                 </a>
-                <a routerLink="/app/analitica/seccoes-homogeneas" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
+                <a routerLink="/app/analitica/seccoes-homogeneas" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-layers"></i> <span class="sidebar-text">Secções Homo.</span>
                 </a>
-                <a routerLink="/app/artigos" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
+                <a routerLink="/app/artigos" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-box-seam"></i> <span class="sidebar-text">Artigos</span>
                 </a>
-                <a routerLink="/app/clientes" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
+                <a routerLink="/app/clientes" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-people"></i> <span class="sidebar-text">Clientes</span>
                 </a>
-                <a routerLink="/app/fornecedores" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
+                <a routerLink="/app/fornecedores" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-truck"></i> <span class="sidebar-text">Fornecedores</span>
                 </a>
             </div>
 
-            <a routerLink="/app/tesouraria" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold mt-2 px-4">
+            <a routerLink="/app/tesouraria" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold mt-2 px-4">
                 <i class="bi bi-bank"></i> <span class="sidebar-text">Tesouraria</span>
             </a>
 
@@ -84,34 +82,39 @@
             </a>
 
             <div *ngIf="menuContasAberto" [@animarSubmenu] class="list-group-submenu" id="menuContasCorrentes">
-                <a routerLink="/app/contas-correntes/clientes" routerLinkActive="active-link" 
+                <a routerLink="/app/contas-correntes/clientes" routerLinkActive="active-link" (click)="fecharMenuMobile()"
                    class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-arrow-down-left-circle text-success me-1"></i> <span class="sidebar-text">Clientes (Receber)</span>
                 </a>
-                <a routerLink="/app/contas-correntes/fornecedores" routerLinkActive="active-link" 
+                <a routerLink="/app/contas-correntes/fornecedores" routerLinkActive="active-link" (click)="fecharMenuMobile()"
                    class="list-group-item list-group-item-action bg-transparent text-white-50 fw-normal py-2 small px-4 submenu-link">
                     <i class="bi bi-arrow-up-right-circle text-danger me-1"></i> <span class="sidebar-text">Fornecedores (Pagar)</span>
                 </a>
             </div>
 
-            <a routerLink="/app/compras" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
+            <a routerLink="/app/compras" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-cart"></i> <span class="sidebar-text">Compras</span>
             </a>
-            <a routerLink="/app/vendas" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
+            <a routerLink="/app/vendas" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-receipt"></i> <span class="sidebar-text">Vendas</span>
             </a>
 
-            <a routerLink="/app/patrimonio" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
+            <a routerLink="/app/patrimonio" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-buildings"></i> <span class="sidebar-text">Património</span>
             </a>
-            <a routerLink="/app/stock/acertos" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
+            <a routerLink="/app/stock/acertos" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-boxes"></i> <span class="sidebar-text">Stock</span>
             </a>
-            <a routerLink="/app/orcamentos" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
+            <a routerLink="/app/orcamentos" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-calculator"></i> <span class="sidebar-text">Orçamentos</span>
             </a>
-            <a routerLink="/app/tarefas" routerLinkActive="active-link" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
+            <a routerLink="/app/tarefas" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-white second-text fw-bold px-4">
                 <i class="bi bi-view-list"></i> <span class="sidebar-text">Tarefas</span>
+            </a>
+
+            <!-- 🚀 MENU EXCLUSIVO SUPER ADMIN (Só tu vais ver isto) -->
+            <a *ngIf="isSuperAdmin" routerLink="/app/admin/suporte" routerLinkActive="active-link" (click)="fecharMenuMobile()" class="list-group-item list-group-item-action bg-transparent text-warning second-text fw-bold mt-4 px-4 border-top border-warning pt-3">
+                <i class="bi bi-shield-lock-fill me-1"></i> <span class="sidebar-text">Backoffice Suporte</span>
             </a>
 
             <a (click)="logout()" style="cursor: pointer;" class="list-group-item list-group-item-action bg-transparent text-danger fw-bold mt-5 px-4">
@@ -125,7 +128,6 @@
         <!-- NAVBAR ATUALIZADA (Sempre visível no mobile) -->
         <nav class="navbar navbar-expand-lg navbar-light bg-white py-3 px-4 shadow-sm">
             
-            <!-- Lado Esquerdo: Hambúrguer (Mobile) e Título (PC) -->
             <div class="d-flex align-items-center">
                 <button class="btn btn-outline-secondary me-3 d-md-none" (click)="toggleMenu()">
                     <i class="bi bi-list fs-4"></i>
@@ -133,11 +135,15 @@
                 <h2 class="fs-4 m-0 text-secondary d-none d-sm-block">GestorFlow</h2>
             </div>
             
-            <!-- Lado Direito: Perfil (SEMPRE VISÍVEL) -->
             <div class="ms-auto d-flex align-items-center">
+                
+                <!-- BOTAO DE SUPORTE -->
+                <button class="btn btn-outline-danger me-3 fw-bold d-flex align-items-center" (click)="abrirModalSuporte()">
+                    <i class="bi bi-bug-fill me-0 me-md-1"></i> <span class="d-none d-md-inline">Suporte</span>
+                </button>
+
                 <div class="dropdown position-relative">
                     
-                    <!-- Ícone + Nome (O nome desaparece no mobile para poupar espaço) -->
                     <a class="nav-link dropdown-toggle second-text fw-bold d-flex align-items-center" 
                        (click)="menuPerfilAberto = !menuPerfilAberto" 
                        style="cursor: pointer;">
@@ -145,7 +151,6 @@
                         <span class="d-none d-md-inline">{{ nomeUtilizador }}</span>
                     </a>
                     
-                    <!-- Menu Dropdown -->
                     <ul class="dropdown-menu shadow border-0 mt-2 position-absolute" 
                         [class.show]="menuPerfilAberto"
                         style="right: 0; left: auto; top: 100%; min-width: 200px;">
@@ -170,6 +175,57 @@
 
         <div class="container-fluid px-4 pt-4">
             <router-outlet></router-outlet>
+        </div>
+    </div>
+    
+    <!-- 🚀 MODAL DE SUPORTE FLUTUANTE (Fecho ao clicar fora incluído) -->
+    <div class="modal fade" 
+         [class.show]="modalSuporteAberto" 
+         [style.display]="modalSuporteAberto ? 'block' : 'none'" 
+         tabindex="-1" 
+         style="background: rgba(0,0,0,0.5); z-index: 1055;"
+         (click)="fecharModalSuporte()">
+         
+        <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white border-0">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-life-preserver me-2"></i>GestorFlow Suporte</h5>
+                    <button type="button" class="btn-close btn-close-white" (click)="fecharModalSuporte()"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small">TIPO DE PEDIDO</label>
+                        <select class="form-select" [(ngModel)]="ticket.tipo">
+                            <option value="BUG">Reportar um Erro (Bug)</option>
+                            <option value="MELHORIA">Sugerir uma Melhoria</option>
+                            <option value="DUVIDA">Dúvida de Utilização</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 🚀 MÓDULO AFETADO: Dropdown inteligente -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small">MÓDULO AFETADO</label>
+                        <select class="form-select" [(ngModel)]="ticket.paginaOrigem">
+                            <option *ngFor="let mod of modulosGestorFlow" [value]="mod">{{ mod }}</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small">DESCRIÇÃO</label>
+                        <textarea class="form-control" rows="4" [(ngModel)]="ticket.descricao" placeholder="Descreve o que aconteceu com o máximo de detalhe possível..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-light border" (click)="fecharModalSuporte()">Cancelar</button>
+                    <button type="button" class="btn btn-danger px-4 fw-bold" (click)="enviarTicket()" [disabled]="aEnviar">
+                        <span *ngIf="!aEnviar">Enviar Mensagem</span>
+                        <span *ngIf="aEnviar">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            A enviar...
+                        </span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>

@@ -2,10 +2,10 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router'; 
-import { HttpErrorResponse } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO
+import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
-import { LogService } from '../../core/services/log.service'; // 🚀 O NOSSO INSPETOR
-import Swal from 'sweetalert2'; // 🚀 O FIM DOS ALERTS NATIVOS
+import { LogService } from '../../core/services/log.service';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-register',
@@ -20,29 +20,28 @@ export class RegisterComponent {
   email = '';
   senha = '';
 
-  // 🚀 TIPAGEM ESTRITA EM VEZ DE ANY
   erros: Record<string, string> = {}; 
   erroGeral: string = '';
 
   constructor(
     private authService: AuthService, 
     private router: Router,
-    private logService: LogService // 🚀 SERVIÇO DECLARADO
+    private logService: LogService
   ) {}
 
   fazerRegisto() {
     this.erros = {};
     this.erroGeral = '';
 
+    // 🚀 CORREÇÃO: Enviamos 'nomeUtilizador' para coincidir com o DTO do backend
     const novoUtilizador = {
-      nome: this.nome,
+      nomeUtilizador: this.nome,
       email: this.email,
       senha: this.senha
     };
 
     this.authService.registar(novoUtilizador).subscribe({
         next: () => {
-          // 🚀 AUDITORIA: Registar a criação de novas contas
           this.logService.info(`Nova conta registada com sucesso: ${this.email}`); 
           
           Swal.fire({ 
@@ -55,17 +54,13 @@ export class RegisterComponent {
           });
           this.router.navigate(['/login']);
         },
-        error: (erroHttp: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
-          // 🚀 AUDITORIA: Registar falhas de registo (possível spam/bots)
+        error: (erroHttp: HttpErrorResponse) => {
           this.logService.warn(`Falha na tentativa de registo para o email: ${this.email}`, erroHttp);
           
           if (erroHttp.status === 400) {
-            
-            // Se o erro for o DTO com as várias mensagens de validação
             if (typeof erroHttp.error === 'object' && erroHttp.error !== null) {
               this.erros = erroHttp.error;
               
-              // 🚀 SWEETALERT COM LISTA HTML (UX Elegante)
               let msgAlerta = '<ul style="text-align: left; margin-bottom: 0;">';
               for (const campo in erroHttp.error) {
                 msgAlerta += `<li><b>${campo}:</b> ${erroHttp.error[campo]}</li>`;
@@ -75,12 +70,10 @@ export class RegisterComponent {
               Swal.fire({
                 icon: 'warning',
                 title: 'Verifique os dados',
-                html: msgAlerta, // Passamos HTML em vez de texto simples para formatar a lista
+                html: msgAlerta,
                 confirmButtonColor: '#0d6efd'
               });
-            } 
-            // Se for um erro geral (ex: "Email já existe")
-            else if (typeof erroHttp.error === 'string') {
+            } else if (typeof erroHttp.error === 'string') {
               this.erroGeral = erroHttp.error;
               Swal.fire({
                 icon: 'warning',
