@@ -30,11 +30,21 @@ public class TokenService {
 
         return Jwts.builder()
                 .setSubject(utilizador.getId().toString()) // Quem é o dono da pulseira (ID)
-                .claim("email", utilizador.getEmail())     // Informação extra
+                .claim("email", utilizador.getEmail())  // Informação extra
+                .claim("role", utilizador.getRole().name())
                 .setIssuedAt(agora)                        // Quando foi emitida
                 .setExpiration(dataExpiracao)              // Quando caduca
                 .signWith(key, SignatureAlgorithm.HS256)   // Assinatura digital
                 .compact();
+    }
+    // 🚀 NOVO MÉTODO: Extrair a role gravada na pulseira
+    public String extrairRole(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("role", String.class);
     }
 
     // Validar se o token é fidedigno

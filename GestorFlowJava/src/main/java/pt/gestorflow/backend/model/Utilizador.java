@@ -27,6 +27,10 @@ public class Utilizador extends Auditable {
 
     private String codigoVerificacao;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TipoRole role = TipoRole.USER;
+
     // ==========================================
     // 🛡️ O VERDADEIRO EQUALS & HASHCODE PARA JPA
     // ==========================================

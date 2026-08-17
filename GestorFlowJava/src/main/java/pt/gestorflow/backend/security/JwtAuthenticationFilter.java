@@ -6,22 +6,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import pt.gestorflow.backend.model.Utilizador;
-import pt.gestorflow.backend.repository.UtilizadorRepository;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Optional;
+import java.util.Collections;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    // Podes até remover o UtilizadorRepository daqui, já não é preciso para nada!
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -33,18 +30,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(7);
 
             try {
-                // Extrai o ID que vem cravado no Token
+                // Extrai o ID e a Role do Token
                 String userId = tokenService.validarToken(token);
+                String role = tokenService.extrairRole(token);
 
                 if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                    // 🚀 A FORMA CORRETA: O Principal é apenas o ID primitivo!
                     Long idDoUtilizador = Long.parseLong(userId);
 
+                    // 🚀 A CORREÇÃO: Transformamos o texto "SUPER_ADMIN" numa Authority "ROLE_SUPER_ADMIN"
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
+
+                    // 🚀 Agora passamos a Authority em vez de uma lista vazia!
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            idDoUtilizador, // <-- O ID passa a ser o dono do bilhete
+                            idDoUtilizador,
                             null,
-                            new ArrayList<>()
+                            Collections.singletonList(authority)
                     );
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
