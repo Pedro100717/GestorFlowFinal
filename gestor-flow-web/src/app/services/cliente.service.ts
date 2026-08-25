@@ -84,4 +84,13 @@ export class ClienteService {
       })
     );
   }
+
+  importarEmLote(clientes: Partial<Cliente>[]): Observable<Cliente[]> {
+    return this.http.post<Cliente[]>(`${this.API_URL}/importar`, clientes).pipe(
+      tap((novosClientes) => {
+        const lista = this.clientesSubject.getValue();
+        this.clientesSubject.next([...novosClientes, ...lista]); // Adiciona ao topo da lista
+      })
+    );
+  }
 }

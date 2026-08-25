@@ -62,4 +62,11 @@ public class CentroCustoController {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "Importar Centros de Custo em Lote", description = "Recebe uma lista de centros de custo e guarda-os na base de dados, garantindo que não há códigos duplicados.")
+    @PostMapping("/importar")
+    public ResponseEntity<List<CentroCustoResponseDTO>> importarEmLote(@RequestBody List<CentroCustoDTO> dtos) {
+        log.debug("Pedido HTTP POST recebido: /api/centros-custo/importar ({} registos)", dtos.size());
+        return ResponseEntity.ok(service.importarEmLote(dtos));
+    }
 }

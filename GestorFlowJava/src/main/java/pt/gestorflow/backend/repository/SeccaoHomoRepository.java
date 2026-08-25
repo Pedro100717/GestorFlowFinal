@@ -15,4 +15,5 @@ public interface SeccaoHomoRepository extends JpaRepository<SeccaoHomo, Long> {
     // 🚀 OTIMIZAÇÃO: Busca em Lote (Bulk Fetching) para evitar N+1 Queries
     List<SeccaoHomo> findAllByIdInAndUtilizadorId(List<Long> ids, Long utilizadorId);
 
+    boolean existsByCodigoAndUtilizadorId(String codigo, Long utilizadorId);
 }

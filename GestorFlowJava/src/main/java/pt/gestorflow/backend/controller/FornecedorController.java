@@ -64,4 +64,11 @@ public class FornecedorController {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "Importar Fornecedores em Lote", description = "Recebe uma lista de fornecedores e guarda-os na base de dados, garantindo que não há NIFs duplicados.")
+    @PostMapping("/importar")
+    public ResponseEntity<List<FornecedorResponseDTO>> importarEmLote(@RequestBody List<FornecedorDTO> dtos) {
+        log.debug("Pedido HTTP POST recebido: /api/fornecedores/importar ({} registos)", dtos.size());
+        return ResponseEntity.ok(service.importarEmLote(dtos));
+    }
 }

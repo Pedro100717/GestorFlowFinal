@@ -16,6 +16,11 @@ import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.ClienteRepository;
 import pt.gestorflow.backend.repository.UtilizadorRepository;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 @Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
 @RequiredArgsConstructor
@@ -120,6 +125,62 @@ public class ClienteService {
                 .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado ou acesso negado."));
 
         return converterParaDTO(cliente);
+    }
+
+    @Transactional
+    public List<ClienteResponseDTO> importarEmLote(List<ClienteDTO> dtos) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("A iniciar importacao em lote {} clientes para o utilizador ID: {}", dtos.size(), utilizadorId);
+
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador nao encontrado."));
+
+        List<Cliente> clientesParaGuardar = new ArrayList<>();
+        Set<String> nifsNoLote = new HashSet<>();
+
+        for (int i = 0; i < dtos.size(); i++) {
+            ClienteDTO dto = dtos.get(i);
+            int linhaReal = i + 1;
+
+            //Nome obrigatorio
+            if (dto.getNome() == null || dto.getNome().trim().isEmpty()) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O Nome do cliente é obrigatório.");
+            }
+
+            // 🛡️ Validação 2: NIF é obrigatório
+            if (dto.getNif() == null || dto.getNif().trim().isEmpty()) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O NIF é obrigatório.");
+            }
+
+            String nifLimpo = dto.getNif().trim();
+
+            // 🛡️ Validação 3: NIF duplicado dentro do próprio Excel
+            if (!nifsNoLote.add(nifLimpo)) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O NIF " + nifLimpo + " está repetido no ficheiro.");
+            }
+
+            // 🛡️ Validação 4: NIF já existe na Base de Dados?
+            if (repository.existsByNifAndUtilizadorId(nifLimpo, utilizadorId)) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": Já existe um cliente com o NIF " + nifLimpo + " na sua conta.");
+            }
+
+            Cliente cliente = new Cliente();
+            cliente.setNome(dto.getNome().trim());
+            cliente.setNif(nifLimpo);
+            cliente.setEmail(dto.getEmail() != null ? dto.getEmail().trim() : null);
+            cliente.setTelefone(dto.getTelefone() != null ? dto.getTelefone().trim() : null);
+            cliente.setMorada(dto.getMorada() != null ? dto.getMorada().trim() : null);
+            cliente.setAnotacoes(dto.getAnotacoes() != null ? dto.getAnotacoes().trim() : null);
+            cliente.setUtilizador(user);
+
+            clientesParaGuardar.add(cliente);
+        }
+
+        List<Cliente> guardados = repository.saveAll(clientesParaGuardar);
+        log.debug("Importacao concluida. {} clientes guardados na Base de Dados.", guardados.size());
+
+        return guardados.stream().map(this::converterParaDTO).toList();
     }
 
     private ClienteResponseDTO converterParaDTO(Cliente c) {

@@ -58,4 +58,11 @@ public class SeccaoHomoController {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "Importar Secções em Lote", description = "Recebe uma lista de secções e guarda-as na base de dados, garantindo que não há códigos duplicados.")
+    @PostMapping("/importar")
+    public ResponseEntity<List<SeccaoHomoResponseDTO>> importarEmLote(@RequestBody List<SeccaoHomoDTO> dtos) {
+        log.debug("Pedido HTTP POST recebido: /api/seccoes-homogeneas/importar ({} registos)", dtos.size());
+        return ResponseEntity.ok(service.importarEmLote(dtos));
+    }
 }

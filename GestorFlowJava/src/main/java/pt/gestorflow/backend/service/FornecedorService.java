@@ -14,7 +14,10 @@ import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.FornecedorRepository;
 import pt.gestorflow.backend.repository.UtilizadorRepository;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j // 🚀 Anotação Mágica do Lombok
 @Service
@@ -111,6 +114,63 @@ public class FornecedorService {
                 .orElseThrow(() -> new EntityNotFoundException("Fornecedor não encontrado ou acesso negado."));
 
         return converterParaDTO(fornecedor);
+    }
+
+    @Transactional
+    public List<FornecedorResponseDTO> importarEmLote(List<FornecedorDTO> dtos) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("A iniciar importação em lote de {} fornecedores para o utilizador ID: {}", dtos.size(), utilizadorId);
+
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        List<Fornecedor> fornecedoresParaGuardar = new ArrayList<>();
+        Set<String> nifsNoLote = new HashSet<>();
+
+        for (int i = 0; i < dtos.size(); i++) {
+            FornecedorDTO dto = dtos.get(i);
+            int linhaReal = i + 1; // Para darmos um erro humano (Linha 1, Linha 2...)
+
+            // 🛡️ Validação 1: Nome é estritamente obrigatório
+            if (dto.getNome() == null || dto.getNome().trim().isEmpty()) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O Nome do fornecedor é obrigatório.");
+            }
+
+            // 🛡️ Validação 2: NIF é obrigatório
+            if (dto.getNif() == null || dto.getNif().trim().isEmpty()) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O NIF é obrigatório.");
+            }
+
+            String nifLimpo = dto.getNif().trim();
+
+            // 🛡️ Validação 3: NIF duplicado dentro do próprio Excel
+            if (!nifsNoLote.add(nifLimpo)) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O NIF " + nifLimpo + " está repetido no ficheiro.");
+            }
+
+            // 🛡️ Validação 4: NIF já existe na Base de Dados?
+            if (repository.existsByNifAndUtilizadorId(nifLimpo, utilizadorId)) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": Já existe um fornecedor com o NIF " + nifLimpo + " na sua conta.");
+            }
+
+            // Mapeamento (Os campos opcionais podem ir a null sem problema)
+            Fornecedor fornecedor = new Fornecedor();
+            fornecedor.setNome(dto.getNome().trim());
+            fornecedor.setNif(nifLimpo);
+            fornecedor.setEmail(dto.getEmail() != null ? dto.getEmail().trim() : null);
+            fornecedor.setTelefone(dto.getTelefone() != null ? dto.getTelefone().trim() : null);
+            fornecedor.setMorada(dto.getMorada() != null ? dto.getMorada().trim() : null);
+            fornecedor.setWebsite(dto.getWebsite() != null ? dto.getWebsite().trim() : null); // O campo específico do fornecedor
+            fornecedor.setUtilizador(user);
+
+            fornecedoresParaGuardar.add(fornecedor);
+        }
+
+        List<Fornecedor> guardados = repository.saveAll(fornecedoresParaGuardar);
+        log.debug("Importação concluída. {} fornecedores guardados na Base de Dados.", guardados.size());
+
+        return guardados.stream().map(this::converterParaDTO).toList();
     }
 
     private FornecedorResponseDTO converterParaDTO(Fornecedor f) {

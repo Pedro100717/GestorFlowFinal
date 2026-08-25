@@ -10,7 +10,6 @@ public class SeccaoHomoDTO {
     @NotBlank(message = "O nome é obrigatório")
     private String nome;
 
-    @NotBlank(message = "O código é obrigatório")
     private String codigo;
 
     // Opcional: Para leitura (enviar o nome do centro para o frontend)

@@ -85,4 +85,14 @@ export class FornecedorService {
       })
     );
   }
+
+  // 6. Importar em Lote (Staging)
+  importarEmLote(fornecedores: Partial<Fornecedor>[]): Observable<Fornecedor[]> {
+    return this.http.post<Fornecedor[]>(`${this.API_URL}/importar`, fornecedores).pipe(
+      tap((novosFornecedores) => {
+        const listaAtual = this.fornecedoresSubject.getValue();
+        this.fornecedoresSubject.next([...novosFornecedores, ...listaAtual]);
+      })
+    );
+  }
 }

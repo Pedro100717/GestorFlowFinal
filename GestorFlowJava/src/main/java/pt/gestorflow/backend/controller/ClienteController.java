@@ -13,6 +13,8 @@ import pt.gestorflow.backend.dto.ClienteDTO;
 import pt.gestorflow.backend.dto.ClienteResponseDTO;
 import pt.gestorflow.backend.service.ClienteService;
 
+import java.util.List;
+
 @Slf4j // 🚀 Telemetria de entrada
 @RestController
 @RequestMapping("/api/clientes")
@@ -62,5 +64,12 @@ public class ClienteController {
         log.debug("Pedido HTTP DELETE recebido: /api/clientes/{}", id);
         service.eliminarCliente(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Importar clientes em lote", description = "Recebe uma lista de clientes validados e grava-os de forma transacional (Tudo ou Nada).")
+    @PostMapping("/importar")
+    public ResponseEntity<List<ClienteResponseDTO>> importarEmLote(@Valid @RequestBody List<ClienteDTO> dtos) {
+        log.debug("Pedido HTTP POST recebido: /api/clientes/importar ({} registos)", dtos.size());
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.importarEmLote(dtos));
     }
 }

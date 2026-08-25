@@ -54,6 +54,13 @@ export class AnaliticaService {
     );
   }
 
+  // 6. Importar em Lote (Centros de Custo)
+  importarCentrosEmLote(centros: Partial<CentroCusto>[]): Observable<CentroCusto[]> {
+    return this.http.post<CentroCusto[]>(`${this.API_CC}/importar`, centros).pipe(
+      tap(() => this.cacheCentros$ = null) // 🚀 Limpa a cache para forçar a UI a recarregar a tabela
+    );
+  }
+
   // ==========================================
   // SECÇÕES HOMOGÉNEAS
   // ==========================================
@@ -86,6 +93,12 @@ export class AnaliticaService {
   eliminarSeccao(id: number): Observable<void> {
     return this.http.delete<void>(`${this.API_SH}/${id}`).pipe(
       tap(() => this.cacheSeccoes$ = null)
+    );
+  }
+
+  importarSeccoesEmLote(seccoes: Partial<SeccaoHomo>[]): Observable<SeccaoHomo[]> {
+    return this.http.post<SeccaoHomo[]>(`${this.API_SH}/importar`, seccoes).pipe(
+      tap(() => this.cacheSeccoes$ = null) // 🚀 Limpa a cache para forçar a UI a recarregar
     );
   }
 

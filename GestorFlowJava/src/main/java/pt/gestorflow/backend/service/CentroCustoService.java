@@ -12,7 +12,10 @@ import pt.gestorflow.backend.model.Utilizador;
 import pt.gestorflow.backend.repository.CentroCustoRepository;
 import pt.gestorflow.backend.repository.UtilizadorRepository;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j // 🚀 Lombok toma conta do recado
 @Service
@@ -95,6 +98,89 @@ public class CentroCustoService {
 
         repository.delete(cc);
         log.debug("Centro de Custo ID: {} eliminado com sucesso", id);
+    }
+
+    @Transactional
+    public List<CentroCustoResponseDTO> importarEmLote(List<CentroCustoDTO> dtos) {
+        Long utilizadorId = authService.getUtilizadorAutenticadoId();
+
+        log.info("A iniciar importação em lote de {} centros de custo para o utilizador ID: {}", dtos.size(), utilizadorId);
+
+        Utilizador user = utilizadorRepository.findById(utilizadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
+
+        List<CentroCusto> centrosParaGuardar = new ArrayList<>();
+        Set<String> codigosNoLote = new HashSet<>();
+
+        for (int i = 0; i < dtos.size(); i++) {
+            CentroCustoDTO dto = dtos.get(i);
+            int linhaReal = i + 1;
+
+            // 🛡️ Validação 1: Nome é estritamente obrigatório
+            if (dto.getNome() == null || dto.getNome().trim().isEmpty()) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O Nome do Centro de Custo é obrigatório.");
+            }
+
+            String nomeLimpo = dto.getNome().trim();
+            String codigoLimpo;
+
+            // 🛡️ SMART FALLBACK: Se o código vier vazio, geramos a partir do nome
+            if (dto.getCodigo() == null || dto.getCodigo().trim().isEmpty()) {
+                // Remove acentos, substitui espaços e carateres especiais por _, e converte para maiúsculas
+                String baseCodigo = nomeLimpo.toUpperCase()
+                        .replaceAll("[ÁÀÂÃ]", "A")
+                        .replaceAll("[ÉÊ]", "E")
+                        .replaceAll("[Í]", "I")
+                        .replaceAll("[ÓÔÕ]", "O")
+                        .replaceAll("[Ú]", "U")
+                        .replaceAll("[Ç]", "C")
+                        .replaceAll("[^A-Z0-9]", "_")
+                        .replaceAll("_+", "_");
+
+                if (baseCodigo.length() > 15) {
+                    baseCodigo = baseCodigo.substring(0, 15);
+                }
+                if (baseCodigo.endsWith("_")) {
+                    baseCodigo = baseCodigo.substring(0, baseCodigo.length() - 1);
+                }
+
+                codigoLimpo = baseCodigo;
+                int contador = 1;
+
+                // Evita colisões tanto no próprio ficheiro Excel como na Base de Dados
+                while (codigosNoLote.contains(codigoLimpo) || repository.existsByCodigoAndUtilizadorId(codigoLimpo, utilizadorId)) {
+                    contador++;
+                    String sufixo = "_" + contador;
+                    int maxBaseLen = 15 - sufixo.length();
+                    codigoLimpo = (baseCodigo.length() > maxBaseLen ? baseCodigo.substring(0, maxBaseLen) : baseCodigo) + sufixo;
+                }
+
+            } else {
+                codigoLimpo = dto.getCodigo().trim();
+            }
+
+            // 🛡️ Validação 2: Código duplicado no próprio ficheiro Excel
+            if (!codigosNoLote.add(codigoLimpo)) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": O Código '" + codigoLimpo + "' está repetido no ficheiro.");
+            }
+
+            // 🛡️ Validação 3: Código já existe na Base de Dados?
+            if (repository.existsByCodigoAndUtilizadorId(codigoLimpo, utilizadorId)) {
+                throw new IllegalArgumentException("Erro na linha " + linhaReal + ": Já existe um Centro de Custo com o Código '" + codigoLimpo + "' na sua conta.");
+            }
+
+            CentroCusto cc = new CentroCusto();
+            cc.setNome(nomeLimpo);
+            cc.setCodigo(codigoLimpo);
+            cc.setUtilizador(user);
+
+            centrosParaGuardar.add(cc);
+        }
+
+        List<CentroCusto> guardados = repository.saveAll(centrosParaGuardar);
+        log.debug("Importação concluída. {} centros de custo guardados.", guardados.size());
+
+        return guardados.stream().map(this::converterParaDTO).toList();
     }
 
     private CentroCustoResponseDTO converterParaDTO(CentroCusto cc) {
