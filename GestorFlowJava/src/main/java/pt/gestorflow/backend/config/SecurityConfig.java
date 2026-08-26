@@ -41,7 +41,9 @@ public class SecurityConfig {
                             "https://*.ngrok-free.app",
                             "https://*.ngrok.app",
                             "https://gestorflow.178.104.156.13.nip.io", // <-- ADICIONA ISTO
-                            "http://gestorflow.178.104.156.13.nip.io"
+                            "http://gestorflow.178.104.156.13.nip.io",
+                            "https://treasuryfollow.com",
+                            "https://www.treasuryfollow.com"
                     ));
 
                     corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
