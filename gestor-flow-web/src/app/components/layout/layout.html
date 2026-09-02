@@ -8,12 +8,12 @@
         <div class="sidebar-heading py-4 border-bottom border-secondary d-flex align-items-center px-4" style="height: 80px;">
             
             <div style="z-index: 10; background-color: #212529; display: flex; align-items: center;">
-                <img src="/assets/gestorflow-logo.svg" alt="G" style="height: 38px; width: 38px; min-width: 38px;">
+                <img src="/assets/treasuryfollow-logo.svg" alt="T" style="height: 38px; width: 38px; min-width: 38px;">
             </div>
 
             <div class="logo-text d-flex align-items-baseline ms-2">
-                <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 800; font-size: 1.45rem; color: #FFFFFF; letter-spacing: 1px;">ESTOR</span>
-                <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 300; font-size: 1.45rem; color: #94A3B8; letter-spacing: 1px;">FLOW</span>
+                <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 800; font-size: 1.45rem; color: #FFFFFF; letter-spacing: 1px;">REASURY</span>
+                <span style="font-family: system-ui, -apple-system, sans-serif; font-weight: 300; font-size: 1.45rem; color: #94A3B8; letter-spacing: 1px;">FOLLOW</span>
             </div>
 
             <!-- O BOTÃO 'X': Só aparece no telemóvel -->
@@ -132,7 +132,7 @@
                 <button class="btn btn-outline-secondary me-3 d-md-none" (click)="toggleMenu()">
                     <i class="bi bi-list fs-4"></i>
                 </button>
-                <h2 class="fs-4 m-0 text-secondary d-none d-sm-block">GestorFlow</h2>
+                <h2 class="fs-4 m-0 text-secondary d-none d-sm-block">TreasuryFollow</h2>
             </div>
             
             <div class="ms-auto d-flex align-items-center">
@@ -189,7 +189,7 @@
         <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-danger text-white border-0">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-life-preserver me-2"></i>GestorFlow Suporte</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-life-preserver me-2"></i>TreasuryFollow Suporte</h5>
                     <button type="button" class="btn-close btn-close-white" (click)="fecharModalSuporte()"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -206,7 +206,7 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold text-secondary small">MÓDULO AFETADO</label>
                         <select class="form-select" [(ngModel)]="ticket.paginaOrigem">
-                            <option *ngFor="let mod of modulosGestorFlow" [value]="mod">{{ mod }}</option>
+                            <option *ngFor="let mod of modulosTreasuryFollow" [value]="mod">{{ mod }}</option>
                         </select>
                     </div>
 

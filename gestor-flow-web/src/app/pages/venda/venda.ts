@@ -106,6 +106,12 @@ export class VendasComponent implements OnInit, AfterViewInit {
       this.listaVendas = vendasAtualizadas;
       this.cd.detectChanges();
     });
+
+    // 🚀 A MÁGICA DO P1-01: Ficar "à escuta" da Single Source of Truth dos Clientes
+    this.clienteService.clientes$.subscribe(clientesAtualizados => {
+      this.listaClientes = clientesAtualizados;
+      this.cd.detectChanges(); // Avisar a UI que tem de se redesenhar
+    });
   }
 
   ngAfterViewInit() {
@@ -228,17 +234,18 @@ export class VendasComponent implements OnInit, AfterViewInit {
 
   carregarTudo() {
     this.vendaService.carregarVendasDaAPI();
+    // 🚀 Iniciar o carregamento inteligente dos clientes (se a cache estiver vazia, ele vai à BD)
+    this.clienteService.carregarClientesDaAPI();
 
     forkJoin({
       artigos: this.artigoService.listar(),
-      clientes: this.clienteService.listar(),
+      // Removemos a chamada direta aos clientes daqui, pois já estamos "à escuta" do Subject
       centros: this.analiticaService.listarCentros(),
       seccoes: this.analiticaService.listarSeccoes(),
       taxas: this.ivaService.listar() 
     }).subscribe({
       next: (res) => {
         this.listaArtigos = res.artigos.content || [];
-        this.listaClientes = res.clientes.content || [];
         this.listaCentros = res.centros;
         this.listaSeccoes = res.seccoes;
         this.listaTaxasIva = res.taxas;

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO
+import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http'; // 🚀 IMPORT OBRIGATÓRIO
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { ContaBancaria, Movimento, DocumentoPendente } from '../core/models/tesouraria.model';
 import { environment } from '../../environments/environment';
@@ -60,6 +60,9 @@ export class TesourariaService {
   private extratosCache = new Map<number, Movimento[]>();
   
   private contaAtivaId: number | null = null;
+  
+  // 🚀 ADICIONADO: Flag de segurança para não apagar a UI e evitar SPAM de HTTP GET
+  private contasCarregadas = false;
 
   constructor(
     private http: HttpClient,
@@ -91,11 +94,17 @@ export class TesourariaService {
   // --- FUNÇÕES CORE DA TESOURARIA ---
   // =========================================================================
 
-  carregarContasDaAPI(): void {
+  carregarContasDaAPI(forcarRecarregamento: boolean = false): void {
+    // 🚀 BLOQUEIO: Se já carregou e não estamos a forçar, devolvemos a cache imediatamente!
+    if (this.contasCarregadas && !forcarRecarregamento) {
+      return; 
+    }
+
     this.http.get<ContaBancaria[]>(`${this.API_URL}/contas`).subscribe({
       next: (dados) => {
         this.contasSubject.next(dados);
-        this.logService.debug('Contas bancárias carregadas com sucesso.', dados.length)
+        this.contasCarregadas = true; // 🚀 Marca como carregado
+        this.logService.debug('Contas bancárias carregadas com sucesso.', dados.length);
       },
       error: (e) => this.logService.error('Erro ao carregar contas:', e)
     });
@@ -195,9 +204,11 @@ export class TesourariaService {
     return this.http.get<DocumentoPendente[]>(`${this.API_URL}/pendentes`);
   }
 
-  // 🚀 CORRIGIDO: Uso do DTO de confirmação
-  confirmarTransacao(dados: ConfirmacaoPagamentoDTO): Observable<void> {
-    return this.http.post<void>(`${this.API_URL}/confirmar-pagamento`, dados).pipe(
+  // 🚀 CORRIGIDO: Uso do DTO de confirmação e injeção da chave de Idempotência
+  confirmarTransacao(dados: ConfirmacaoPagamentoDTO, idempotencyKey: string): Observable<void> {
+    const headers = new HttpHeaders().set('Idempotency-Key', idempotencyKey);
+    
+    return this.http.post<void>(`${this.API_URL}/confirmar-pagamento`, dados, { headers }).pipe(
       tap(() => this.notificarNovaTransacao())
     );
   }
@@ -209,7 +220,7 @@ export class TesourariaService {
   }
 
   notificarNovaTransacao(): void {
-    this.carregarContasDaAPI(); 
+    this.carregarContasDaAPI(true); // 🚀 Passa 'true' para forçar ir à BD buscar os novos saldos
     this.extratosCache.clear(); 
     
     if(this.contaAtivaId) {

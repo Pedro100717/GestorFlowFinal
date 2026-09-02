@@ -62,6 +62,18 @@ export class OrcamentosComponent implements OnInit {
       this.listaContas = contas;
       this.cd.detectChanges();
     });
+
+    // 🚀 A MÁGICA DO P1-01: "Escutar" os Clientes em tempo real
+    this.clienteService.clientes$.subscribe(clientesAtualizados => {
+      this.listaClientes = clientesAtualizados;
+      this.cd.detectChanges();
+    });
+
+    // 🚀 A MÁGICA DO P1-01: "Escutar" os Artigos em tempo real
+    this.artigoService.artigos$.subscribe(artigosAtualizados => {
+      this.listaArtigos = artigosAtualizados;
+      this.cd.detectChanges();
+    });
   }
 
   inicializarFormulario() {
@@ -82,15 +94,9 @@ export class OrcamentosComponent implements OnInit {
     this.orcamentoService.carregarOrcamentosDaAPI();
     this.tesourariaService.carregarContasDaAPI(); 
 
-    this.clienteService.listar().subscribe({
-      next: (d: any) => this.listaClientes = d.content || d, // 🚀 Tipagem resolvida
-      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar clientes no Orçamento', e)
-    });
-    
-    this.artigoService.listar().subscribe({
-      next: (d: any) => this.listaArtigos = d.content || d, // 🚀 Tipagem resolvida
-      error: (e: HttpErrorResponse) => this.logService.error('Erro ao carregar artigos no Orçamento', e)
-    });
+    // 🚀 Iniciar os carregamentos inteligentes (só vão à BD se a cache estiver vazia)
+    this.clienteService.carregarClientesDaAPI();
+    this.artigoService.carregarArtigosDaAPI();
 
     // 🚀 BATE NO SERVIÇO CORRETO E COM A TIPAGEM RESOLVIDA
     this.ivaService.listar().subscribe({

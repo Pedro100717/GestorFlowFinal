@@ -37,7 +37,7 @@ export class ClientesComponent implements OnInit {
   cabecalhosExcel: string[] = []; 
   dadosBrutosExcel: Record<string, string | number>[] = []; 
   clientesPreVisualizacao: ClientePreVisualizacao[] = []; 
-  dragOver: boolean = false; // 🚀 Controlo visual do Drag & Drop
+  dragOver: boolean = false; 
   
   mapeamento: Record<string, string> = {
     nome: '',
@@ -168,7 +168,6 @@ export class ClientesComponent implements OnInit {
     modal.show();
   }
 
-  // --- EVENTOS DO DRAG & DROP ---
   aoArrastarPorCima(event: DragEvent): void {
     event.preventDefault(); 
     event.stopPropagation();
@@ -192,7 +191,6 @@ export class ClientesComponent implements OnInit {
     }
   }
 
-  // --- O CLIQUE NORMAL NO INPUT ---
   lerFicheiroExcel(event: Event): void {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
@@ -200,7 +198,6 @@ export class ClientesComponent implements OnInit {
     }
   }
 
-  // --- O MOTOR CENTRAL DO SHEETJS ---
   private extrairDadosDoFicheiro(ficheiro: File): void {
     const extensao = ficheiro.name.split('.').pop()?.toLowerCase();
     if (extensao !== 'xlsx' && extensao !== 'xls' && extensao !== 'csv') {
@@ -239,6 +236,15 @@ export class ClientesComponent implements OnInit {
       return;
     }
 
+    // 🚀 CORREÇÃO P1-06: Barreira de segurança em TS contra colunas duplicadas
+    const valoresMapeados = Object.values(this.mapeamento).filter(val => val !== '');
+    const temDuplicados = new Set(valoresMapeados).size !== valoresMapeados.length;
+
+    if (temDuplicados) {
+      Swal.fire('Atenção', 'Não pode mapear a mesma coluna do ficheiro para múltiplos campos.', 'warning');
+      return;
+    }
+
     this.clientesPreVisualizacao = this.dadosBrutosExcel.map((linhaAtual, index) => {
       const cliente: ClientePreVisualizacao = {
         linhaExcel: index + 2,
@@ -262,7 +268,6 @@ export class ClientesComponent implements OnInit {
       if (this.mapeamento['morada'] && linhaAtual[this.mapeamento['morada']]) 
         cliente.morada = String(linhaAtual[this.mapeamento['morada']]).trim();
 
-      // Regras de negócio (Simplificadas para o frontend)
       if (!cliente.nome) {
         cliente.valido = false;
         cliente.erros.push('Nome em falta');

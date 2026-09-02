@@ -136,6 +136,12 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
     this.inicializarFormularios();
 
     this.tesourariaService.contas$.subscribe(contas => {
+      // 🚀 DEFESA: Se o array for vazio e for a emissão inicial do BehaviorSubject, ignora!
+      // (Só ignora se a lista atual tiver coisas, para não apagar a interface)
+      if (contas.length === 0 && this.listaContas.length > 0) {
+          return; 
+      }
+
       this.listaContas = contas;
       if (this.contaSelecionada) {
         this.contaSelecionada = contas.find(c => c.id === this.contaSelecionada!.id) || null;
@@ -877,11 +883,15 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
 
   confirmarTransacao() {
     if (this.formConfirmacao.invalid || !this.docParaConfirmar) return;
+
+    // 🚀 A MÁGICA: O Angular gera a chave de segurança única agora mesmo!
+    const idempotencyKey = crypto.randomUUID();
+
     this.tesourariaService.confirmarTransacao({
       ...this.formConfirmacao.value,
       documentoId: this.docParaConfirmar.id,
       tipoDocumento: this.docParaConfirmar.tipo
-    }).subscribe({
+    }, idempotencyKey).subscribe({ // <-- 🚀 Passamos a chave como 2º argumento
       next: () => {
         this.logService.info(`Documento pendente liquidado: ID ${this.docParaConfirmar?.id}`);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Liquidado!', timer: 2000 });
@@ -890,8 +900,17 @@ export class TesourariaComponent implements OnInit, AfterViewInit {
         if (this.abaAtiva === 'simulador') this.carregarSimulador();
       },
       error: (e: HttpErrorResponse) => {
-        this.logService.error('Erro ao confirmar transação de pagamento', e);
-        Swal.fire('Erro', 'Não foi possível efetuar o pagamento.', 'error');
+        // Se o Java disparar a nossa nova exceção de Idempotência (409 Conflict ou 400 Bad Request com a tua mensagem), tratamos com elegância
+        if (e.error && typeof e.error === 'string' && e.error.includes('processamento')) {
+           this.logService.warn('Duplo clique intercetado pela idempotência.', e);
+           // Como já está a ser tratado, podemos simplesmente fechar o modal ou avisar subtilmente
+           Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Pagamento já processado.', timer: 2000 });
+           bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'))?.hide();
+           this.carregarDadosIniciais();
+        } else {
+           this.logService.error('Erro ao confirmar transação de pagamento', e);
+           Swal.fire('Erro', 'Não foi possível efetuar o pagamento.', 'error');
+        }
       }
     });
   }

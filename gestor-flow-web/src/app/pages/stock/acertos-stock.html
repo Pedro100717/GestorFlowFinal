@@ -192,29 +192,29 @@
           <div class="mb-3 bg-light p-3 rounded border" *ngIf="f['tipo'].value === 'ENTRADA' || f['tipo'].value === 'SAIDA'">
               
               <!-- CLIENTE (ENTRADA) -->
+              <!-- 🚀 CORREÇÃO P1-09: Removida a validação visual e labels de obrigatoriedade -->
               <div *ngIf="f['tipo'].value === 'ENTRADA'">
-                  <label class="form-label small fw-bold text-success">
-                      <i class="bi bi-person-down me-1"></i> Cliente (Em caso de Devolução) <span class="text-danger">*</span>
+                  <label class="form-label small fw-bold text-secondary">
+                      <i class="bi bi-person-down me-1"></i> Cliente (Opcional - Em caso de Devolução)
                   </label>
-                  <select class="form-select border-success border-opacity-50" formControlName="clienteId"
-                          [ngClass]="{ 'is-invalid': f['clienteId']?.touched && f['clienteId']?.invalid }">
-                      <option [ngValue]="null" disabled>-- Selecione um Cliente --</option>
+                  <select class="form-select border-secondary border-opacity-50" formControlName="clienteId">
+                      <option [ngValue]="null">-- Selecione um Cliente --</option>
                       <option *ngFor="let c of listaClientes" [ngValue]="c.id">{{ c.nome }}</option>
                   </select>
-                  <div class="form-text small text-muted mt-1">Obrigatório. Indica de que cliente recebeste o material.</div>
+                  <div class="form-text small text-muted mt-1">Indica de que cliente recebeste o material (se aplicável).</div>
               </div>
 
               <!-- FORNECEDOR (SAÍDA) -->
+              <!-- 🚀 CORREÇÃO P1-09: Removida a validação visual e labels de obrigatoriedade -->
               <div *ngIf="f['tipo'].value === 'SAIDA'">
-                  <label class="form-label small fw-bold text-danger">
-                      <i class="bi bi-truck me-1"></i> Fornecedor (Em caso de Devolução) <span class="text-danger">*</span>
+                  <label class="form-label small fw-bold text-secondary">
+                      <i class="bi bi-truck me-1"></i> Fornecedor (Opcional - Em caso de Devolução)
                   </label>
-                  <select class="form-select border-danger border-opacity-50" formControlName="fornecedorId"
-                          [ngClass]="{ 'is-invalid': f['fornecedorId']?.touched && f['fornecedorId']?.invalid }">
-                      <option [ngValue]="null" disabled>-- Selecione um Fornecedor --</option>
+                  <select class="form-select border-secondary border-opacity-50" formControlName="fornecedorId">
+                      <option [ngValue]="null">-- Selecione um Fornecedor --</option>
                       <option *ngFor="let f of listaFornecedores" [ngValue]="f.id">{{ f.nome }}</option>
                   </select>
-                  <div class="form-text small text-muted mt-1">Obrigatório. Indica a que fornecedor devolveste o material.</div>
+                  <div class="form-text small text-muted mt-1">Indica a que fornecedor devolveste o material (se aplicável).</div>
               </div>
           </div>
 

@@ -340,7 +340,8 @@
 
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary fw-bold px-4" [disabled]="formCompra.invalid" (click)="guardarCompra()">
+        <!-- 🚀 CORREÇÃO P1-05: Removida a limitação de disable para permitir alertar o utilizador ao clicar num estado inválido -->
+        <button type="button" class="btn btn-primary fw-bold px-4" (click)="guardarCompra()">
           <i class="bi" [ngClass]="compraEmEdicao ? 'bi-save me-2' : 'bi-check-lg me-2'"></i>
           {{ compraEmEdicao ? 'Atualizar Compra' : 'Registar Compra' }}
         </button>

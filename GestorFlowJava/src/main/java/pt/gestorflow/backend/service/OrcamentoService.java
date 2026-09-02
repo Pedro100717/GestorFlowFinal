@@ -86,7 +86,10 @@ public class OrcamentoService {
         orcamento.setDataValidade(dto.getDataValidade());
         orcamento.setNotas(dto.getNotas());
 
+        // 🚀 CORREÇÃO CIRÚRGICA P1-02: Garantir que o Hibernate limpa as linhas antigas da BD
         orcamento.getLinhas().clear();
+        orcamentoRepository.saveAndFlush(orcamento); // Força o delete das linhas órfãs antes de injetar as novas
+
         processarLinhasOrcamento(orcamento, dto, utilizadorId);
 
         Orcamento atualizado = orcamentoRepository.save(orcamento);

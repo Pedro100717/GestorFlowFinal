@@ -25,11 +25,15 @@ public class MovimentoStockController {
     // 🛡️ 201 CREATED: O padrão correto para novos registos na BD
     @Operation(summary = "Registar Acerto Manual", description = "Cria um movimento de stock manual (entrada ou saída) para correção de inventário.")
     @PostMapping("/acerto")
-    public ResponseEntity<MovimentoStockResponseDTO> registarAcerto(@Valid @RequestBody MovimentoStockDTO dto) {
-        log.info("Auditoria de Armazém: Pedido HTTP POST recebido para Acerto de Stock. Mercadoria ID: {}, Tipo: {}, Quantidade: {}",
-                dto.getMercadoriaId(), dto.getTipo(), dto.getQuantidade());
+    public ResponseEntity<MovimentoStockResponseDTO> registarAcerto(
+            @RequestHeader(value = "Idempotency-Key") String idempotencyKey, // 🚀 A CHAVE ENTRA AQUI
+            @Valid @RequestBody MovimentoStockDTO dto) {
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.registarAcerto(dto));
+        log.info("Auditoria de Armazém: Pedido HTTP POST recebido para Acerto de Stock. Mercadoria ID: {}, Tipo: {}, Quantidade: {} (Chave: {})",
+                dto.getMercadoriaId(), dto.getTipo(), dto.getQuantidade(), idempotencyKey);
+
+        // Passamos a chave para o serviço!
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.registarAcerto(dto, idempotencyKey));
     }
 
     // 🛡️ ADICIONADO: Essencial para o Angular abrir o detalhe de um movimento específico

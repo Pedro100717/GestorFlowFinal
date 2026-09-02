@@ -152,6 +152,7 @@
         </div>
 
         <!-- PASSO 2: MAPEAMENTO DE COLUNAS -->
+        <!-- 🚀 CORREÇÃO P1-06: Impede seleções duplicadas com a lógica de disabled -->
         <div *ngIf="passoImportacao === 2">
           <div class="alert alert-info border-0 shadow-sm mb-4">
             <i class="bi bi-info-circle-fill me-2"></i>
@@ -167,7 +168,11 @@
                   <label class="form-label small fw-bold">Nome <span class="text-danger">*</span></label>
                   <select class="form-select" [(ngModel)]="mapeamento['nome']">
                     <option value="">-- Selecione a coluna do ficheiro --</option>
-                    <option *ngFor="let col of cabecalhosExcel" [value]="col">{{ col }}</option>
+                    <option *ngFor="let col of cabecalhosExcel" 
+                            [value]="col"
+                            [disabled]="col !== mapeamento['nome'] && col === mapeamento['codigo']">
+                      {{ col }}
+                    </option>
                   </select>
                 </div>
 
@@ -176,7 +181,11 @@
                   <label class="form-label small fw-bold">Código (Opcional)</label>
                   <select class="form-select" [(ngModel)]="mapeamento['codigo']">
                     <option value="">(Gerar Automaticamente pelo Sistema)</option>
-                    <option *ngFor="let col of cabecalhosExcel" [value]="col">{{ col }}</option>
+                    <option *ngFor="let col of cabecalhosExcel" 
+                            [value]="col"
+                            [disabled]="col !== mapeamento['codigo'] && col === mapeamento['nome']">
+                      {{ col }}
+                    </option>
                   </select>
                 </div>
 

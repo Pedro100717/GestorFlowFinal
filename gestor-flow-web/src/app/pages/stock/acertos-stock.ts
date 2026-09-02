@@ -66,23 +66,19 @@ export class AcertosStockComponent implements OnInit {
       this.cd.detectChanges();
     });
 
-    // OUVINTE DINÂMICO PARA AS VALIDAÇÕES OBRIGATÓRIAS
+    // 🚀 CORREÇÃO P1-09: O ouvinte dinâmico que forçava a validação (Validators.required)
+    // nos campos de cliente e fornecedor foi totalmente removido daqui.
+    
+    // Apenas mantemos o ouvinte para limpar o valor cruzado.
     this.formAcerto.get('tipo')?.valueChanges.subscribe(tipoSelecionado => {
         const controlCliente = this.formAcerto.get('clienteId');
         const controlFornecedor = this.formAcerto.get('fornecedorId');
 
         if (tipoSelecionado === 'ENTRADA') {
-            controlCliente?.setValidators([Validators.required]);
-            controlFornecedor?.clearValidators();
             controlFornecedor?.setValue(null);
         } else if (tipoSelecionado === 'SAIDA') {
-            controlFornecedor?.setValidators([Validators.required]);
-            controlCliente?.clearValidators();
             controlCliente?.setValue(null);
         }
-
-        controlCliente?.updateValueAndValidity();
-        controlFornecedor?.updateValueAndValidity();
     });
   }
 
@@ -92,7 +88,8 @@ export class AcertosStockComponent implements OnInit {
       tipo: ['ENTRADA', [Validators.required]],
       quantidade: [1, [Validators.required, Validators.min(0.001)]],
       motivo: ['', [Validators.required]],
-      clienteId: [null, [Validators.required]],
+      // 🚀 CORREÇÃO P1-09: Removidos os Validators.required dos campos de cliente e fornecedor
+      clienteId: [null],
       fornecedorId: [null]
     });
   }
@@ -185,10 +182,14 @@ export class AcertosStockComponent implements OnInit {
     }
   }
 
-  private executarRegisto(formValues: Record<string, any>) { // 🚀 RECORD EM VEZ DE ANY SOLTO
-    this.stockService.registarAcerto(formValues).subscribe({
+  private executarRegisto(formValues: Record<string, any>) { 
+    // 🚀 A MÁGICA: O Angular gera a chave de segurança única agora mesmo!
+    const idempotencyKey = crypto.randomUUID();
+
+    // 🚀 Passamos a chave como 2º argumento
+    this.stockService.registarAcerto(formValues, idempotencyKey).subscribe({
       next: (novoAcerto) => {
-        this.logService.info(`Acerto de stock registado para o artigo ID ${formValues['mercadoriaId']}. Tipo: ${formValues['tipo']}`); // 🚀 CAIXA NEGRA
+        this.logService.info(`Acerto de stock registado para o artigo ID ${formValues['mercadoriaId']}. Tipo: ${formValues['tipo']}`);
         this.artigoService.atualizarStockNaMemoria(formValues['mercadoriaId']!, novoAcerto.stockAposMovimento!);
         
         const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
@@ -196,14 +197,22 @@ export class AcertosStockComponent implements OnInit {
         
         bootstrap.Modal.getInstance(document.getElementById('modalAcerto'))?.hide();
       },
-      error: (e: HttpErrorResponse) => { // 🚀 TIPAGEM ESTRITA
-        this.logService.error('Falha ao registar o acerto de stock', e); // 🚀 CAIXA NEGRA
-        Swal.fire({
-          icon: 'error',
-          title: 'Erro ao guardar',
-          text: e.error?.message || 'Verifica os dados e tenta novamente.',
-          confirmButtonColor: '#0d6efd'
-        });
+      error: (e: HttpErrorResponse) => { 
+        // Se o Java disparar a nossa exceção de Idempotência, tratamos com elegância
+        if (e.error && typeof e.error === 'string' && e.error.includes('processamento')) {
+           this.logService.warn('Duplo clique de stock intercetado pela idempotência.', e);
+           Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Acerto já processado.', timer: 2000 });
+           bootstrap.Modal.getInstance(document.getElementById('modalAcerto'))?.hide();
+           this.carregarDadosIniciais();
+        } else {
+           this.logService.error('Falha ao registar o acerto de stock', e); 
+           Swal.fire({
+             icon: 'error',
+             title: 'Erro ao guardar',
+             text: e.error?.message || 'Verifica os dados e tenta novamente.',
+             confirmButtonColor: '#0d6efd'
+           });
+        }
       }
     });
   }

@@ -248,6 +248,15 @@ export class CentrosCustoComponent implements OnInit {
       return;
     }
 
+    // 🚀 CORREÇÃO P1-06: Barreira de segurança em TS contra colunas duplicadas
+    const valoresMapeados = Object.values(this.mapeamento).filter(val => val !== '');
+    const temDuplicados = new Set(valoresMapeados).size !== valoresMapeados.length;
+
+    if (temDuplicados) {
+      Swal.fire('Atenção', 'Não pode mapear a mesma coluna do ficheiro para múltiplos campos.', 'warning');
+      return;
+    }
+
     this.centrosPreVisualizacao = this.dadosBrutosExcel.map((linhaAtual, index) => {
       const centro: CentroPreVisualizacao = {
         linhaExcel: index + 2,

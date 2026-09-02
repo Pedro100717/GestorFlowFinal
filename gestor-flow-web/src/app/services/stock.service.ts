@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http'; // 🚀 OBRIGATÓRIO: HttpParams
+import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http'; // 🚀 OBRIGATÓRIO: HttpParams
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { MovimentoStock } from '../core/models/stock.model';
 import { environment } from '../../environments/environment';
@@ -59,8 +59,10 @@ export class StockService {
   }
 
   // 🚀 CORRIGIDO: Partial para aceitar apenas os dados preenchidos no form
-  registarAcerto(acerto: Partial<MovimentoStock>): Observable<MovimentoStock> {
-    return this.http.post<MovimentoStock>(`${this.API_URL}/acerto`, acerto).pipe(
+  registarAcerto(acerto: Partial<MovimentoStock>, idempotencyKey: string): Observable<MovimentoStock> {
+    const headers = new HttpHeaders().set('Idempotency-Key', idempotencyKey);
+    
+    return this.http.post<MovimentoStock>(`${this.API_URL}/acerto`, acerto, { headers }).pipe(
       tap((novoAcerto) => {
         const historicoAtual = this.historicoSubject.getValue();
         this.historicoSubject.next([novoAcerto, ...historicoAtual]);

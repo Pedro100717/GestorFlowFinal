@@ -14,9 +14,9 @@ public class ConfirmarPagamentoDTO {
     @NotNull(message = "O ID do documento é obrigatório.")
     private Long documentoId;
 
-    // 🚀 BLINDAGEM ESTRETA: Só aceita as palavras exatas "COMPRA" ou "VENDA"
+    // 🚀 A BARREIRA FOI ALARGADA: Agora aceita os fluxos todos de Tesouraria
     @NotBlank(message = "O tipo de documento é obrigatório.")
-    @Pattern(regexp = "^(COMPRA|VENDA)$", message = "O tipo de documento tem de ser estritamente 'COMPRA' ou 'VENDA'.")
+    @Pattern(regexp = "^(COMPRA|VENDA|RECEITA|DESPESA)$", message = "O tipo de documento tem de ser estritamente COMPRA, VENDA, RECEITA ou DESPESA.")
     private String tipoDocumento;
 
     @NotNull(message = "A conta bancária é obrigatória para a liquidação.")

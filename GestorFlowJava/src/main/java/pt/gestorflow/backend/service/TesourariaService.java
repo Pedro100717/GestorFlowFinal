@@ -1,6 +1,7 @@
 package pt.gestorflow.backend.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j; // 🚀 Logger ativado
@@ -33,6 +34,7 @@ public class TesourariaService {
     private final MovimentoPlaneadoRepository movimentoPlaneadoRepository;
     private final AuthService authService;
     private final DocumentoTesourariaRepository documentoTesourariaRepository;
+    private final ChaveIdempotenciaRepository chaveIdempotenciaRepository;
 
     // =========================================================================
     // --- 1. SIMULADOR DE TESOURARIA (HORIZONTE ELÁSTICO) ---
@@ -320,12 +322,28 @@ public class TesourariaService {
     }
 
     @Transactional
-    public void confirmarTransacao(ConfirmarPagamentoDTO dto) {
+    public void confirmarTransacao(ConfirmarPagamentoDTO dto, String idempotencyKey) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        log.info("Ação Financeira: O utilizador ID: {} confirmou o pagamento do documento {} (ID: {}). Valor: {}",
-                utilizadorId, dto.getTipoDocumento(), dto.getDocumentoId(), dto.getValorAPagar());
+        log.info("Ação Financeira: Utilizador ID: {} iniciou liquidação do documento {} (ID: {}). Chave: {}",
+                utilizadorId, dto.getTipoDocumento(), dto.getDocumentoId(), idempotencyKey);
 
+        // =========================================================================
+        // 🚀 DEFESA 1: BLOQUEIO ATÓMICO NA BASE DE DADOS (Contra o Duplo Clique)
+        // =========================================================================
+        try {
+            ChaveIdempotencia chave = new ChaveIdempotencia(idempotencyKey, utilizadorId, LocalDateTime.now());
+            // Usamos saveAndFlush para disparar a query de INSERT instantaneamente.
+            // Se já lá estiver uma igual, rebenta com DataIntegrityViolationException.
+            chaveIdempotenciaRepository.saveAndFlush(chave);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("BLOQUEIO ATÓMICO: Tentativa de transação duplicada detetada. Chave: {}", idempotencyKey);
+            throw new IllegalStateException("Este pagamento já se encontra em processamento ou foi concluído.");
+        }
+
+        // =========================================================================
+        // 🚀 O FLUXO NORMAL COMEÇA AQUI (Já com a chave trancada e segura)
+        // =========================================================================
         Utilizador user = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
         ContaBancaria conta = contaRepository.findByIdAndUtilizadorId(dto.getContaBancariaId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Conta não encontrada."));
 
@@ -337,8 +355,18 @@ public class TesourariaService {
 
         if ("VENDA".equalsIgnoreCase(dto.getTipoDocumento())) {
             Venda venda = vendaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Venda não encontrada."));
-            venda.setValorPago(venda.getValorPago().add(valorPagamento));
-            venda.setEstadoPagamento(venda.getValorPago().compareTo(venda.getTotalComIva()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+
+            // 🚀 DEFESA 2: VALIDAÇÃO DO ESTADO (Para evitar que superem o limite pendente)
+            if (venda.getEstadoPagamento() == EstadoPagamento.PAGO) {
+                throw new IllegalStateException("Esta venda já se encontra totalmente liquidada.");
+            }
+            BigDecimal novoValorPago = venda.getValorPago().add(valorPagamento);
+            if (novoValorPago.compareTo(venda.getTotalComIva()) > 0) {
+                throw new IllegalArgumentException("O valor a pagar excede o total pendente da venda.");
+            }
+
+            venda.setValorPago(novoValorPago);
+            venda.setEstadoPagamento(novoValorPago.compareTo(venda.getTotalComIva()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
             venda.setContaBancaria(conta);
             vendaRepository.save(venda);
 
@@ -349,8 +377,18 @@ public class TesourariaService {
 
         } else if ("COMPRA".equalsIgnoreCase(dto.getTipoDocumento())) {
             Compra compra = compraRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId).orElseThrow(() -> new EntityNotFoundException("Compra não encontrada."));
-            compra.setValorPago(compra.getValorPago().add(valorPagamento));
-            compra.setEstadoPagamento(compra.getValorPago().compareTo(compra.getTotal()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+
+            // 🚀 DEFESA 2: VALIDAÇÃO DO ESTADO
+            if (compra.getEstadoPagamento() == EstadoPagamento.PAGO) {
+                throw new IllegalStateException("Esta compra já se encontra totalmente liquidada.");
+            }
+            BigDecimal novoValorPago = compra.getValorPago().add(valorPagamento);
+            if (novoValorPago.compareTo(compra.getTotal()) > 0) {
+                throw new IllegalArgumentException("O valor a pagar excede o total pendente da compra.");
+            }
+
+            compra.setValorPago(novoValorPago);
+            compra.setEstadoPagamento(novoValorPago.compareTo(compra.getTotal()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
             compra.setContaBancaria(conta);
             compraRepository.save(compra);
 
@@ -363,9 +401,17 @@ public class TesourariaService {
             DocumentoTesouraria doc = documentoTesourariaRepository.findByIdAndUtilizadorId(dto.getDocumentoId(), utilizadorId)
                     .orElseThrow(() -> new EntityNotFoundException("Documento de Tesouraria não encontrado."));
 
-            doc.setValorPago(doc.getValorPago().add(valorPagamento));
-            doc.setEstadoPagamento(doc.getValorPago().compareTo(doc.getValorTotal()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
+            // 🚀 DEFESA 2: VALIDAÇÃO DO ESTADO
+            if (doc.getEstadoPagamento() == EstadoPagamento.PAGO) {
+                throw new IllegalStateException("Este documento de tesouraria já se encontra totalmente liquidado.");
+            }
+            BigDecimal novoValorPago = doc.getValorPago().add(valorPagamento);
+            if (novoValorPago.compareTo(doc.getValorTotal()) > 0) {
+                throw new IllegalArgumentException("O valor a pagar excede o total pendente do documento.");
+            }
 
+            doc.setValorPago(novoValorPago);
+            doc.setEstadoPagamento(novoValorPago.compareTo(doc.getValorTotal()) >= 0 ? EstadoPagamento.PAGO : EstadoPagamento.PARCIALMENTE_PAGO);
             documentoTesourariaRepository.save(doc);
 
             mov.setTipo(doc.getTipo() == TipoMovimentoPlaneado.ENTRADA ? Movimento.TipoMovimento.CREDITO : Movimento.TipoMovimento.DEBITO);
@@ -378,16 +424,13 @@ public class TesourariaService {
             } else {
                 conta.setSaldo(conta.getSaldo().subtract(valorPagamento));
             }
-
-        } else {
-            throw new IllegalArgumentException("Tipo de documento inválido para liquidação: " + dto.getTipoDocumento());
         }
 
         mov.setSaldoApos(conta.getSaldo());
         contaRepository.save(conta);
         movimentoRepository.save(mov);
 
-        log.debug("Liquidação processada com sucesso.");
+        log.debug("Liquidação processada com sucesso. (Idempotência garantida)");
     }
 
     @Transactional

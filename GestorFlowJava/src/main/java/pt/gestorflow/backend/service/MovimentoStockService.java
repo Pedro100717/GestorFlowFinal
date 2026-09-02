@@ -27,15 +27,29 @@ public class MovimentoStockService {
     private final ArtigoRepository artigoRepository;
     private final UtilizadorRepository utilizadorRepository;
     private final AuthService authService;
+    private final pt.gestorflow.backend.repository.ChaveIdempotenciaRepository chaveIdempotenciaRepository;
 
     @Transactional
-    public MovimentoStockResponseDTO registarAcerto(MovimentoStockDTO dto) {
+    public MovimentoStockResponseDTO registarAcerto(MovimentoStockDTO dto, String idempotencyKey) {
         Long utilizadorId = authService.getUtilizadorAutenticadoId();
 
-        // 🛡️ INFO: Registo de Auditoria Anti-Fraude!
-        log.info("Auditoria: O utilizador ID: {} está a tentar um acerto manual de stock ({}) para o artigo ID: {}. Quantidade: {}",
-                utilizadorId, dto.getTipo(), dto.getMercadoriaId(), dto.getQuantidade());
+        log.info("Auditoria: O utilizador ID: {} está a tentar um acerto manual de stock ({}) para o artigo ID: {}. Quantidade: {}. Chave: {}",
+                utilizadorId, dto.getTipo(), dto.getMercadoriaId(), dto.getQuantidade(), idempotencyKey);
 
+        // =========================================================================
+        // 🚀 DEFESA: BLOQUEIO ATÓMICO NA BASE DE DADOS (Contra o Duplo Clique)
+        // =========================================================================
+        try {
+            ChaveIdempotencia chave = new ChaveIdempotencia(idempotencyKey, utilizadorId, LocalDateTime.now());
+            chaveIdempotenciaRepository.saveAndFlush(chave);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.warn("BLOQUEIO ATÓMICO STOCK: Tentativa de acerto de stock duplicada detetada. Chave: {}", idempotencyKey);
+            throw new IllegalStateException("Este acerto de stock já se encontra em processamento ou foi concluído.");
+        }
+
+        // =========================================================================
+        // O FLUXO DE NEGÓCIO SEGURO
+        // =========================================================================
         Utilizador user = utilizadorRepository.findById(utilizadorId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilizador não encontrado."));
 
@@ -43,7 +57,6 @@ public class MovimentoStockService {
                 .orElseThrow(() -> new EntityNotFoundException("Artigo não encontrado ou acesso negado."));
 
         if (!(artigo instanceof Mercadoria mercadoria)) {
-            // 🚀 Corrigido para IllegalArgumentException e com log.warn silencioso
             log.warn("Bloqueada tentativa de acerto de stock num Serviço (Artigo ID: {}) pelo Utilizador ID: {}", dto.getMercadoriaId(), utilizadorId);
             throw new IllegalArgumentException("Apenas mercadorias possuem controlo de stock.");
         }

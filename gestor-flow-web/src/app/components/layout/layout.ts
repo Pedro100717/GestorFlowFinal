@@ -53,7 +53,7 @@ export class LayoutComponent implements OnInit {
   };
 
   // 🚀 LISTA DE MÓDULOS AMIGÁVEIS PARA O DROPDOWN
-  modulosGestorFlow = [
+  modulosTreasuryFollow = [
     'Dashboard Principal',
     'Gestão de Artigos',
     'Gestão de Clientes',
@@ -187,7 +187,7 @@ export class LayoutComponent implements OnInit {
         
         Swal.fire({
           title: 'Enviado!',
-          text: 'A tua mensagem foi enviada com sucesso. A equipa GestorFlow vai analisar em breve.',
+          text: 'A tua mensagem foi enviada com sucesso. A equipa TreasuryFollow vai analisar em breve.',
           icon: 'success',
           confirmButtonColor: '#10b981'
         });

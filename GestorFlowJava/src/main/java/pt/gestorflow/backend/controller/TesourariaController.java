@@ -97,11 +97,16 @@ public class TesourariaController {
 
     @Operation(summary = "Confirmar Pagamento/Recebimento", description = "Liquida um documento pendente (fatura ou compra), injetando o movimento na conta bancária selecionada.")
     @PostMapping("/confirmar-pagamento")
-    public ResponseEntity<Void> confirmarPagamento(@Valid @RequestBody ConfirmarPagamentoDTO dto) {
-        log.info("Auditoria de Tesouraria: Liquidação confirmada para o Documento Tipo: {}, ID: {}. (Valor pago: {})",
-                dto.getTipoDocumento(), dto.getDocumentoId(), dto.getValorAPagar());
+    public ResponseEntity<Void> confirmarPagamento(
+            @RequestHeader(value = "Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody ConfirmarPagamentoDTO dto) {
 
-        service.confirmarTransacao(dto);
+        log.info("Auditoria de Tesouraria: Liquidação recebida para o Documento Tipo: {}, ID: {}. (Chave de Idempotência: {})",
+                dto.getTipoDocumento(), dto.getDocumentoId(), idempotencyKey);
+
+        // 🚀 Passamos a chave para o cérebro da operação!
+        service.confirmarTransacao(dto, idempotencyKey);
+
         return ResponseEntity.ok().build();
     }
 

@@ -24,43 +24,49 @@ export class ClienteService {
   // --- O NOVO COFRE DOS CLIENTES ---
   private clientesSubject = new BehaviorSubject<Cliente[]>([]);
   public clientes$ = this.clientesSubject.asObservable();
+  
+  // 🚀 ADICIONADO: Flag de segurança contra o "pisca-pisca" e spam de rede
+  private clientesCarregados = false;
 
   constructor(
     private http: HttpClient,
     private logService: LogService
   ) { }
 
-  // 1. Encher o Cofre (Usado pelo ecrã de Gestão de Clientes)
-  // 🚀 ADICIONADO: Paginação para garantir que vêm todos (ex: tamanho=1000)
-  carregarClientesDaAPI(pagina: number = 0, tamanho: number = 1000): void {
+  // 1. Encher o Cofre (Usado pelo ecrã de Gestão de Clientes e listagens reativas)
+  carregarClientesDaAPI(forcarRecarregamento: boolean = false, pagina: number = 0, tamanho: number = 1000): void {
+    // 🚀 BLOQUEIO: Se já carregou e não estamos a forçar, não vai sobrecarregar a base de dados
+    if (this.clientesCarregados && !forcarRecarregamento) {
+        return;
+    }
+
     this.http.get<Page<Cliente>>(`${this.API_URL}?page=${pagina}&size=${tamanho}`).subscribe({
       next: (dados) => {
         const lista = dados.content || [];
         this.clientesSubject.next(lista);
+        this.clientesCarregados = true; // 🚀 Marca a cache como preenchida
         this.logService.debug('Clientes carregados para a memória com sucesso.', lista.length)
       },
       error: (err) => this.logService.error('Erro ao carregar clientes:', err)
     });
   }
 
-  // 2. Listar Clássico (Mantido para as dropdowns do ecrã de Vendas)
-  // 🚀 TIPAGEM CORRIGIDA: Devolve uma Page de Clientes
+  // 2. Listar Clássico (Mantido para compatibilidade, mas o ideal é usar o clientes$)
   listar(pagina: number = 0, tamanho: number = 100): Observable<Page<Cliente>> {
     return this.http.get<Page<Cliente>>(`${this.API_URL}?page=${pagina}&size=${tamanho}`);
   }
 
-  // 🚀 2.1 ADICIONADO: O espelho do GET /{id} do Backend
+  // 2.1 O espelho do GET /{id} do Backend
   buscarPorId(id: number): Observable<Cliente> {
     return this.http.get<Cliente>(`${this.API_URL}/${id}`);
   }
 
   // 3. Criar (Atualiza a memória na hora)
-  // 🚀 TIPAGEM: Partial<Cliente> porque o novo cliente ainda não tem ID
   criar(cliente: Partial<Cliente>): Observable<Cliente> {
     return this.http.post<Cliente>(this.API_URL, cliente).pipe(
       tap((novoCliente) => {
         const lista = this.clientesSubject.getValue();
-        this.clientesSubject.next([novoCliente, ...lista]); // Adiciona ao topo da lista
+        this.clientesSubject.next([novoCliente, ...lista]); // Adiciona ao topo da lista visual
       })
     );
   }

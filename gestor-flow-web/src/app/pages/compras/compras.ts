@@ -82,7 +82,7 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     private fb: FormBuilder,
     private cd: ChangeDetectorRef,
     private router: Router,
-    private logService: LogService // 🚀 INJEÇÃO DO LOG SERVICE
+    private logService: LogService 
   ) {}
 
   ngOnInit() {
@@ -215,9 +215,9 @@ export class ComprasComponent implements OnInit, AfterViewInit {
         this.listaSeccoes = res.seccoes;
         this.listaTaxasIva = res.taxas;
         this.cd.detectChanges();
-        this.logService.debug('Dados auxiliares de Compras carregados com sucesso.'); // 🚀 RASTREABILIDADE
+        this.logService.debug('Dados auxiliares de Compras carregados com sucesso.'); 
       },
-      error: (err: HttpErrorResponse) => this.logService.error('Erro ao carregar dados auxiliares de Compras', err) // 🚀 ADEUS CONSOLE.ERROR
+      error: (err: HttpErrorResponse) => this.logService.error('Erro ao carregar dados auxiliares de Compras', err) 
     });
   }
 
@@ -292,7 +292,7 @@ export class ComprasComponent implements OnInit, AfterViewInit {
       if (result.isConfirmed) {
         this.compraService.eliminar(compra.id!).subscribe({
           next: () => {
-            this.logService.info(`Fatura de compra ${compra.id} eliminada com sucesso.`); // 🚀 CAIXA NEGRA
+            this.logService.info(`Fatura de compra ${compra.id} eliminada com sucesso.`); 
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Fatura eliminada e stock reposto!'});
             this.tesourariaService.notificarNovaTransacao(); 
             
@@ -301,8 +301,8 @@ export class ComprasComponent implements OnInit, AfterViewInit {
             });
           },
           error: (e: HttpErrorResponse) => {
-            this.logService.error(`Falha ao anular fatura de compra ${compra.id}`, e); // 🚀 CAIXA NEGRA
-            Swal.fire('Erro Interno', e.error?.message || 'Falha ao anular.', 'error'); // 🚀 UX
+            this.logService.error(`Falha ao anular fatura de compra ${compra.id}`, e); 
+            Swal.fire('Erro Interno', e.error?.message || 'Falha ao anular.', 'error'); 
           }
         });
       }
@@ -310,10 +310,22 @@ export class ComprasComponent implements OnInit, AfterViewInit {
   }
 
   guardarCompra() {
-    if (this.formCompra.invalid) {
+    // 🚀 CORREÇÃO P1-05: Se o formulário for inválido, em vez de bloquear silenciosamente, avisa o utilizador.
+    if (this.formCompra.invalid || this.linhas.length === 0) {
       this.formCompra.markAllAsTouched();
       this.linhas.controls.forEach(control => control.markAllAsTouched());
-      Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'error', title: 'Preenche os campos obrigatórios nas linhas!'});
+      
+      let mensagem = 'Existem campos obrigatórios por preencher ou inválidos. Verifique os campos a vermelho.';
+      if (this.linhas.length === 0) {
+        mensagem = 'Não pode guardar uma compra sem adicionar pelo menos uma linha de artigo.';
+      }
+
+      Swal.fire({ 
+        icon: 'warning', 
+        title: 'Formulário Incompleto', 
+        text: mensagem,
+        confirmButtonColor: '#0d6efd'
+      });
       return;
     }
 
@@ -328,7 +340,7 @@ export class ComprasComponent implements OnInit, AfterViewInit {
     
     operacao$.subscribe({
       next: () => {
-        this.logService.debug(this.compraEmEdicao ? `Fatura de compra ${this.compraEmEdicao.id} atualizada.` : 'Nova fatura de compra registada.'); // 🚀 RASTREABILIDADE
+        this.logService.debug(this.compraEmEdicao ? `Fatura de compra ${this.compraEmEdicao.id} atualizada.` : 'Nova fatura de compra registada.'); 
         Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: this.compraEmEdicao ? 'Atualizado com sucesso!' : 'Registado com sucesso!' });
         this.tesourariaService.notificarNovaTransacao();
         
@@ -342,8 +354,8 @@ export class ComprasComponent implements OnInit, AfterViewInit {
         modal?.hide();
       },
       error: (e: HttpErrorResponse) => {
-        this.logService.error('Falha ao guardar fatura de compra', e); // 🚀 CAIXA NEGRA
-        Swal.fire({ icon: 'error', title: 'Falha a gravar', text: e.error?.message, confirmButtonColor: '#0d6efd'}); // 🚀 UX
+        this.logService.error('Falha ao guardar fatura de compra', e); 
+        Swal.fire({ icon: 'error', title: 'Falha a gravar', text: e.error?.message, confirmButtonColor: '#0d6efd'}); 
       }
     });
   }

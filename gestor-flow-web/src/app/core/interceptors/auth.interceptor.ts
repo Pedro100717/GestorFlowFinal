@@ -1,7 +1,7 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, throwError, EMPTY } from 'rxjs'; 
+import { catchError, throwError } from 'rxjs'; 
 import Swal from 'sweetalert2'; 
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -25,26 +25,27 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
       
-      // 🚀 2. UX: Avisar o utilizador que foi expulso (Sessão Expirada)
+      // 🚀 CORREÇÃO P1-03: Lidar com a expulsão corretamente sem deixar o componente congelado
       if (error.status === 401 || error.status === 403) {
         localStorage.removeItem('token');
         
-        // Só mostramos o alerta se não estivermos já na página de login
-        if (router.url !== '/login') {
+        // Evita *spam* de modais se vários pedidos falharem ao mesmo tempo
+        if (router.url !== '/login' && !document.querySelector('.swal2-container')) {
           Swal.fire({
             icon: 'info',
             title: 'Sessão Expirada',
-            text: 'Por motivos de segurança, a sua sessão terminou. Por favor, faça login novamente.',
+            text: 'A sua sessão terminou. Por favor, faça login novamente.',
             confirmButtonColor: '#212529',
-            timer: 3000 // Fecha automaticamente após 3 segundos
+            timer: 3000
           });
+          router.navigate(['/login']);
         }
         
-        router.navigate(['/login']);
-        return EMPTY; // Corta a propagação
+        // IMPORTANTE: Devolve throwError em vez de EMPTY para avisar o componente!
+        return throwError(() => new Error('SESSAO_EXPIRADA')); 
       }
 
-      // Regra do 412 (Impecável, mantida igual)
+      // Regra do 412 
       if (error.status === 412) {
         Swal.fire({
           icon: 'warning',
@@ -58,7 +59,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             router.navigate(['/app/definicoes']);
           }
         });
-        return EMPTY; 
+        return throwError(() => new Error('CONFIGURACAO_FALTA')); // Substituído EMPTY
       }
 
       // 🚀 3. REDE DE SEGURANÇA: Backend em baixo (0) ou Erros Internos Críticos (500)
@@ -69,7 +70,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           text: 'Não foi possível ligar ao servidor. Verifique a sua internet ou tente mais tarde.',
           confirmButtonColor: '#d33'
         });
-        // Aqui deixamos passar com throwError para que o Loading Spinner do componente saiba que tem de parar
       } else if (error.status >= 500) {
         Swal.fire({
           icon: 'error',
@@ -79,7 +79,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         });
       }
 
-      // Passa o erro (400, 404, etc.) para o componente tratar especificamente, se quiser
       return throwError(() => error);
     })
   );

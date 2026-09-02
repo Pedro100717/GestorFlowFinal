@@ -191,6 +191,7 @@
         </div>
 
         <!-- PASSO 2: MAPEAMENTO DE COLUNAS (DE/PARA) -->
+        <!-- 🚀 CORREÇÃO P1-06: Impede seleções duplicadas com a lógica de disabled -->
         <div *ngIf="passoImportacao === 2">
           <div class="alert alert-info border-0 shadow-sm mb-4">
             <i class="bi bi-info-circle-fill me-2"></i>
@@ -205,7 +206,11 @@
                   <label class="form-label small fw-bold">Nome do Cliente <span class="text-danger">*</span></label>
                   <select class="form-select" [(ngModel)]="mapeamento['nome']">
                     <option value="">-- Selecione a coluna do ficheiro --</option>
-                    <option *ngFor="let col of cabecalhosExcel" [value]="col">{{ col }}</option>
+                    <option *ngFor="let col of cabecalhosExcel" 
+                            [value]="col"
+                            [disabled]="col !== mapeamento['nome'] && (col === mapeamento['nif'] || col === mapeamento['email'] || col === mapeamento['telefone'] || col === mapeamento['morada'])">
+                      {{ col }}
+                    </option>
                   </select>
                 </div>
                 
@@ -213,7 +218,11 @@
                   <label class="form-label small fw-bold">NIF (Contribuinte) <span class="text-danger">*</span></label>
                   <select class="form-select" [(ngModel)]="mapeamento['nif']">
                     <option value="">-- Selecione a coluna do ficheiro --</option>
-                    <option *ngFor="let col of cabecalhosExcel" [value]="col">{{ col }}</option>
+                    <option *ngFor="let col of cabecalhosExcel" 
+                            [value]="col"
+                            [disabled]="col !== mapeamento['nif'] && (col === mapeamento['nome'] || col === mapeamento['email'] || col === mapeamento['telefone'] || col === mapeamento['morada'])">
+                      {{ col }}
+                    </option>
                   </select>
                 </div>
 
@@ -224,7 +233,11 @@
                   <label class="form-label small fw-bold">Email</label>
                   <select class="form-select" [(ngModel)]="mapeamento['email']">
                     <option value="">(Ignorar)</option>
-                    <option *ngFor="let col of cabecalhosExcel" [value]="col">{{ col }}</option>
+                    <option *ngFor="let col of cabecalhosExcel" 
+                            [value]="col"
+                            [disabled]="col !== mapeamento['email'] && (col === mapeamento['nome'] || col === mapeamento['nif'] || col === mapeamento['telefone'] || col === mapeamento['morada'])">
+                      {{ col }}
+                    </option>
                   </select>
                 </div>
                 
@@ -232,7 +245,11 @@
                   <label class="form-label small fw-bold">Telefone</label>
                   <select class="form-select" [(ngModel)]="mapeamento['telefone']">
                     <option value="">(Ignorar)</option>
-                    <option *ngFor="let col of cabecalhosExcel" [value]="col">{{ col }}</option>
+                    <option *ngFor="let col of cabecalhosExcel" 
+                            [value]="col"
+                            [disabled]="col !== mapeamento['telefone'] && (col === mapeamento['nome'] || col === mapeamento['nif'] || col === mapeamento['email'] || col === mapeamento['morada'])">
+                      {{ col }}
+                    </option>
                   </select>
                 </div>
 
@@ -240,7 +257,11 @@
                   <label class="form-label small fw-bold">Morada</label>
                   <select class="form-select" [(ngModel)]="mapeamento['morada']">
                     <option value="">(Ignorar)</option>
-                    <option *ngFor="let col of cabecalhosExcel" [value]="col">{{ col }}</option>
+                    <option *ngFor="let col of cabecalhosExcel" 
+                            [value]="col"
+                            [disabled]="col !== mapeamento['morada'] && (col === mapeamento['nome'] || col === mapeamento['nif'] || col === mapeamento['email'] || col === mapeamento['telefone'])">
+                      {{ col }}
+                    </option>
                   </select>
                 </div>
 
